@@ -1,4 +1,4 @@
-## Interface: 70000
+## Interface: 80000
 ## Title: TotemTimers
 ## Author:  Xianghar
 ## Version: @project-version@
@@ -7,6 +7,7 @@
 ## LoadManagers: AddonLoader
 ## X-LoadOn-Class: Shaman
 ## X-Curse-Project-ID: 6384
+## X-WoWI-ID: 9481
 
 
 embeds.xml
