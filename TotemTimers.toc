@@ -1,0 +1,42 @@
+## Interface: 70000
+## Title: TotemTimers
+## Author:  Xianghar
+## Version: @project-version@
+## SavedVariables: TotemTimers_GlobalSettings, TotemTimers_Profiles
+## OptionalDeps: cyCircled, Masque, !ClassColors, rActionButtonStyler
+## LoadManagers: AddonLoader
+## X-LoadOn-Class: Shaman
+## X-Curse-Project-ID: 6384
+
+
+embeds.xml
+
+XiTimersGlobals.lua
+
+Localization.lua
+
+XiTimers/Animation.lua
+XiTimers/XiTimers.xml
+XiTimers/XiTimers.lua
+Xitimers/Functions.lua
+XiTimers/DefaultSettings.lua
+XiTimers/Settings.lua
+XiTimers/PowerBar.xml
+XiTimers/PowerBar.lua
+XiTimers/Dialogs.lua
+
+Spells.lua
+DefaultSettings.lua
+Settings.lua
+
+TotemTimers.lua
+Flameshock.lua
+
+XiTimers/GUI/General.lua
+XiTimers/GUI/Timers.lua
+XiTimers/GUI/ButtonBars.lua
+XiTimers/GUI/PowerBar.lua
+XiTimers/GUI/Profiles.lua
+
+GUI.lua
+

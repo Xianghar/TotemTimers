@@ -1,0 +1,3 @@
+cast lightning surge totem, earthgrab totem (-> disabling totem)
+show landslide as buff on rockbiter
+totem duration
