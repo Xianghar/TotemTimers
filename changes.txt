@@ -1,3 +1,5 @@
+12.2
+    - Hide addon during Arcane Leylock minigame
 12.1
     - Update for BfA
     - Fix Flameshock debuff timer
