@@ -1,4 +1,4 @@
-## Interface: 80200
+## Interface: 90002
 ## Title: TotemTimers
 ## Author:  Xianghar
 ## Version: @project-version@
