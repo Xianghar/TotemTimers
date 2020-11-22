@@ -39,6 +39,7 @@ TotemTimers.SpellIDs = {
 	WaterShieldBuff = 52128,
 	EarthShield = 974,
 
+	Reincarnation = 20608,
 	
 	GustOfWind = 192063,
 	EarthenShieldTotem = 198838,

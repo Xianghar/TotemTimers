@@ -1,6 +1,10 @@
 if select(2,UnitClass("player")) ~= "SHAMAN" then return end
 
+local _, TotemTimers = ...
+
 local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers_GUI", true)
+
+local LibDialog = LibStub:GetLibrary("LibDialog-1.0")
 
 XiTimers.options.args.general.args.hideblizztimers = {
     order = 7,
@@ -26,6 +30,26 @@ XiTimers.options.args.general.args.flameshockbarresto = {
     desc = L["Flame Shock Duration Restoration Desc"],
     set = function(info, val) XiTimers.ActiveProfile.FlameshockBarRestoration = val XiTimers.ProcessSetting("FlameshockBarRestoration") end,
     get = function(info) return XiTimers.ActiveProfile.FlameshockBarRestoration end,
+}
+
+
+XiTimers.options.args.general.args.reincarnationheader = {
+    order = 210,
+    type = "header",
+    name = "",
+}
+
+XiTimers.options.args.general.args.reincarnation = {
+    order = 211,
+    type = "execute",
+    name = GetSpellInfo(TotemTimers.SpellIDs.Reincarnation),
+    desc = L["Put Reincarnation Spell on Bar"],
+    func = function()
+        XiTimers.ShowGrid()
+        LibDialog:Spawn("XiTimers_Spells")
+        InterfaceOptionsFrame:Hide()
+        PickupSpell(TotemTimers.SpellIDs.Reincarnation)
+    end,
 }
 
 
