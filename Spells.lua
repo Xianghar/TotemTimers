@@ -34,6 +34,11 @@ TotemTimers.SpellIDs = {
 	FuryOfAir = 197211,
 	EarthenSpike = 188089,
 	LightningShield = 192106,
+	LightningShieldBuff = 192109,
+	WaterShield = 52127,
+	WaterShieldBuff = 52128,
+	EarthShield = 974,
+
 	
 	GustOfWind = 192063,
 	EarthenShieldTotem = 198838,
@@ -378,7 +383,14 @@ XiTimers.SpellData = {
 		},
 	},
 	[SpellIDs.LightningShield] = {
-		buff = SpellIDs.LightningShield,
+		buff = SpellIDs.LightningShieldBuff,
+	},
+	[SpellIDs.WaterShield] = {
+		buff = SpellIDs.WaterShield,
+		showBuffCounter = true,
+	},
+	[SpellIDs.EarthShield] = {
+		buff = SpellIDs.EarthShield,
 	},
 	[SpellIDs.SpiritwalkersGrace] = {
 		buff = SpellIDs.SpiritwalkersGrace,
