@@ -96,6 +96,10 @@ TotemTimers.SpellIDs = {
 	PurifySpirit = 77130,
 	
 	ChainHeal = 1064,
+
+	WindfuryWeapon = 33757,
+	FlametongueWeapon = 318038,
+
 	
 }
 
@@ -383,7 +387,7 @@ XiTimers.SpellData = {
 		},
 	},
 	[SpellIDs.LightningShield] = {
-		buff = SpellIDs.LightningShieldBuff,
+		buff = SpellIDs.LightningShield,
 	},
 	[SpellIDs.WaterShield] = {
 		buff = SpellIDs.WaterShield,
@@ -415,6 +419,42 @@ XiTimers.SpellData = {
 		alt = {
 			SpellIDs.Wellspring,
 		},
+	},
+	[SpellIDs.WindfuryWeapon] = {
+		playerEvents = {
+			"UNIT_INVENTORY_CHANGED",
+		},
+		customOnEvent = function(self, event, ...)
+			if event == "UNIT_INVENTORY_CHANGED" then
+				local timer = self.timer
+				local hasEnchant, expires, _, spell = GetWeaponEnchantInfo()
+				local now = GetTime()
+				if (hasEnchant and spell == 5401) then
+					timer:Start(now - (3600 - expires / 1000), now + expires / 1000, true)
+				elseif timer.isRunning then
+					timer:Stop()
+				end
+			end
+		end,
+		startEvents = {"UNIT_INVENTORY_CHANGED"},
+	},
+	[SpellIDs.FlametongueWeapon] = {
+		playerEvents = {
+			"UNIT_INVENTORY_CHANGED",
+		},
+		customOnEvent = function(self, event, ...)
+			if event == "UNIT_INVENTORY_CHANGED" then
+				local timer = self.timer
+				local _,_,_,_, hasEnchant, expires, _, spell = GetWeaponEnchantInfo()
+				local now = GetTime()
+				if (hasEnchant and spell == 5400) then
+					timer:Start(now - (3600 - expires / 1000), now + expires / 1000, true)
+				elseif timer.isRunning then
+					timer:Stop()
+				end
+			end
+		end,
+		startEvents = {"UNIT_INVENTORY_CHANGED"},
 	},
 }
 
