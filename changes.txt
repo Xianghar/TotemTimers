@@ -1,3 +1,9 @@
+13.0
+    - Update for Shadowlands
+    - Added timer for totem duration
+    - Fixed timer for shields, atm Earth Shield can only be tracked on yourself
+    - Added timer for weapon enchants (Windfury Weapon and Flametongue Weapon)
+    - Added button to put reincarnation timer back on your bars if you removed it
 12.2
     - Hide addon during Arcane Leylock minigame
 12.1
