@@ -606,7 +606,7 @@ end
 function lib.SpawnOverlay(data)
 	local target = data.target
 
-	local overlay = setmetatable(CreateFrame("Frame", nil, UIParent), lib.meta)
+	local overlay = setmetatable(CreateFrame("Frame", nil, UIParent, BackdropTemplateMixin and "BackdropTemplate"), lib.meta)
 	for k, v in pairs(data) do
 		overlay[k] = v
 	end

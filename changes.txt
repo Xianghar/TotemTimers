@@ -1,3 +1,5 @@
+13.0.5
+    - Fix error on unlocking bars
 13.0
     - Update for Shadowlands
     - Added timer for totem duration
