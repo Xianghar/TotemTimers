@@ -1,3 +1,5 @@
+13.0.6
+    - Fix Flameshock timer
 13.0.5
     - Fix error on unlocking bars
 13.0
