@@ -1,11 +1,9 @@
--- Copyright © 2008-2014 Xianghar  <xian@zron.de>
--- All Rights Reserved.
--- This code is not to be modified or distributed without written permission by the author.
--- Current distribution permissions only include curse.com, wowinterface.com and their respective addon updaters
-
 if select(2,UnitClass("player")) ~= "SHAMAN" then return end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers")
+
+local GetSpellInfo = TotemTimers.GetSpellInfo
+local GetSpellCooldown = TotemTimers.GetSpellCooldown
 
 TTActionBars = {}
 TTActionBars.bars = {}
@@ -27,6 +25,7 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
     self.numspells = 0
     self.order = TTActionBars.numbars
     if self.order > 4 then self.order = 1 end
+
     
 	self.buttons = {}
 	for i=1,numbuttons do	
@@ -40,7 +39,10 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
                        _G["TT_ActionButton"..TTActionBars.numbars..i.."MiniIcon3"],
                        _G["TT_ActionButton"..TTActionBars.numbars..i.."MiniIcon4"]}
         for i=1,4 do b.MiniIcons[i]:Hide() end
-                       
+        b.name = b:CreateFontString()
+        b.name:SetPoint("TOP", b, 0, -2)
+        b.name:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")
+
         b.icons = {b.icon, b.icon2}
         b.cooldown = _G["TT_ActionButton"..TTActionBars.numbars..i.."Cooldown"]
 		b.cooldown:SetSwipeColor(0, 0, 0)
@@ -50,59 +52,76 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
 		b:ClearAllPoints()
 		b:SetWidth(36)
 		b:SetHeight(36)
-        
-        --for rActionButtonStyler
-        b.action = 0 
-        b.SetCheckedTexture = function() end
-        if not IsAddOnLoaded("rActionButtonStyler") then
-            b:SetNormalTexture(nil)
-        else
-            ActionButton_Update(b)
-        end
-        b.icon:Show()
-		
-		--[[b.ConfigAutoHide = function(self)
-			RegisterAutoHide(self, 0)
-			for i = 1,self.bar.numspells do
-				--if self.bar.buttons[i] ~= self then
-					AddToAutoHide(self, self.bar.buttons[i])
-				--end
-			end
-			AddToAutoHide(self, self:GetParent())
-		end]]
 
-		b:SetAttribute("_childupdate-show", [[if self:GetAttribute("alwaysshow") or self:GetAttribute("inactive") then return end
-                                               if message then 
+        if b.UpdateArrowShown then b:UpdateArrowShown() end
+        local regions = {b:GetRegions()}
+        for i, region in ipairs(regions) do
+            if not region:GetName() and region:GetObjectType() == "Texture" then
+                region:SetTexture(nil)
+                region:Hide()
+            end
+        end
+
+        --b:SetNormalTexture(nil)
+        _G[b:GetName().."NormalTexture"]:SetTexture(nil)
+        b.icon:Show()
+
+		b:SetAttribute("_childupdate-show", [[ if self:GetAttribute("alwaysshow") or self:GetAttribute("inactive") then return end
+                                               if message then
                                                    self:Show()
                                                else
                                                    self:Hide()
                                                end ]])
+		b:SetAttribute("_childupdate-toggle", [[if self:GetAttribute("alwaysshow") or self:GetAttribute("inactive") then return end
+                                               if self:IsVisible() then
+                                                   self:Hide()
+                                               else
+                                                   self:Show()
+                                               end ]])
+
+
 		b:SetAttribute("_onshow", [[if self:GetAttribute("alwaysshow") or self:GetAttribute("inactive") then return end
-		                            self:RegisterAutoHide(0)
-								    for _,v in pairs(actionbuttons) do
-										if v:IsProtected() and not v:GetAttribute("inactive") then self:AddToAutoHide(v) end
-									end
-									self:AddToAutoHide(self:GetParent())
 									local b = self:GetAttribute("binding")
                                     if b then
                                         self:SetBindingClick(true, b, self:GetName())
                                     end
                                     control:CallMethod("OnShow")]])
 
-        b:SetAttribute("_onhide", [[self:ClearBindings() self:GetParent():SetAttribute("open", false) control:CallMethod("HideTooltip")]])
-        b:SetAttribute("_onenter", [[ if self:GetAttribute("tooltip") then control:CallMethod("ShowTooltip") end]])
-        b:SetAttribute("_onleave", [[ control:CallMethod("HideTooltip")]])
+        parent:SetAttribute("_onenter", [[ if self:GetAttribute("OpenMenu") == "mouseover" then
+                                                  self:ChildUpdate("show", true)
+                                              end ]])
+
+        parent:SetAttribute("_onleave", [[
+            if not self:IsUnderMouse(true) then
+                owner:ChildUpdate("show", false)
+            end]])
+
+        parent:WrapScript(parent, "OnClick", [[ if button == self:GetAttribute("OpenMenu") then
+                                                       control:ChildUpdate("show", true)
+                                                   elseif button == "close" or button == "Button5" then
+                                                       control:ChildUpdate("show", false)
+                                                   end
+                                                 ]])
+
+        b:SetAttribute("_onhide", [[self:ClearBindings() self:GetParent():SetAttribute("open", false)]])
+        b:SetAttribute("_onleave", [[ if not self:GetParent():IsUnderMouse(true) then self:GetParent():ChildUpdate("show", false) end]])
+        b:SetAttribute("_onenter", [[ self:GetParent():ChildUpdate("show", true) ]]) -- bugfix mists 5.5.4
         b.OnShow = function(self) end -- override if button should do additional stuff on show
         
-		b:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp")
+		b:RegisterForClicks("AnyDown")
+        b:SetAttribute("useOnKeyDown", 1)
 		b:SetAttribute("*type1", "spell")
         b:SetAttribute("*type2", nil)
+
+        XiTimers.HookTooltips(b)
 		
-        b.ShowTooltip = TotemTimers.TotemTooltip		 
+        if bartype ~= "weapontimer" then
+            b.tooltip = TotemTimers.Tooltips.Totem:new(b)
+        else
+            b.tooltip = TotemTimers.Tooltips.WeaponBar:new(b)
+        end
 		
-        b.HideTooltip = function(self) GameTooltip:Hide() end
-        
-        b:SetAttribute("_onattributechanged", [[ if name=="inactive" then 
+        b:SetAttribute("_onattributechanged", [[ if name=="inactive" then
                                                      if not value and self:GetAttribute("alwaysshow") then
                                                          self:Show()
                                                      elseif value then
@@ -137,10 +156,10 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
         b:SetScript("OnEvent", function(self)            
                 local spell = self:GetAttribute("*spell1")
                 if spell then
-                    local start, duration, enable = GetSpellCooldown(spell)
-                        if start and duration then CooldownFrame_SetTimer(self.cooldown, start, duration, enable) end
-                    end
-                end)  
+                    local cd = GetSpellCooldown(spell)
+                    if cd.startTime and cd.duration then CooldownFrame_Set(self.cooldown, cd.startTime, cd.duration, cd.enable) end
+                 end
+            end)
         if bartype ~= "weapontimer" then 
             parent:WrapScript(b, "OnClick", [[  if button ~= "LeftButton" then
                                                     if self:GetAttribute("*spell1") then
@@ -149,7 +168,7 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
                                                     end
                                                 end
                                                 if not self:GetAttribute("alwaysshow") then
-                                                    self:GetParent():SetAttribute("hide", true)
+                                                    self:GetParent():ChildUpdate("show", false)
                                                 end]])
         else
             parent:WrapScript(b, "OnClick", [[  if button ~= "LeftButton" then
@@ -160,29 +179,25 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
                                                             if self:GetParent():GetAttribute("OpenMenu") == "RightButton" then
                                                                 b = 3
                                                             end
-                                                        end
+                                                        elseif IsAltKeyDown() then b = 4 end
                                                         if b == 1 then
                                                             self:GetParent():SetAttribute("doublespell1", nil)
                                                             self:GetParent():SetAttribute("doublespell2", nil)
-                                                        end
+                                                        end														
                                                         self:GetParent():SetAttribute("type"..b, "spell")
                                                         self:GetParent():SetAttribute("spell"..b, self:GetAttribute("*spell1"))
                                                     elseif not IsShiftKeyDown() then
                                                         self:GetParent():SetAttribute("doublespell1", self:GetAttribute("doublespell1"))
                                                         self:GetParent():SetAttribute("doublespell2", self:GetAttribute("doublespell2"))
                                                         self:GetParent():SetAttribute("type1", "macro")
-                                                        self:GetParent():SetAttribute("macrotext", "/cast "..self:GetAttribute("doublespell1").."\n/use 16")
                                                         self:GetParent():SetAttribute("ds",1)
                                                     end
                                                 end
                                                 if not self:GetAttribute("alwaysshow") then
-                                                    self:GetParent():SetAttribute("hide", true)
+                                                    self:GetParent():ChildUpdate("show", false)
                                                 end]])
         end
             
-	end
-	for i = 1,numbuttons do
-		self.buttons[i]:Execute([[ actionbuttons = newtable()  self:GetParent():GetChildList(actionbuttons) ]])
 	end
 	table.insert(TTActionBars.bars, self)
 	return self
@@ -215,8 +230,9 @@ function TTActionBars:SetSpell(nr, spell, asname)
     local button = self.buttons[nr]
     local texture = "Interface\\Buttons\\UI-TotemBar"
 	local _
-    if type(spell)~="number" or spell~=0 then _,_,texture = GetSpellInfo(spell) end
-    if type(spell)=="number" then button:SetAttribute("spellname", GetSpellInfo(spell)) end
+    local info = GetSpellInfo(spell)
+    if type(spell)~="number" or spell~=0 then texture = info.iconID end
+    if type(spell)=="number" then button:SetAttribute("spellname", info.name) end
 	if asname and type(spell) == "number" then
 		button:SetAttribute("spellid", spell)
 		spell = TotemTimers.SpellNames[spell]		
@@ -230,10 +246,10 @@ function TTActionBars:SetSpell(nr, spell, asname)
 end
 
 
-function TTActionBars:AddSpell(spell)
+function TTActionBars:AddSpell(spell, asname)
     if self.numspells >= self.numbuttons then return end
     self.numspells = self.numspells + 1
-    self:SetSpell(self.numspells, spell)
+    self:SetSpell(self.numspells, spell, asname)
 end
 
 function TTActionBars:SetSpells(spells, asnames)
@@ -251,13 +267,13 @@ function TTActionBars:AddDoubleSpell(spell1,spell2)
     if self.numspells >= self.numbuttons then return end
     self.numspells = self.numspells+1
     local button = self.buttons[self.numspells]
-    local _,_,texture = GetSpellInfo(spell1)
-    local _,_,texture2 = GetSpellInfo(spell2)
-	button:SetAttribute("doublespell1", spell1)
-    button:SetAttribute("doublespell2", spell2)
+    local info1 = GetSpellInfo(spell1)
+    local info2 = GetSpellInfo(spell2)
+	button:SetAttribute("doublespell1", info1.name)
+    button:SetAttribute("doublespell2", info2.name)
 	button:SetAttribute("inactive", false)
-    button.icon:SetTexture(texture)
-    button.icon2:SetTexture(texture2)
+    button.icon:SetTexture(info1.iconID)
+    button.icon2:SetTexture(info2.iconID)
     TotemTimers.SetDoubleTexture(button, true)
     local f = button:GetScript("OnEvent")
     if f then f(button) end
@@ -324,6 +340,7 @@ function TTActionBars:CalcDirection(dir, parentdir, freenotself)
     if dir == "auto" then
         local p,_,_,x,y = self.directionanchor:GetPoint()
         if parentdir == "free" and not freenotself then p,_,_,x,y = self.parent:GetPoint() end
+        if not p then return "up" end
 		if parentdir == "horizontal" then
             if ((p == "LEFT" or p == "RIGHT" or p == "CENTER") and y < 0)
               or (string.sub(p,1,6) == "BOTTOM") then
@@ -383,5 +400,7 @@ function TTActionBars:SetDirection(dir, parentdir, freenotself)
         end
     end
 end
+
+
 
 

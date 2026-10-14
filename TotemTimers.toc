@@ -1,43 +1,58 @@
-## Interface: 90002
+## Interface: 16001
 ## Title: TotemTimers
 ## Author:  Xianghar
 ## Version: @project-version@
 ## SavedVariables: TotemTimers_GlobalSettings, TotemTimers_Profiles
-## OptionalDeps: cyCircled, Masque, !ClassColors, rActionButtonStyler
+## OptionalDeps: Masque
 ## LoadManagers: AddonLoader
+## IconTexture: Interface\AddOns\TotemTimers\textures\totemtimers
 ## X-LoadOn-Class: Shaman
-## X-Curse-Project-ID: 6384
-## X-WoWI-ID: 9481
+## X-Curse-Project-ID: 339602
+## X-WoWI-ID: 25223
 
 
 embeds.xml
 
-XiTimersGlobals.lua
+localization\localization.lua
+localization\localization.[TextLocale].lua [AllowLoadTextLocale deDE, esES, esMX, frFR, koKR, ptBR, ruRU, zhCN, zhTW]
 
-Localization.lua
+XiTimers.lua
+XiTimers.xml
 
-XiTimers/Animation.lua
-XiTimers/XiTimers.xml
-XiTimers/XiTimers.lua
-Xitimers/Functions.lua
-XiTimers/DefaultSettings.lua
-XiTimers/Settings.lua
-XiTimers/PowerBar.xml
-XiTimers/PowerBar.lua
-XiTimers/Dialogs.lua
+TotemTimers.xml
+TotemTimers.lua
+
+[Game]\TotemData.lua
 
 Spells.lua
+Animation.lua
+Bindings.lua
+ToolTips.lua
+TotemSets.xml
+TotemSets.lua
+TTActionBars.lua
 DefaultSettings.lua
 Settings.lua
+SetupTimers.lua
+SetupTrackers.lua
+Ankh.lua
+Shield.lua
+EarthShield.lua
+Weapon.lua
+EnhanceCDs.lua
+LongCooldowns.lua
 
-TotemTimers.lua
-Flameshock.lua
+Warnings.lua
+Masque.lua
+GUI\localization.lua
+GUI\localization.[TextLocale].lua [AllowLoadTextLocale deDE, esES, esMX, frFR, koKR, ptBR, ruRU, zhCN, zhTW]
+GUI\General.lua
+#GUI\Timers.lua
+#GUI\Trackers.lua
+#GUI\EnhanceCDs.lua
+#GUI\Messages.lua
+#GUI\Totems.lua
+#GUI\Sets.lua
+#GUI\Profiles.lua
 
-XiTimers/GUI/General.lua
-XiTimers/GUI/Timers.lua
-XiTimers/GUI/ButtonBars.lua
-XiTimers/GUI/PowerBar.lua
-XiTimers/GUI/Profiles.lua
-
-GUI.lua
 

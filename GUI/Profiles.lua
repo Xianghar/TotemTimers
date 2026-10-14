@@ -3,8 +3,6 @@ if select(2,UnitClass("player")) ~= "SHAMAN" then return end
 local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers_GUI", true)
 
 local ACD = LibStub("AceConfigDialog-3.0")
-local frame = ACD:AddToBlizOptions("TotemTimers", L["Profiles"], "TotemTimers", "profiles")
-
 local SelectedProfile = "default"
 local NameInput = ""
 local CopyFrom = "default"
@@ -21,232 +19,79 @@ end
 
 TotemTimers.options.args.profiles = {
     type = "group",
-    name = "profiles",
+    name = "Profiles",
     args = {
         ["select"] = {
             order = 1,
             type = "group",
             name = L["Select Profiles"],
-            childGroups = "tab",
             args = {
-                ["2"] = {
+                ["solo"] = {
                     order = 1,
-                    type = "group",
-                    name = select(2,GetSpecializationInfo(2)) or "Enhancement",
-                    args = {
-                        ["solo"] = {
-                            type = "select",
-                            name = L["Solo"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].none = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].none end,
-                        },
-                        ["party"] = {
-                            type = "select",
-                            name = L["Party"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].party = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].party end,
-                        },
-                        ["arena"] = {
-                            type = "select",
-                            name = L["Arena"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].arena = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].arena end,
-                        },
-                        ["pvp"] = {
-                            type = "select",
-                            name = L["Battleground"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].pvp = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].pvp end,
-                        },
-                        ["raid"] = {
-                            type = "select",
-                            name = L["Raid"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].raid = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].raid end,
-                        },
-                        ["scenario"] = {
-                            type = "select",
-                            name = L["Scenario"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].scenario = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][2].scenario end,
-                        },
-					},
+                    type = "select",
+                    name = L["Solo"].."/Default",
+                    values = CreateProfileList,
+                    set = function(info, val)
+                        TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].none = val
+                        TotemTimers.SelectActiveProfile()
+                        TotemTimers.ExecuteProfile()
+                    end,
+                    get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].none end,
                 },
-                ["1"] = {
-                    order = 40,
-                    type = "group",
-                    name = select(2,GetSpecializationInfo(1)) or "Elemental",
-                    args = {
-                        ["solo"] = {
-                            type = "select",
-                            name = L["Solo"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].none = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].none end,
-                        },
-                        ["party"] = {
-                            type = "select",
-                            name = L["Party"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].party = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].party end,
-                        },
-                        ["arena"] = {
-                            type = "select",
-                            name = L["Arena"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].arena = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].arena end,
-                        },
-                        ["pvp"] = {
-                            type = "select",
-                            name = L["Battleground"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].pvp = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].pvp end,
-                        },
-                        ["raid"] = {
-                            type = "select",
-                            name = L["Raid"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].raid = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].raid end,
-                        },
-                        ["scenario"] = {
-                            type = "select",
-                            name = L["Scenario"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].scenario = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][1].scenario end,
-                        },
-					},
+                ["party"] = {
+                    type = "select",
+                    name = L["Party"],
+                    values = CreateProfileList,
+                    set = function(info, val)
+                        TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].party = val
+                        TotemTimers.SelectActiveProfile()
+                        TotemTimers.ExecuteProfile()
+                    end,
+                    get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].party end,
                 },
-                ["3"] = {
-                    order = 50,
-                    type = "group",
-                    name = select(2,GetSpecializationInfo(3)) or "Restoration",
-                    args = {
-                        ["solo"] = {
-                            type = "select",
-                            name = L["Solo"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].none = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].none end,
-                        },
-                        ["party"] = {
-                            type = "select",
-                            name = L["Party"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].party = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].party end,
-                        },
-                        ["arena"] = {
-                            type = "select",
-                            name = L["Arena"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].arena = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].arena end,
-                        },
-                        ["pvp"] = {
-                            type = "select",
-                            name = L["Battleground"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].pvp = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].pvp end,
-                        },
-                        ["raid"] = {
-                            type = "select",
-                            name = L["Raid"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].raid = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].raid end,
-                        },
-                         ["scenario"] = {
-                            type = "select",
-                            name = L["Scenario"],
-                            values = CreateProfileList,
-                            set = function(info, val)
-                                TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].scenario = val
-                                TotemTimers.SelectActiveProfile()
-                                TotemTimers.ExecuteProfile()
-                            end,
-                            get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][3].scenario end,
-                        },
-					},
+                ["arena"] = {
+                    type = "select",
+                    name = L["Arena"],
+                    values = CreateProfileList,
+                    set = function(info, val)
+                        TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].arena = val
+                        TotemTimers.SelectActiveProfile()
+                        TotemTimers.ExecuteProfile()
+                    end,
+                    get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].arena end,
+                },
+                ["pvp"] = {
+                    type = "select",
+                    name = L["Battleground"],
+                    values = CreateProfileList,
+                    set = function(info, val)
+                        TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].pvp = val
+                        TotemTimers.SelectActiveProfile()
+                        TotemTimers.ExecuteProfile()
+                    end,
+                    get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].pvp end,
+                },
+                ["raid"] = {
+                    type = "select",
+                    name = L["Raid"],
+                    values = CreateProfileList,
+                    set = function(info, val)
+                        TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].raid = val
+                        TotemTimers.SelectActiveProfile()
+                        TotemTimers.ExecuteProfile()
+                    end,
+                    get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].raid end,
+                },
+                ["scenario"] = {
+                    type = "select",
+                    name = L["Scenario"],
+                    values = CreateProfileList,
+                    set = function(info, val)
+                        TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].scenario = val
+                        TotemTimers.SelectActiveProfile()
+                        TotemTimers.ExecuteProfile()
+                    end,
+                    get = function(info) return TotemTimers_GlobalSettings.Profiles[UnitName("player")][TotemTimers.Specialization].scenario end,
                 },
             },
         },
@@ -391,7 +236,7 @@ TotemTimers.options.args.profiles = {
                         TotemTimers.ExecuteProfile()
                     end,
                 },
-                copyCD = {
+                --[[ copyCD = {
                     order = 21,
                     type = "execute",
                     name = L["Copy EnhanceCDs Settings"],
@@ -399,7 +244,7 @@ TotemTimers.options.args.profiles = {
                         TotemTimers.CopyCDSettings(CopyFrom, CopyTo)
                         TotemTimers.ExecuteProfile()
                     end,
-                },
+                }, ]]
                 copyTotems = {
                     order = 22,
                     type = "execute",
@@ -409,7 +254,7 @@ TotemTimers.options.args.profiles = {
                         TotemTimers.ExecuteProfile()
                     end,
                 },
-                copyCrowdControl = {
+                --[[ copyCrowdControl = {
                      order = 23,
                     type = "execute",
                     name = L["Copy CC Settings"],
@@ -417,7 +262,7 @@ TotemTimers.options.args.profiles = {
                         TotemTimers.CopyCrowdControlSettings(CopyFrom, CopyTo)
                         TotemTimers.ExecuteProfile()
                     end,
-                },
+                }, ]]
                 copyWarnings = {
                      order = 24,
                     type = "execute",
@@ -431,8 +276,6 @@ TotemTimers.options.args.profiles = {
         },
     },
 }
-    --[[
-frame:SetScript("OnEvent", function(self) InterfaceOptionsFrame:Hide() end)
-frame:HookScript("OnShow", function(self) if InCombatLockdown() then InterfaceOptionsFrame:Hide() end TotemTimers.LastGUIPanel = self end)
-frame:RegisterEvent("PLAYER_REGEN_DISABLED")
-]]
+
+local frame, categoryID = ACD:AddToBlizOptions("TotemTimers", L["Profiles"], "TotemTimers", "profiles")
+TotemTimers.HookGUIFrame(frame, categoryID)

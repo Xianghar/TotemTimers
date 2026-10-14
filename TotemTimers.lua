@@ -1,7 +1,3 @@
--- Copyright © 2008 - 2014 Xianghar
--- All Rights Reserved.
-
-
 --[[ Credits for localization go to
         Sayclub (koKR), StingerSoft (ruRU), a9012456 (zhTW),
         Sabre (zhCN), vanilla_snow (zhCN), tnt2ray (zhCN),
@@ -12,43 +8,548 @@
         BNSSNB (zhTW), cebolaassassina (ptBR)
 ]]
 
-
 if select(2,UnitClass("player")) ~= "SHAMAN" then return end
 
-local _, TotemTimers = ...
+local addon, TotemTimers = ...
 
-local TotemSlotTimers = {}
+_G["TotemTimers"] = TotemTimers
 
-local TotemTimersOnEvent = function(self, event, slot, ...)
-	if (event == "PLAYER_TOTEM_UPDATE") then
-		local _,_,startTime, duration, icon = GetTotemInfo(slot)
-		if startTime then
-			local timer = XiTimers.TextureToTimer[icon]
-			if (timer and timer.active) then
-				TotemSlotTimers[slot] = timer
-				timer:Start(startTime, startTime + duration, true)
-			end
-		else
-			if (timer and timer.active and timer.running and timer.buffIsActive) then
-				timer:stop()
-			end
-			TotemSlotTimers[slot] = nil
-		end
-	else
-		XiTimers.OnEvent(self, event, slot, ...)
-	end
+TotemTimers.timers = XiTimers
+
+-- for debugging
+SetCVar("addonCombatRestrictionsForced", 1)
+
+
+if not C_Spell then
+    TotemTimers.GetSpellInfo = function(spellIDorName)
+    local name, _, icon, castTime, minRange, maxRange, spellID, originalIcon = GetSpellInfo(spellIDorName)
+        return {
+            ["name"] = name,
+            ["iconID"] = icon,
+            ["originalIconID"] = originalIcon,
+            ["minRange"] = minRange,
+            ["maxRange"] = maxRange,
+            ["spellID"] = spellID
+        }
+    end
+    TotemTimers.GetSpellName = GetSpellInfo
+    TotemTimers.GetSpellCooldown = function(spell)
+        local start, duration, enabled, modRate = GetSpellCooldown(spell)
+        return {
+            ["startTime"] = start,
+            ["duration"] = duration,
+            ["isEnabled"] = enabled,
+            ["modRate"] = modRate
+        }
+    end
+    TotemTimers.GetSpellTexture = GetSpellTexture
+else
+    TotemTimers.GetSpellInfo = function(spell)
+        local info = C_Spell.GetSpellInfo(spell)
+        return info or {}
+    end
+    TotemTimers.GetSpellName = C_Spell.GetSpellName
+    TotemTimers.GetSpellCooldown = function(spell)
+        local cd = C_Spell.GetSpellCooldown(spell)
+        return cd or {}
+    end
+    TotemTimers.GetSpellTexture = C_Spell.GetSpellTexture
 end
 
-function XiTimers.CustomInit()
-    XiTimers_Profiles = TotemTimers_Profiles
-    XiTimers_GlobalSettings = TotemTimers_GlobalSettings
+local GetSpellInfo = TotemTimers.GetSpellInfo
 
-    --set the slashcommand
-	SLASH_TOTEMTIMERS1 = "/totemtimers";
-	SLASH_TOTEMTIMERS2 = "/tt";
-	SlashCmdList["TOTEMTIMERS"] = XiTimers.Slash
+TotemTimers.Modules = {}
+TotemTimers.SpellUpdaters = {}
+
+TotemTimers.ElementColors = {
+    [FIRE_TOTEM_SLOT] = CreateColorFromHexString("FFFF7500"),
+    [EARTH_TOTEM_SLOT] = CreateColorFromHexString("FFCBA57B"),
+    [WATER_TOTEM_SLOT] = CreateColor(0.4,0.4,1), --CreateColorFromHexString("FF76c7f3"),
+    [AIR_TOTEM_SLOT] = CreateColor(1,1,1),
+}
 
 
-	XiTimersFrame:RegisterEvent("PLAYER_TOTEM_UPDATE")
-	XiTimersFrame:SetScript("OnEvent", TotemTimersOnEvent)
+local updateAfterCombat = false
+local macroNeedsUpdate = false
+local lastSpellsChanged = 0
+
+local runes = {}
+
+local function TotemTimers_OnEvent(self, event, ...)
+    if event == "PLAYER_ENTERING_WORLD" then
+        TotemTimersFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
+        TotemTimers.SetupGlobals()
+    elseif event == "PLAYER_REGEN_ENABLED" then
+        --TotemTimers_ProcessQueue()
+        if updateAfterCombat then
+            TotemTimers.ChangedTalents(true)
+            updateAfterCombat = false
+        end
+        if macroNeedsUpdate then
+            TotemTimers.UpdateMacro()
+        end
+        --elseif event == "PLAYER_ALIVE" then
+        -- TotemTimers.ProcessSetting("EnhanceCDs")
+        --TotemTimers.options.args.enhancecds.args["2"].name = select(2,GetSpecializationInfo(2)) or "Enhancement"
+        --TotemTimers.options.args.enhancecds.args["1"].name = select(2,GetSpecializationInfo(1)) or "Elemental"
+        --TotemTimers.options.args.enhancecds.args["3"].name = select(2,GetSpecializationInfo(3)) or "Restoration"
+        --[[elseif event == "CHARACTER_POINTS_CHANGED" then
+            local nr = select(1,...)
+            if nr > 1 then
+                TotemTimers.ChangedTalents()
+            elseif nr == -1 then
+                TotemTimers.GetTalents()
+            end]]
+        --[[ elseif event == "PLAYER_TALENT_UPDATE" or event == "PLAYER_SPECIALIZATION_CHANGED" or event == "SPELLS_CHANGED" then
+            if InCombatLockdown() then
+                updateAfterCombat = true
+            else
+                TotemTimers.ChangedTalents()
+            end --]]
+    elseif event == "SPELLS_CHANGED" or event == "CHARACTER_POINTS_CHANGED" or event == "PLAYER_TALENT_UPDATE"
+            or event == "LEARNED_SPELL_IN_TAB" or event == "RUNE_UPDATED" then
+
+        if event == "SPELLS_CHANGED" and (C_Seasons and C_Seasons.GetActiveSeason() == 2) then
+            local spellsChangedDiff = GetTime() - lastSpellsChanged
+            lastSpellsChanged = GetTime()
+            if spellsChangedDiff > 0.9 and spellsChangedDiff < 1.1 then
+                return
+            end
+        end
+
+        if event == "RUNE_UPDATED" then
+            local runesChanged = false
+            for slot = 1, 17 do
+                local rune = C_Engraving.GetRuneForEquipmentSlot(slot)
+                if rune then rune = rune.itemEnchantmentID end
+                if rune ~= runes[slot] then
+                    runesChanged = true
+                end
+                runes[slot] = rune
+            end
+            if not runesChanged then return end
+        end
+
+        if InCombatLockdown() then
+            updateAfterCombat = true
+        else
+            TotemTimers.ChangedTalents(true)
+        end
+
+    elseif event == "UPDATE_BINDINGS" then
+        ClearOverrideBindings(TotemTimersFrame)
+        TotemTimers.InitializeBindings()
+    elseif event == "PLAYER_LOGOUT" then
+        TotemTimers.SaveFramePositions()
+    end
+end
+
+TotemTimersFrame:SetScript("OnEvent", TotemTimers_OnEvent)
+
+function TotemTimers.SetupGlobals()
+	if TotemTimers_IsSetUp then
+		return
+	end
+	if select(2,UnitClass("player")) == "SHAMAN" then
+        TotemTimers.GetSpecialization()
+		TotemTimers.GetSpells()
+        TotemTimers.GetTalents()
+		TotemTimers.UpdateProfiles()
+        TotemTimers.SelectActiveProfile()
+
+        for _,initFunction in pairs(TotemTimers.Modules) do
+            initFunction()
+        end
+
+
+        local sink = LibStub("LibSink-2.0")
+        if sink then
+            sink.SetSinkStorage(TotemTimers,TotemTimers_GlobalSettings.Sink)
+        end
+		--TotemTimers.CreateTimers()
+		--TotemTimers.CreateTrackers()
+        --TotemTimers.SetWeaponTrackerSpells()
+
+        if TotemTimers.Init then
+            for k,v in pairs(Init) do v() end
+        end
+
+        --TotemTimers.CreateEnhanceCDs()
+        -- TotemTimers.CreateCrowdControl()
+		-- TotemTimers.CreateLongCooldowns()
+
+        TotemTimers.ProcessAllSettings()
+        if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC and (C_Seasons and C_Seasons.GetActiveSeason() == 2) then
+            for slot = 1, 17 do
+                local rune = C_Engraving.GetRuneForEquipmentSlot(slot)
+                if rune then runes[slot] = rune.itemEnchantmentID end
+            end
+        end
+
+		TotemTimers.OrderTimers()
+		--TotemTimers_OrderTrackers()
+		TotemTimersFrame:Show()
+
+        TotemTimers.InitSetButtons()
+
+
+		--set the slashcommand
+		SLASH_TOTEMTIMERS1 = "/totemtimers";
+		SLASH_TOTEMTIMERS2 = "/tt";
+		SlashCmdList["TOTEMTIMERS"] = TotemTimers_Slash
+
+		--TotemTimers_LastGUIPane = TotemTimers_GUI_General
+
+        TotemTimers.InitializeBindings()
+        -- hooksecurefunc("SaveBindings", function() ClearOverrideBindings(TotemTimersFrame) TotemTimers.InitializeBindings() end)
+
+		local events = {
+            "PLAYER_REGEN_ENABLED",
+            "PLAYER_LOGOUT",
+            "UPDATE_BINDINGS",
+            "LEARNED_SPELL_IN_TAB",
+            "CHARACTER_POINTS_CHANGED",
+            "PLAYER_TALENT_UPDATE",
+            "RUNE_UPDATED",
+            --"SPELLS_CHANGED",
+            --"PLAYER_SPECIALIZATION_CHANGED",
+        }
+        --if WOW_PROJECT_ID ~= WOW_PROJECT_CLASSIC then
+            table.insert(events, "SPELLS_CHANGED")
+        --end
+        for _, event in pairs(events) do
+            if C_EventUtils.IsEventValid(event) then TotemTimersFrame:RegisterEvent(event) end
+        end
+
+		TotemTimers.InitMasque()
+		-- TotemTimers.RangeFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
+        -- TotemTimers.RangeFrame:Show()
+        TotemTimers.SetCastButtonSpells()
+
+        XiTimers.invokeOOCFader()
+        TotemTimersFrame:SetScript("OnUpdate", XiTimers.UpdateTimers)
+		TotemTimersFrame:EnableMouse(false)
+        XiTimers.InitWarnings(TotemTimers.ActiveProfile.Warnings)
+
+        -- TotemTimers.LayoutCrowdControl()
+        --TotemTimers.ApplySkin()
+        XiTimers.SaveFramePositions = TotemTimers.SaveFramePositions
+	else
+		TotemTimersFrame:Hide()
+	end
+	TotemTimers.UpdateMacro()
+	TotemTimers_IsSetUp = true
+    --TotemTimersFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
+end
+
+function TotemTimers_Slash()
+	if InCombatLockdown() then
+		DEFAULT_CHAT_FRAME:AddMessage("Can't open TT options in combat.")
+		return
+	end
+
+    if Settings then
+        -- wow10
+        Settings.OpenToCategory(TotemTimers.LastGUIPanel)
+    else
+        -- wow classic
+        InterfaceAddOnsList_Update()
+        InterfaceOptionsFrame_OpenToCategory(TotemTimers.LastGUIPanel)
+    end
+end
+
+
+local function pairsByKeys (t, f)
+      local a = {}
+      for n in pairs(t) do table.insert(a, n) end
+      table.sort(a, f)
+      local i = 0      -- iterator variable
+      local iter = function ()   -- iterator function
+        i = i + 1
+        if a[i] == nil then return nil
+        else return a[i], t[a[i]]
+        end
+      end
+      return iter
+    end
+
+
+local text
+
+local function addVar(var, indent)
+    local text = ""
+    if type(var) == "table" then
+        text = text.." {|n"
+        for k,v in pairs(var) do
+            for i=1,indent+4 do text = text.." " end
+            text = text..'["'..k..'"] = '
+            text = text..addVar(v, indent+4)
+        end
+        for i=1,indent do text = text.." " end
+        text = text.."}|n"
+    else
+        text = text..tostring(var).."|n"
+    end
+    return text
+end
+
+local DebugText = ""
+
+function TotemTimers.ResetDebug()
+    DebugText = ""
+end
+
+function TotemTimers.AddDebug(text)
+    DebugText = DebugText..text.."|n"
+end
+
+local AceGUI = LibStub('AceGUI-3.0')
+local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers", true)
+local debugframe = AceGUI:Create("Frame")
+debugframe:Hide()
+debugframe:SetTitle("TotemTimers Debug")
+debugframe:SetStatusText(L["Ctrl-C to copy text"])
+debugframe:SetLayout("Fill")
+debugframe.editbox = AceGUI:Create("MultiLineEditBox")
+debugframe.editbox:SetLabel(nil)
+debugframe.editbox:DisableButton(true)
+debugframe:AddChild(debugframe.editbox)
+
+
+function TotemTimers.ShowDebug()
+	local text = ""
+    text = text .. DebugText .."|n"
+	text = text.."Settings:|n"
+	for k,v in pairsByKeys(TotemTimers.ActiveProfile) do
+		text = text..'    ["'..k..'"] = '
+        text = text .. addVar(v, 4)
+	end
+	text=text.."|n|n"
+    text=text.."Available spells:|n"
+	for k,v in pairsByKeys(TotemTimers.AvailableSpells) do
+		text = text..'    ["'..k..'"] = '
+        text = text..addVar(v, 4)
+	end
+	--[[text = "EnhanceCDs option: "..tostring(TotemTimers_Settings["EnhanceCDs"]).."|n"
+	local name,_,_,_,rank = GetTalentInfo(2,28)
+	text = text..tostring(name)..": "..tostring(rank).."|n"
+    name,_,_,_,rank = GetTalentInfo(2,21)
+	text = text..tostring(name)..": "..tostring(rank).."|n"
+    name,_,_,_,rank = GetTalentInfo(2,23)
+	text = text..tostring(name)..": "..tostring(rank).."|n"
+	text = text.."SS-Timer: "..tostring(XiTimers.timers[9].active).."|n"
+	text = text.."ES-Timer: "..tostring(XiTimers.timers[10].active).."|n"
+	text = text.."LL-Timer: "..tostring(XiTimers.timers[11].active).."|n"
+	text = text.."EC Pos: "
+	local a,b,c,d,e = TotemTimers_EnhanceCDsFrame:GetPoint(1)
+	if a then
+		text=text..a.." "
+		if b then text = text..b:GetName() else text = text.."nil " end
+		text = text..tostring(c).." "..tostring(d).." "..tostring(e)
+	end
+	text=text.."|n"]]
+	debugframe.editbox:SetText(text)
+	debugframe.editbox:HighlightText()
+	debugframe:Show()
+end
+
+
+local skin = false
+local mask = nil
+
+local DoubleIcons = {}
+
+function TotemTimers.SetDoubleTexCoord(button, flash)
+    if DoubleIcons[button] then
+        button.icons[1]:ClearAllPoints()
+        button.icons[1]:SetPoint("RIGHT", button, "CENTER")
+        button.icons[2]:Show()
+        if not skin then
+            button.icons[1]:SetWidth(18)
+            button.icons[1]:SetHeight(36)
+            button.icons[2]:SetWidth(18)
+            button.icons[2]:SetHeight(36)
+            button.icons[1]:SetTexCoord(0,0.5,0,1)
+            button.icons[2]:SetTexCoord(0.5,1,0,1)
+            --[[if flash and button.flash then
+                button.flash[1]:SetTexCoord(0,0.5,0,1)
+                button.flash[1]:SetWidth(18)
+                button.flash[1]:SetHeight(36)
+                button.flash[1]:ClearAllPoints()
+                button.flash[1]:SetPoint("RIGHT", button, "CENTER")
+                button.flash[2]:SetTexCoord(0.5,1,0,1)
+            end]]
+        else
+            local icon = XiTimers.timers[1].button.icons[1]
+            --local flash = XiTimers.timers[1].button.flash[1]
+			local width = icon:GetWidth() / 2
+			--local height = icon:GetHeight() / 2
+            button.icons[1]:SetWidth(width)
+            button.icons[2]:SetWidth(width)
+            --button.icons[1]:SetHeight(height)
+            --button.icons[2]:SetHeight(height)
+            local ULx, ULy, LLx, LLy, URx, URy, LRx, LRy = icon:GetTexCoord()
+            button.icons[1]:SetTexCoord(ULx, ULy, LLx, LLy, URx/2, URy, LRx/2, LRy)
+            button.icons[2]:SetTexCoord((1-ULx)/2, ULy, (1-LLx)/2, LLy, URx, URy, LRx, LRy)
+            button.icons[2]:Show()
+            --[[if flash and button.flash then
+                button.flash[2]:SetTexture(button.flash[1]:GetTexture())
+                button.flash[1]:SetTexCoord(0,0.5,0,1)
+                button.flash[2]:SetTexCoord(0.5,1,0,1)
+            end]]
+        end
+    else
+        button.icons[1]:ClearAllPoints()
+        button.icons[1]:SetPoint("CENTER", button, "CENTER")
+        button.icons[2]:Hide()
+        if not skin then
+            button.icons[1]:SetWidth(36)
+            button.icons[1]:SetHeight(36)
+            button.icons[1]:SetTexCoord(0,1,0,1)
+            --[[if flash and button.flash then
+                button.flash[1]:SetTexCoord(0,1,0,1)
+            end ]]
+        else
+            local icon = XiTimers.timers[1].button.icons[1]
+            button.icons[1]:SetWidth(icon:GetWidth())
+            button.icons[1]:SetHeight(icon:GetHeight())
+            local ULx, ULy, LLx, LLy, URx, URy, LRx, LRy = icon:GetTexCoord()
+            button.icons[1]:SetTexCoord(ULx, ULy, LLx, LLy, URx, URy, LRx, LRy)
+            --[[if flash and button.flash then
+                button.flash[1]:SetTexCoord(XiTimers.timers[1].button.flash[1]:GetTexCoord())
+            end]]
+        end
+    end
+end
+
+function TotemTimers.SetDoubleTexture(button, isdouble, flash)
+    if isdouble then
+        DoubleIcons[button] = true
+    else
+        DoubleIcons[button] = nil
+    end
+    TotemTimers.SetDoubleTexCoord(button, flash)
+end
+
+function TotemTimers.ApplySkin(newSkin)
+    skin = newSkin
+
+    for k,v in pairs(DoubleIcons) do
+        TotemTimers.SetDoubleTexCoord(k, k == XiTimers.timers[8].button)
+    end
+
+    if not skin then
+        for i = 1, #XiTimers.timers do
+            local normal = XiTimers.timers[i].button:GetNormalTexture()
+            normal:SetTexture()
+            normal:Hide()
+        end
+        for i = 1, #TTActionBars.bars do
+            for b = 1, #TTActionBars.bars[i].buttons do
+                local normal = TTActionBars.bars[i].buttons[b]:GetNormalTexture()
+                normal:SetTexture()
+                normal:Hide()
+            end
+        end
+    end
+end
+
+
+function TotemTimers.SaveFramePositions()
+    for k,v in pairs(TotemTimers.ActiveProfile.FramePositions) do
+        if (_G[k]) then
+            local pos = {_G[k]:GetPoint()}
+            if not pos[1] then pos = nil end
+            if pos[2] then pos[2] = pos[2]:GetName() end
+            TotemTimers.ActiveProfile.FramePositions[k] = pos
+        end
+    end
+    for i = 1, #XiTimers.timers do
+        local timer = XiTimers.timers[i]
+        if timer.savePos and timer.button:GetNumPoints()>0 then
+            local pos = {timer.button:GetPoint(1)}
+            if not pos[1] then pos = nil
+            elseif pos[2] then
+                pos[2] = pos[2]:GetName()
+            end
+            TotemTimers.ActiveProfile.TimerPositions[timer.nr] = pos
+        end
+    end
+end
+
+
+local Sink = LibStub:GetLibrary("LibSink-2.0")
+local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers")
+
+function TotemTimers.ThrowWarning(wtype, object, icon)
+    local warning = TotemTimers.ActiveProfile.Warnings[wtype]
+    if warning and Sink then
+        Sink:Pour(TotemTimers, warning, format(L[wtype],object),warning.r,warning.g,warning.b,
+            nil,nil,nil,nil,nil,icon)
+    end
+end
+
+
+
+local ElementNames = {
+    [EARTH_TOTEM_SLOT] = "Earth",
+    [FIRE_TOTEM_SLOT] = "Fire",
+    [WATER_TOTEM_SLOT] = "Water",
+    [AIR_TOTEM_SLOT] = "Air",
+}
+
+function TotemTimers.UpdateMacro()
+    --if TotemTimers.Settings.Style == "buff" then return end
+    if not InCombatLockdown() then
+        macroNeedsUpdate = false
+        local _, used = GetNumMacros()
+        local macroIndex = GetMacroIndexByName("TT Cast")
+        --if used == 18 and macroIndex == 0 then return end
+        local sequence = "#showtooltips\n/castsequence reset=combat/"..TotemTimers.ActiveProfile.MacroReset.." ";
+        local timers = XiTimers.timers
+
+        for i=1,4 do
+            local timer = timers[i]
+
+            local spell = timer.button:GetAttribute("*spell1")
+
+            if (tonumber(spell)) then
+                local spellName = TotemTimers.GetSpellName(spell)
+                if GetSpellSubText then
+                    local rank = GetSpellSubtext(spell)
+                    if rank then spellName = spellName .. '('..rank..')' end
+                end
+                spell = spellName
+            end
+
+            if spell then
+                if timer.active and TotemTimers.ActiveProfile.IncludeInMacro[timer.nr] then
+                    sequence = sequence .. spell..", "
+                end
+
+                local elementMacro = "/cast "..spell
+                local macroName = "TT "..ElementNames[timer.nr]
+                local index = GetMacroIndexByName(macroName)
+
+                if used < 18 or index ~= 0 then
+                    if index == 0 then
+                        CreateMacro(macroName, "INV_MISC_QUESTIONMARK", elementMacro, true)
+                    else
+                        EditMacro(index, macroName, nil, elementMacro)
+                    end
+                end
+            end
+        end
+
+        sequence = strsub(sequence, 1, strlen(sequence)-2)
+
+        local nr = GetMacroIndexByName("TT Cast")
+        if nr == 0 then
+            CreateMacro("TT Cast", "INV_MISC_QUESTIONMARK", sequence, true)
+        else
+            EditMacro(nr, "TT Cast", nil, sequence)
+        end
+    else
+        macroNeedsUpdate = true
+    end
 end

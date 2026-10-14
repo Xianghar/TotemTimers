@@ -30,14 +30,21 @@
     <Anchors>
       <Anchor point="CENTER" relativePoint="CENTER"/>
     </Anchors>
-  </Frame>  
+  </Frame>
+
+    <Frame name="TotemTimers_MultiSpellFrame" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
+        <Size x="1" y="1" />
+        <Anchors>
+            <Anchor point="CENTER" relativePoint="CENTER"/>
+        </Anchors>
+    </Frame>
   
-  <Frame name="TotemTimers_CrowdControlFrame" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
+  <!-- <Frame name="TotemTimers_CrowdControlFrame" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
     <Size x="1" y="1" />
     <Anchors>
       <Anchor point="CENTER" relativePoint="CENTER"/>
     </Anchors>
-  </Frame>
+  </Frame> -->
 
   <Frame name="TotemTimers_LongCooldownsFrame" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
     <Size x="1" y="1" />
@@ -71,7 +78,7 @@
     </Anchors>
   </Frame>
   
-    <CheckButton name="TTActionBarButtonTemplate" clampedToScreen="true" movable="true" enableMouse="true" virtual="true"
+    <Button name="TTActionBarButtonTemplate" clampedToScreen="true" movable="true" enableMouse="true" virtual="true"
     inherits="ActionButtonTemplate, SecureActionButtonTemplate, SecureHandlerEnterLeaveTemplate, SecureHandlerAttributeTemplate, SecureHandlerDragTemplate, SecureHandlerShowHideTemplate">
     <Size x="36" y="36"/>
     <Layers>
@@ -90,47 +97,7 @@
             <Texture name="$parentMiniIcon4"/>
         </Layer>
     </Layers>
-  </CheckButton>
-  
-  
-	<ScrollFrame name="TotemTimers_DebugScrollFrame" hidden="true" inherits="UIPanelScrollFrameTemplate">
-		<Size>
-			<AbsDimension x="286" y="185"/>
-		</Size>
-		<Anchors>
-			<Anchor point="CENTER" relativeTo="UIParent" relativePoint="CENTER"/>
-		</Anchors>
-		<ScrollChild>
-			<EditBox name="TotemTimers_Debug" multiLine="true" maxLetters="999999">
-				<Size>
-					<AbsDimension x="286" y="285"/>
-				</Size>
-				<Scripts>
-					<OnEscapePressed>
-						self:ClearFocus();
-					</OnEscapePressed>
-				</Scripts>
-				<FontString inherits="GameFontHighlightSmall"/>
-			</EditBox>
-		</ScrollChild>
-		<Frames>
-			<Button name="$parentCloseButton" inherits="UIPanelCloseButton">
-				<Anchors>
-					<Anchor point="BOTTOMLEFT" relativeTo="$parent" relativePoint="TOPRIGHT"/>
-				</Anchors>
-				<Scripts>
-					<OnClick>
-						self:GetParent():Hide();
-					</OnClick>
-				</Scripts>
-			</Button>
-		</Frames>
-		<Scripts>
-			<OnShow>
-				TotemTimers.ShowDebug()
-			</OnShow>
-		</Scripts>
-	</ScrollFrame>
+  </Button>
 
 </Ui>
 

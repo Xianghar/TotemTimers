@@ -6,6 +6,9 @@ manual-changelog: changes.txt
 
 enable-nolib-creation: no
 
+ignore:
+  - textures/mw.afphoto
+
 externals:
  libs/LibStub:
   url: svn://svn.wowace.com/wow/libstub/mainline/trunk
@@ -21,9 +24,9 @@ externals:
   url: svn://svn.wowace.com/wow/libsharedmedia-3-0/mainline/trunk
  libs/AceGUI-3.0-SharedMediaWidgets:
   url: svn://svn.wowace.com/wow/ace-gui-3-0-shared-media-widgets/mainline/trunk
- libs/LibSpellRange-1.0:
-  url: https://github.com/ascott18/LibSpellRange-1.0.git
- libs/LibDialog-1.0:
-  url: https://repos.wowace.com/wow/libdialog-1-0
+ libs/LibSink-2.0:
+  url: https://repos.wowace.com/wow/libsink-2-0/trunk
+
+
 
 
