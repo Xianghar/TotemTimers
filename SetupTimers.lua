@@ -60,15 +60,21 @@ end
 TotemTimers.CreateFlashCurves()
 
 
+-- Call of the Elements/Ancestors/Spirits (multicast totem bar) exist in Wrath, Cata and WoW Forever
+TotemTimers.HasMultiCast = TotemTimers.IsForever
+
+-- multicast action slots: 4 per page (MultiCastActionButton1-12), starting after the 132 regular action slots
+local MULTICAST_ACTION_OFFSET = 132
+
 local MultiCastActions = {}
 TotemTimers.MultiCastActions = MultiCastActions
-if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE and LE_EXPANSION_LEVEL_CURRENT < LE_EXPANSION_MISTS_OF_PANDARIA then
-    for i=1,4 do
-        local index = SHAMAN_TOTEM_PRIORITIES[i];
-        MultiCastActions[index] =
-        { [SpellIDs.CallOfElements] = ActionButton_CalculateAction(_G["MultiCastActionButton"..index]),
-          [SpellIDs.CallOfAncestors] = ActionButton_CalculateAction(_G["MultiCastActionButton"..(index + 4)]),
-          [SpellIDs.CallOfSpirits] = ActionButton_CalculateAction(_G["MultiCastActionButton"..(index + 8)]) }
+if TotemTimers.HasMultiCast then
+    -- by totem slot, the action slots of a page are in totem slot order
+    for slot = 1, 4 do
+        MultiCastActions[slot] =
+        { [SpellIDs.CallOfElements] = MULTICAST_ACTION_OFFSET + slot,
+          [SpellIDs.CallOfAncestors] = MULTICAST_ACTION_OFFSET + slot + 4,
+          [SpellIDs.CallOfSpirits] = MULTICAST_ACTION_OFFSET + slot + 8 }
     end
 end
 
@@ -100,7 +106,7 @@ end
                 local texture = GetSpellInfo(self:GetAttribute("*spell1")).iconID
                 local oldTexture = self.miniIcon:GetTexture()
                 self.miniIcon:SetTexture(texture)
-                if (not self.timer.timersRunning[1] and texture ~= oldTexture) then
+                if (not self.timer.timers[1] and texture ~= oldTexture) then
                     self.icons[1]:SetTexture(texture)
                 end
                 TotemTimers.TotemEvent(self, "SPELL_UPDATE_COOLDOWN", self.timer.nr)
@@ -180,7 +186,7 @@ end
                 end
 
                 --show range dots on ui reload
-                if (self.totemBuff or self.totemRange) and self.timers[1] > 0 then
+                if (self.totemBuff or self.totemRange) and self.timers[1] then
                     if activeProfile.CheckPlayerRange then UpdatePartyRange(self, "player") end
                     if activeProfile.CheckRaidRange then
                         for i = 1,4 do UpdatePartyRange(self, "party"..i) end
@@ -190,7 +196,7 @@ end
 
             local lastTotem = TotemTimers.GetBaseSpellID(activeProfile.LastTotems[self.nr])
 
-            if not self.timersRunning[1] then
+            if not self.timers[1] then
                 if not lastTotem or not AvailableSpells[lastTotem] then
                     --[[when switching specs this part gets executed several times, once for switching and then for each talent (because of events fired)
                         so totems from talents are sometimes not available at this point.
@@ -233,7 +239,7 @@ end
 
         --[[ tt.Update = function(self, elapsed)
             XiTimers.Update(self, elapsed)
-            if self.timers[1] > 0 then
+            if self.timers[1] then
                 self:SetOutOfRange(not TotemTimers.GetPlayerRange(self.button.element))
                 local count = TotemTimers.GetOutOfRange(self.button.element)
                 if count > 0 then
@@ -255,7 +261,7 @@ end
             end]]
         end)
 
-        if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE then
+        if TotemTimers.IsForever then
 
 			tt.button.DisableMultiSpell = function(self, multispell, disable)
                 if not multispell or InCombatLockdown() then return end
@@ -314,7 +320,7 @@ local TotemicCall = TotemTimers.SpellIDs.TotemicCall
 
 TotemUpdate = function(self, ...)
     XiTimers.Update(self, ...)
-    if self.timers[1] > 0 and self.totemRange then
+    if self.timers[1] and self.totemRange then
         UpdatePartyRange(self, "player")
         for i = 1,4 do
             UpdatePartyRange(self, "party"..i)
@@ -388,7 +394,7 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
         if self.element == arg1 then
             local active, totem, icon = GetActiveTotem(self.timer, arg1)
             if not active or not StartTotem(self, totem, icon) then
-                if self.timer.timersRunning[1] then
+                if self.timer.timers[1] then
                     self.timer:Stop(1)
                 end
                 self.timer.activeTotem = nil
@@ -401,10 +407,10 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
         end
         local active, totem, icon = GetActiveTotem(self.timer, self.element)
         if active then
-            if not self.timer.timersRunning[1] or self.timer.activeTotem ~= totem then
+            if not self.timer.timers[1] or self.timer.activeTotem ~= totem then
                 StartTotem(self, totem, icon)
             end
-        elseif self.timer.timersRunning[1] then
+        elseif self.timer.timers[1] then
             self.timer.stopQuiet = true
             self.timer:Stop(1)
             self.timer.activeTotem = nil
@@ -415,7 +421,7 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
             self.timer.pendingTotem = totem
             self.timer.pendingTotemTime = GetTime()
         end
-    elseif event == "UNIT_AURA" and self.timer.totemBuff and self.timer.timers[1] > 0 then
+    elseif event == "UNIT_AURA" and self.timer.totemBuff and self.timer.timers[1] then
         if (settings.CheckPlayerRange and arg1 == "player") or settings.CheckRaidRange then
             UpdatePartyRange(self.timer, arg1)
         end
@@ -463,7 +469,7 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
         self.timer:Start(1, 24, 24)]]
     elseif event == "GROUP_ROSTER_UPDATE" then
         TotemTimers.UpdateParty()
-    elseif event == "CHAT_MSG_ADDON" and self.timer.timers[1] > 0 and arg1 == "WF_STATUS" then
+    elseif event == "CHAT_MSG_ADDON" and self.timer.timers[1] and arg1 == "WF_STATUS" then
         local guid, enchantID, duration, lag = strsplit(':', arg2)
         if self.timer.twisting and duration then
             duration = tonumber(duration)
@@ -597,7 +603,7 @@ function TotemTimers.CreateCastButtons()
                                                                             control:CallMethod("ChangeTotemOrder", value, ...)
                                                                             return "clear"
                                                                        end]])
-            if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE and LE_EXPANSION_LEVEL_CURRENT < LE_EXPANSION_MISTS_OF_PANDARIA then
+            if TotemTimers.HasMultiCast then
                 button:SetAttribute("_childupdate-mspell", [[ self:SetAttribute("*action*", message) ]])
                 button:SetAttribute("_childupdate-mspelldisabled", [[ if message then self:SetAttribute("*type2", nil) else self:SetAttribute("*type2", "multispell") end]])
                 local multispell = TotemTimers.ActiveProfile.LastMultiCastSpell or SpellIDs.CallOfElements

@@ -82,6 +82,12 @@ TotemTimers.SpellIDs = {
     PowerSurgeBuffDps = 415105,
     PowerSurgeBuffHeal = 468526,
 
+    TotemicCall = 36936,
+
+    CallOfElements = 66842,
+    CallOfAncestors = 66843,
+    CallOfSpirits = 66844,
+
 
     --EnamoredWaterSpirit = 24854 -- Water Totem trinket
     --[[ WaterShield = 52127,
@@ -160,7 +166,7 @@ TotemData = {
     },
     [TotemTimers.SpellIDs.Stoneclaw] = {
         element = EARTH_TOTEM_SLOT,
-        warningPoint = 2,
+        warningPoint = 5,
     },
     [TotemTimers.SpellIDs.StrengthOfEarth] = {
         element = EARTH_TOTEM_SLOT,
@@ -364,6 +370,13 @@ TotemTimers.ShieldSpells = {
     SpellIDs.LightningShield,
     SpellIDs.WaterShield,
     SpellIDs.EarthShield,
+}
+
+-- aura spell IDs of all ranks of the shields, used by the aura container of the shield tracker
+TotemTimers.ShieldAuraSpells = {
+    [SpellIDs.LightningShield] = { 324, 325, 905, 945, 8134, 10431, 10432 },
+    [SpellIDs.WaterShield] = { 408510 },
+    [SpellIDs.EarthShield] = { 408514 },
 }
 
 TotemTimers.CombatCooldownSpells = {

@@ -17,6 +17,10 @@ local XiTimers = XiTimers
 local Timers = XiTimers.timers
 local _G = getfenv()
 
+-- shared font of the button time texts (also used by AuraDisplay), font and size settings change this font
+local ButtonTimeFont = CreateFont("TotemTimersButtonTimeFont")
+ButtonTimeFont:SetFont("Fonts\\FRIZQT__.TTF", 17, "OUTLINE")
+
 local incombat = false
 
 
@@ -34,6 +38,10 @@ local function GetSecondsFormatter()
         secondsFormatter = C_StringUtil.CreateSecondsFormatter()
         secondsFormatter:SetDefaultAbbreviation(Enum.SecondsFormatterAbbreviation.OneLetter)
         secondsFormatter:SetStripIntervalWhitespace(Enum.SecondsFormatterIntervalWhitespace.Strip)
+        secondsFormatter:SetDesiredUnitCount(1)
+        secondsFormatter:SetMinInterval(Enum.SecondsFormatterInterval.Seconds)
+        secondsFormatter:SetMaxInterval(Enum.SecondsFormatterInterval.Minutes)
+        secondsFormatter:SetCanRoundUpLastUnit(true)
     end
     return secondsFormatter
 end
@@ -54,6 +62,14 @@ local function GetThresholdCurve(point, below, above)
         thresholdCurves[key][point] = curve
     end
     return curve
+end
+
+-- warning flash alpha on remaining time: the current buff frame warning alpha up to point seconds, "above" (default 0) after that.
+-- The warning alpha is quantized to limit the number of cached curves.
+local function GetFlashAlpha(durObj, point, above)
+    local alpha = BuffFrame.BuffAlphaValue or BuffFrame.AuraContainer:GetAuraWarningAlphaForDuration(0)
+    alpha = floor(alpha * 50 + 0.5) / 50
+    return durObj:EvaluateRemainingDuration(GetThresholdCurve(point, alpha, above or 0))
 end
 
 local emptyDuration
@@ -228,8 +244,9 @@ function XiTimers:new(nroftimers, unclickable)
 	self.playerEvents = {}
 	self.button.count = _G["XiTimers_Timer"..XiTimers.nrOfTimers.."Count"]
 	self.button.cooldown = _G["XiTimers_Timer"..XiTimers.nrOfTimers.."Cooldown"]
-	self.button.cooldown:SetSwipeColor(0, 0, 0)
+	self.button.cooldown:SetSwipeColor(0, 0, 0, 0.8)
 	self.button.cooldown:SetHideCountdownNumbers(true)
+    self.button.cooldown:SetAllPoints(self.button)
 	self.button.miniIcon = _G["XiTimers_Timer"..XiTimers.nrOfTimers.."MiniIcon"]
     self.button.miniIconFrame = _G["XiTimers_Timer"..XiTimers.nrOfTimers.."Mini"]
     self.button.bar = _G["XiTimers_Timer"..XiTimers.nrOfTimers.."Bar"]
@@ -242,7 +259,7 @@ function XiTimers:new(nroftimers, unclickable)
     frame:SetAllPoints(self.button)
     self.button.time = frame:CreateFontString(self.button:GetName().."Time", 'OVERLAY')
     self.button.time:SetPoint("CENTER",0,1)
-    self.button.time:SetFont("Fonts\\FRIZQT__.TTF", 17, "OUTLINE")
+    self.button.time:SetFontObject(ButtonTimeFont)
     frame:SetFrameLevel(frame:GetFrameLevel()+10)
     self.button.time:Hide()
     --self.button.cooldown:SetFrameLevel(self.button.cooldown:GetFrameLevel()-1)
@@ -382,7 +399,6 @@ function XiTimers:Start(timer, durObj)
 
     self.flashIsAnimating = false
     self:StartDurationFlash(timer)
-    --self.flashRed = TotemTimers.ActiveProfile.FlashRed
     --self.button.bar:SetValue(0)
     self:SetTimerBarPos(self.timerBarPos, true)
     if timer == 1 and self.hideInactive then
@@ -456,7 +472,6 @@ function XiTimers:DurationExpired(timer)
     if not self.timers[timer] then return end
     self.sensorExpired[timer] = true
     self:Stop(timer)
-    print("expired")
 end
 
 function XiTimers:ClearDurationObject(timer)
@@ -467,8 +482,13 @@ function XiTimers:ClearDurationObject(timer)
     if timer == 1 then self.button.cooldown:SetHideCountdownNumbers(true) end
     if self.flashingDuration == timer then
         self.flashingDuration = nil
-        self.button.Flash.animation:Stop()
-        self.button.Flash:SetVertexColor(1, 1, 1, 1)
+        if self.flashIconAlpha then
+            self.button.icons[timer]:SetAlpha(self.flashIconAlpha)
+            self.flashIconAlpha = nil
+        else
+            self.button.Flash:Hide()
+            self.button.Flash:SetAlpha(1)
+        end
     end
 end
 
@@ -504,19 +524,31 @@ function XiTimers:BindDurationText(timer)
     binding:SetEnabled(true)
 end
 
--- the red flash plays for the whole duration, its alpha is gated by a curve on the remaining time
+-- the warning flash runs for the whole duration, its alpha is the buff frame warning alpha gated by a curve on the remaining time.
+-- With flashRed the red Flash texture is shown, otherwise the icon fades and keeps its normal alpha (self.flashIconAlpha)
+-- above the warning point. The flashAnim animations aren't used here, their OnUpdate would overwrite the alpha.
 function XiTimers:StartDurationFlash(timer)
-    if timer > self.numButtonTimers or self.dontFlash or not self.flashRed then return end
-    local flash = self.button.Flash
+    if timer > self.numButtonTimers or self.dontFlash then return end
     self.flashingDuration = timer
-    flash:SetVertexColor(1, 1, 1, self.timers[timer]:EvaluateRemainingDuration(GetThresholdCurve(self.warningPoint, 1, 0)))
-    flash.flashAnim:SetDuration(86400)
-    flash.animation:Play()
+    if self.flashRed then
+        local flash = self.button.Flash
+        flash.animation:Stop()
+        flash:SetAlpha(GetFlashAlpha(self.timers[timer], self.warningPoint))
+        flash:Show()
+    else
+        local icon = self.button.icons[timer]
+        self.flashIconAlpha = icon:GetAlpha()
+        icon:SetAlpha(GetFlashAlpha(self.timers[timer], self.warningPoint, self.flashIconAlpha))
+    end
 end
 
 function XiTimers:UpdateDurationVisuals(timer, durObj)
     if self.flashingDuration == timer then
-        self.button.Flash:SetVertexColor(1, 1, 1, durObj:EvaluateRemainingDuration(GetThresholdCurve(self.warningPoint, 1, 0)))
+        if self.flashIconAlpha then
+            self.button.icons[timer]:SetAlpha(GetFlashAlpha(durObj, self.warningPoint, self.flashIconAlpha))
+        else
+            self.button.Flash:SetAlpha(GetFlashAlpha(durObj, self.warningPoint))
+        end
     end
     if timer == 1 and self.nr < 8 and not self.hideTime and self.timerOnButton and not self.forceBar then
         -- red button time for the last 10 seconds
@@ -838,8 +870,6 @@ end
             local _,height = timerbar.time:GetFont()
             timerbar.time:SetFont(font, height)
         end
-        local _,height = self.button.time:GetFont()
-        self.button.time:SetFont(font, height, "OUTLINE")
     end
 
     function XiTimers:SetTimeHeight(height)

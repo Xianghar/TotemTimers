@@ -32,7 +32,7 @@ function TotemTimers.CreateWeaponTracker()
     weapon.button:SetAttribute("ctrl-spell1", ATTRIBUTE_NOOP)
     weapon.Update = TotemTimers.WeaponUpdate
     weapon.button:RegisterForClicks("LeftButtonDown", "RightButtonDown", "MiddleButtonDown")
-    weapon.timerBars[1]:SetMinMaxValues(0, 1800)
+    weapon.timerBars[1]:SetMinMaxValues(0, 3600)
     weapon.flashall = true
     weapon.warningPoint = 30
     weapon.numButtonTimers = 2
@@ -73,7 +73,7 @@ function TotemTimers.CreateWeaponTracker()
         end
         local spellType = name:sub(1, -2)
         for i=1,2 do
-            if not self.timer.timersRunning[i] then
+            if not self.timer.timers[i] then
             local spell = self:GetAttribute(spellType..i)
                 if not spell and i == 2 then spell = self:GetAttribute(spellType..1) end
                 if spell then
@@ -169,7 +169,8 @@ function TotemTimers.SetWeaponTrackerSpells()
         end
     end
 
-    if AvailableTalents.DualWield then
+    -- WoW Forever has no dual wield
+    if not TotemTimers.IsForever and AvailableTalents.DualWield then
         if AvailableSpells[SpellIDs.WindfuryWeapon] and AvailableSpells[SpellIDs.FlametongueWeapon] then
             weapon.actionBar:AddDoubleSpell(SpellIDs.WindfuryWeapon, SpellIDs.FlametongueWeapon)
         end
@@ -193,32 +194,53 @@ local mainMsg = ""
 local offMsg = ""
 
 local WeaponEnchants = TotemTimers.WeaponEnchants
-local GetWeaponEnchantInfo = GetWeaponEnchantInfo
-local weaponTextures = {}
+-- full duration of weapon enchants
+local ENCHANT_DURATION = 3600
+-- per hand: enchant id and expiration time of the running timer
+local enchantIDs = {}
+local expirations = {}
 
-local maxDurations ={}
+local WeaponSlots = { Enum.WeaponSlot.MainHand, Enum.WeaponSlot.OffHand }
+
+-- temporary enchant (weapon imbue, oil, stone) of a hand, timeLeft is in milliseconds
+local function GetTemporaryEnchant(hand)
+    local enchants = C_Item.GetWeaponEnchantInfo(WeaponSlots[hand])
+    if not enchants then return end
+    for _, info in ipairs(enchants) do
+        if info.hasEnchant and info.enchantType == Enum.ItemEnchantType.Imbue then
+            return info
+        end
+    end
+end
 
 function TotemTimers.WeaponUpdate(self, elapsed)
-    local enchant, expiration, _, mainID, offenchant, offExpiration, _, offID = GetWeaponEnchantInfo()
-    local enchants = { { enchant, expiration and expiration/1000 or 0, mainID }, { offenchant, offExpiration and offExpiration/1000 or 0, offID } }
-
     local hands = weapon.numtimers or 1
     local showGlow = false
+    local now = GetTime()
     for hand = 1,hands do
-        local checkEnchant = enchants[hand]
-        if checkEnchant[1] then
-            if weapon.slotChanged[hand] or checkEnchant[2] > self.timers[hand] then
-                if not maxDurations[checkEnchant[3]] or maxDurations[checkEnchant[3]] < checkEnchant[2] then
-                    maxDurations[checkEnchant[3]] = checkEnchant[2]
-                end
+        local info = GetTemporaryEnchant(hand)
+        local timeLeft = info and info.timeLeft and info.timeLeft / 1000 or 0
+        if timeLeft > 0 then
+            local enchantID = info.enchantID
+            local expiration = now + timeLeft
+            -- restart on a new enchant or a refreshed one, small differences come from polling
+            if weapon.slotChanged[hand] or not self.timers[hand] or enchantID ~= enchantIDs[hand]
+                    or expiration > expirations[hand] + 1 then
                 weapon.slotChanged[hand] = false
+                enchantIDs[hand] = enchantID
+
+                local durObj = C_DurationUtil.CreateDuration()
+                durObj:SetTimeFromEnd(expiration, ENCHANT_DURATION)
+                self:Start(hand, durObj)
+
                 local texture, spell
-                self:Start(hand, checkEnchant[2], maxDurations[checkEnchant[3]])
-                if WeaponEnchants[checkEnchant[3]] then
-                    texture = SpellTextures[WeaponEnchants[checkEnchant[3]]]
-                    spell = SpellNames[WeaponEnchants[checkEnchant[3]]]
+                if WeaponEnchants[enchantID] then
+                    texture = SpellTextures[WeaponEnchants[enchantID]]
+                    spell = SpellNames[WeaponEnchants[enchantID]]
                 else
-                    spell, _, _, _, _, _, _, _, _, texture = GetItemInfo(GetInventoryItemID("player", 15 + hand))
+                    local itemID = GetInventoryItemID("player", 15 + hand)
+                    spell = itemID and C_Item.GetItemNameByID(itemID)
+                    texture = info.enchantIconID
                 end
 
                 self["enchant"..hand] = spell
@@ -228,16 +250,12 @@ function TotemTimers.WeaponUpdate(self, elapsed)
                 self.expirationMsgs[hand] = "Weapon"
                 self.earlyExpirationMsgs[hand] = "Weapon"
             end
-            if checkEnchant[2] == 0 then
-                self:Stop(hand)
-            else
-                self.timers[hand] = checkEnchant[2]
+            expirations[hand] = expiration
+            if InCombatLockdown() and timeLeft < self.warningPoint then
+                showGlow = true
             end
-        elseif self.timers[hand] > 0 then
+        elseif self.timers[hand] then
             self:Stop(hand)
-        end
-        if InCombatLockdown() and self.timers[hand] < self.warningPoint then
-            showGlow = true
         end
     end
 
@@ -251,11 +269,13 @@ function TotemTimers.WeaponUpdate(self, elapsed)
 end
 
 function TotemTimers.SetNumWeaponTimers()
-    weapon.handsToCheck = AvailableTalents.DualWield and 2 or 1
-    TotemTimers.SetDoubleTexture(weapon.button,  AvailableTalents.DualWield, true)
-    weapon.numtimers = AvailableTalents.DualWield and 2 or 1
+    -- WoW Forever has no dual wield, so the offhand is never checked
+    local dualWield = not TotemTimers.IsForever and AvailableTalents.DualWield
+    weapon.handsToCheck = dualWield and 2 or 1
+    TotemTimers.SetDoubleTexture(weapon.button, dualWield, true)
+    weapon.numtimers = dualWield and 2 or 1
     weapon:SetTimerBarPos(weapon.timerBarPos)
-    if not AvailableTalents.DualWield then weapon:Stop(2) end
+    if not dualWield then weapon:Stop(2) end
 end
 
 table.insert(TotemTimers.SpellUpdaters, TotemTimers.SetNumWeaponTimers)

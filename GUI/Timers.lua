@@ -223,6 +223,8 @@ TotemTimers.options.args.timers = {
             set = function(info, val)
                 TotemTimers.ActiveProfile.TimerTimeHeight = val
                 TotemTimers.ProcessSetting("TimerTimeHeight")
+                if TotemTimers.LayoutEnhanceCDs then TotemTimers.LayoutEnhanceCDs() end
+                if TotemTimers.LayoutLongCooldowns then TotemTimers.LayoutLongCooldowns() end
             end,
             get = function(info)
                 return TotemTimers.ActiveProfile.TimerTimeHeight
@@ -557,7 +559,7 @@ if LE_EXPANSION_LEVEL_CURRENT < LE_EXPANSION_WRATH_OF_THE_LICH_KING then
     }
 end
 
-if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE and LE_EXPANSION_LEVEL_CURRENT < LE_EXPANSION_MISTS_OF_PANDARIA then
+if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC then
     TotemTimers.options.args.timers.args.h0 = {
         order = 5,
         type = "header",

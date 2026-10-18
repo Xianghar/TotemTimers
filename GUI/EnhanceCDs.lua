@@ -158,23 +158,6 @@ TotemTimers.options.args.enhancecds = {
                         return TotemTimers.ActiveProfile.EnhanceCDsSize
                     end,
                 },
-                ECDFontSize = {
-                    order = 12,
-                    type = "range",
-                    name = L["Time Size"],
-                    min = 6,
-                    max = 40,
-                    step = 1,
-                    set = function(info, val)
-                        TotemTimers.ActiveProfile.EnhanceCDsTimeHeight = val
-                        TotemTimers.ProcessSetting("EnhanceCDsTimeHeight")
-                        TotemTimers.LayoutEnhanceCDs()
-                        TotemTimers.LayoutLongCooldowns()
-                    end,
-                    get = function(info)
-                        return TotemTimers.ActiveProfile.EnhanceCDsTimeHeight
-                    end,
-                },
                 spacing = {
                     order = 13,
                     type = "range",

@@ -2,7 +2,9 @@ package-as: TotemTimers
 
 license-output: license.txt
 
-manual-changelog: changes.txt
+manual-changelog:
+  filename: CHANGELOG.md
+  markup-type: markdown
 
 enable-nolib-creation: no
 

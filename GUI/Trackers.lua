@@ -71,22 +71,6 @@ TotemTimers.options.args.trackers = {
                 return TotemTimers.ActiveProfile.TrackerSize
             end,
         },
-        trackerTimeHeight = {
-            order = 12,
-            type = "range",
-            name = L["Time Size"],
-            desc = L["Sets the font size of time strings"],
-            min = 6,
-            max = 40,
-            step = 1,
-            set = function(info, val)
-                TotemTimers.ActiveProfile.TrackerTimeHeight = val
-                TotemTimers.ProcessSetting("TrackerTimeHeight")
-            end,
-            get = function(info)
-                return TotemTimers.ActiveProfile.TrackerTimeHeight
-            end,
-        },
         trackertimespacing = {
             order = 13,
             type = "range",
