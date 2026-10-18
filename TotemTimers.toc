@@ -34,25 +34,27 @@ TTActionBars.lua
 DefaultSettings.lua
 Settings.lua
 SetupTimers.lua
+MultiSpell.lua
 SetupTrackers.lua
+AuraDisplay.lua
 Ankh.lua
 Shield.lua
 EarthShield.lua
 Weapon.lua
-EnhanceCDs.lua
-LongCooldowns.lua
+#EnhanceCDs.lua
+#LongCooldowns.lua
 
 Warnings.lua
 Masque.lua
 GUI\localization.lua
 GUI\localization.[TextLocale].lua [AllowLoadTextLocale deDE, esES, esMX, frFR, koKR, ptBR, ruRU, zhCN, zhTW]
 GUI\General.lua
-#GUI\Timers.lua
-#GUI\Trackers.lua
+GUI\Timers.lua
+GUI\Trackers.lua
 #GUI\EnhanceCDs.lua
-#GUI\Messages.lua
+GUI\Messages.lua
 #GUI\Totems.lua
-#GUI\Sets.lua
-#GUI\Profiles.lua
+GUI\Sets.lua
+GUI\Profiles.lua
 
 

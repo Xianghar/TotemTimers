@@ -15,6 +15,12 @@ local AvailableSpells = TotemTimers.AvailableSpells
 
 local LSM = LibStub:GetLibrary("LibSharedMedia-3.0", true)
 
+-- the button time texts inherit TotemTimersButtonTimeFont, so font and size are changed there
+local function SetButtonTimeFont(font, size)
+    local currentFont, currentSize = TotemTimersButtonTimeFont:GetFont()
+    TotemTimersButtonTimeFont:SetFont(font or currentFont, size or currentSize, "OUTLINE")
+end
+
 --[[local TotemColors = {
     --[AIR_TOTEM_SLOT] = {0.7,0.7,1.0},
     [AIR_TOTEM_SLOT] = {1,1,1},
@@ -36,6 +42,8 @@ local PartyRangePositions = {
 function TotemTimers.ProcessSetting(setting)
     if SettingsFunctions[setting] then
         SettingsFunctions[setting](TotemTimers.ActiveProfile[setting], XiTimers.timers)
+        -- aura displays take over the look of the timer bars, they are only rebuilt if that changed
+        TotemTimers.AuraDisplay.UpdateAll()
     end
 end
 
@@ -99,22 +107,18 @@ SettingsFunctions = {
         end
     end,
 
+    -- time size of totem timers, trackers, enhance cds and long cooldowns
+    -- (Flame Shock duration and Maelstrom are sized by their own size settings)
     TimerTimeHeight = function(value, Timers)
-        for e = 1, 4 do
+        for e = 1, TRACKER_END do
             Timers[e]:SetTimeHeight(value)
-            Timers[e].button.time:SetFont(Timers[e].button.time:GetFont(), value + 5, "OUTLINE")
         end
-    end,
-
-    TrackerTimeHeight = function(value, Timers)
-        for e = TRACKER_START, TRACKER_END do
-            Timers[e]:SetTimeHeight(value)
-            Timers[e].button.time:SetFont(Timers[e].button.time:GetFont(), value + 5, "OUTLINE")
+        for _, t in pairs({ TotemTimers.EnhanceCDs or {}, TotemTimers.LongCooldowns or {} }) do
+            for _, timer in pairs(t) do
+                timer:SetTimeHeight(value)
+            end
         end
-        --[[ for e=22, 23 do
-            Timers[e]:SetTimeHeight(value)
-            Timers[e].button.time:SetFont(Timers[e].button.time:GetFont(),value+5,"OUTLINE")
-        end ]]
+        SetButtonTimeFont(nil, value + 5)
     end,
 
     TimerSpacing = function(value, Timers)
@@ -272,13 +276,12 @@ SettingsFunctions = {
         for i = 1, 4 do
             if value and not TotemTimers.ActiveProfile.MenusAlwaysVisible then
                 Timers[i].button:SetAttribute("OpenMenu", "RightButton")
-                Timers[i].button:SetAttribute("*type3", "macro")
-                Timers[i].button:SetAttribute("*macrotext3", "/script XiTimers.timers[" .. i .. "].stopQuiet = true DestroyTotem(" .. Timers[i].nr .. ")")
-                Timers[i].button:SetAttribute("*macrotext2", "")
+                Timers[i].button:SetAttribute("*type3", "destroytotem")
+                Timers[i].button:SetAttribute("*totem-slot", Timers[i].nr)
             else
                 Timers[i].button:SetAttribute("OpenMenu", "mouseover")
-                Timers[i].button:SetAttribute("type2", "macro")
-                Timers[i].button:SetAttribute("macrotext2", "/script XiTimers.timers[" .. i .. "].stopQuiet = true DestroyTotem(" .. Timers[i].nr .. ")")
+                Timers[i].button:SetAttribute("*type2", "destroytotem")
+                Timers[i].button:SetAttribute("*totem-slot2", Timers[i].nr)
                 Timers[i].button:SetAttribute("type3", "spell")
                 Timers[i].button:SetAttribute("spell3", SpellIDs.TotemicCall)
             end
@@ -362,6 +365,7 @@ SettingsFunctions = {
             for _, timer in pairs(Timers) do
                 timer:SetFont(font)
             end
+            SetButtonTimeFont(font)
         end
     end,
 
@@ -529,11 +533,11 @@ SettingsFunctions = {
         for i = 1, 8 do
             local timer = Timers[i]
             timer.timerOnButton = value
-            if timer.timers[1] > 0 then
+            if timer.timers[1] then
                 timer:ShowTimer()
             end
-            if timer.nrOfTimers > 1 and timer.timers[2] > 0 then
-                timer:Start(2, timer.durationObjects[2] or timer.timers[2], timer.durations[1])
+            if timer.nrOfTimers > 1 and timer.timers[2] then
+                timer:Start(2, timer.timers[2])
             end
         end
     end,
@@ -555,7 +559,7 @@ SettingsFunctions = {
             for i = 1, 4 do
                 if Timers[i].active then
                     Timers[i].button:RegisterEvent("UNIT_AURA")
-                    if Timers[i].timers[1] > 0 then
+                    if Timers[i].timers[1] then
                         TotemTimers.TotemEvent(Timers[i].button, "UNIT_AURA", "player")
                     end
                 end
@@ -582,7 +586,7 @@ SettingsFunctions = {
                     if i == AIR_TOTEM_SLOT or i == FIRE_TOTEM_SLOT then
                         Timers[i].button:RegisterEvent("CHAT_MSG_ADDON")
                     end
-                    if Timers[i].timers[1] > 0 then
+                    if Timers[i].timers[1] then
                         for j = 1, 4 do
                             TotemTimers.TotemEvent(Timers[i].button, "UNIT_AURA", "party" .. j)
                         end
@@ -786,9 +790,9 @@ if TotemFrame then
     end
 end
 
-if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_CLASSIC or (C_Seasons and C_Seasons.GetActiveSeason() == 2) then
 
-    SettingsFunctions.CooldownSpacing = function(value, Timers)
+
+    --[[SettingsFunctions.CooldownSpacing = function(value, Timers)
         for _, t in pairs({ TotemTimers.EnhanceCDs, TotemTimers.LongCooldowns }) do
             for k, v in pairs(t) do
                 v:SetSpacing(value)
@@ -810,34 +814,13 @@ if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_CLASSIC or (C_Seasons and C_Seasons
         --TotemTimers.LayoutLongCooldowns()
     end
 
-    SettingsFunctions.EnhanceCDsTimeHeight = function(value)
-        for _, t in pairs({ TotemTimers.EnhanceCDs, TotemTimers.LongCooldowns }) do
-            for _, timer in pairs(t) do
-                timer:SetTimeHeight(value)
-                local font = timer.button.time:GetFont()
-                timer.button.time:SetFont(font, value + 5, "OUTLINE")
-            end
-        end
-
-        --[[local fs = TotemTimers.FlameShockDuration
-
-        fs:SetTimeHeight(value * 1.2)
-        local font = fs.timerBars[1].time:GetFont()
-        fs.timerBars[1].time:SetFont(font, value, "OUTLINE")
-        fs.button:SetSize(value * 1.2, value * 1.2)
-        fs.button.icons[1]:SetAllPoints(fs.button)]]
-
-        --TotemTimers.LayoutEnhanceCDs()
-        --TotemTimers.LayoutLongCooldowns()
-    end
-
     SettingsFunctions.FlameShockDurationSize = function(value)
         TotemTimers.FlameShockDuration.size = value
     end
 
     SettingsFunctions.FlameShockDurationStopPulse = function(value)
         TotemTimers.FlameShockDuration.StopPulse = value
-    end
+    end]]
 
     --[[SettingsFunctions.EnhanceCDsMaelstromHeight =
         function(value, Timers)
@@ -858,19 +841,19 @@ if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_CLASSIC or (C_Seasons and C_Seasons
             TotemTimers.LayoutEnhanceCDs()
         end, --]]
 
-    SettingsFunctions.CDTimersOnButtons = function(value, Timers)
+    --[[SettingsFunctions.CDTimersOnButtons = function(value, Timers)
         for _, t in pairs({ TotemTimers.EnhanceCDs, TotemTimers.LongCooldowns }) do
             for _, timer in pairs(t) do
                 timer.timerOnButton = value
-                if timer.timers[1] > 0 then
+                if timer.timers[1] then
                     timer:ShowTimer()
                 end
             end
         end
         --TotemTimers.ProcessSetting("EnhanceCDsMaelstromHeight")
-    end
+    end]]
 
-    SettingsFunctions.EnhanceCDsOOCAlpha = function(value)
+    --[[SettingsFunctions.EnhanceCDsOOCAlpha = function(value)
         for _, t in pairs({ TotemTimers.EnhanceCDs, TotemTimers.LongCooldowns }) do
             for _, timer in pairs(t) do
                 timer.OOCAlpha = value
@@ -923,15 +906,16 @@ if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_CLASSIC or (C_Seasons and C_Seasons
         else
             TotemTimers.DeactivateEnhanceCDs()
         end
-    end
+    end]]
 
-    if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE and LE_EXPANSION_LEVEL_CURRENT < LE_EXPANSION_MISTS_OF_PANDARIA then
+    if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC then
+
         SettingsFunctions.MultiCast = function(value)
             TotemTimers.MultiSpellActivate()
         end
     end
 
-    if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE or C_Seasons.GetActiveSeason() == 2 then
+    if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE then
 
         SettingsFunctions.MaelstromSize = function(value)
             TotemTimers.Maelstrom.size = value
@@ -956,7 +940,7 @@ if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_CLASSIC or (C_Seasons and C_Seasons
 
     end
 
-    SettingsFunctions.LongCooldownsStopPulse = function(value, Timers)
+    --[[SettingsFunctions.LongCooldownsStopPulse = function(value, Timers)
         for _, timer in pairs(TotemTimers.LongCooldowns) do
             timer.NoBuffStopPulse = value
         end
@@ -968,12 +952,5 @@ if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_CLASSIC or (C_Seasons and C_Seasons
 
     SettingsFunctions.LongCooldownsArrange = function(value, Timers)
         TotemTimers.LayoutLongCooldowns()
-    end
+    end]]
 
-    if C_Seasons.GetActiveSeason() == 2 then
-        SettingsFunctions.PowerSurge = function(value)
-            TotemTimers.EnablePowerSurge(value)
-        end
-    end
-
-end

@@ -30,6 +30,14 @@ function TotemTimers.CreateMultiCastButtons()
     mb.SetCheckedTexture = function()
     end
 
+    local regions = {mb:GetRegions()}
+    for i, region in ipairs(regions) do
+        if not region:GetName() then
+            region:SetTexture(nil)
+            region:Hide()
+        end
+    end
+
     --mb:SetNormalTexture(nil)
     _G["TotemTimers_MultiSpellNormalTexture"]:SetTexture(nil)
 
@@ -95,6 +103,22 @@ function TotemTimers.CreateMultiCastButtons()
     mb:WrapScript(mb, "OnClick", [[ if button == "Button4" then
                                                           control:ChildUpdate("toggle")
                                                       end ]])
+
+    -- cooldown swirl of the button's spell, the multicast spells have no cooldown of their own,
+    -- so it shows every global cooldown
+    mb.cooldown = mb.cooldown or _G["TotemTimers_MultiSpellCooldown"]
+    mb.cooldown:SetHideCountdownNumbers(true)
+    mb.cooldown.noCooldownCount = true
+    mb:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+    mb:SetScript("OnEvent", function(self, event)
+        if event == "SPELL_UPDATE_COOLDOWN" then
+            local spell = self:GetAttribute("*spell1")
+            local durObj = spell and C_Spell.GetSpellCooldownDuration(spell)
+            if durObj then
+                self.cooldown:SetCooldownFromDurationObject(durObj)
+            end
+        end
+    end)
 
     mb:SetScript("OnDragStart", function()
         if not InCombatLockdown() and not TotemTimers.ActiveProfile.Lock then

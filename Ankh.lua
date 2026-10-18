@@ -38,7 +38,7 @@ local AnkhID = SpellIDs.Ankh
 local AnkhItem = 17030
 
 function TotemTimers.AnkhEvent(self, event)
-    if event == "SPELL_UPDATE_COOLDOWN" then
+    --[[if event == "SPELL_UPDATE_COOLDOWN" then
         if not AvailableSpells[SpellIDs.Ankh] then
             return
         end
@@ -51,5 +51,5 @@ function TotemTimers.AnkhEvent(self, event)
     else
         local countfunc = GetItemCount or C_Item.GetItemCount
         self.count:SetText(countfunc(AnkhItem))
-    end
+    end]]
 end

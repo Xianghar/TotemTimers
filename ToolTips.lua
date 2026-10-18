@@ -152,7 +152,7 @@ function WeaponTimerTooltip:SetText()
     local button = self.button
 
     for i = 1, 2 do
-        if button.timer.timers[i] and button.timer.timers[i] > 0 then
+        if button.timer.timers[i] then
             GameTooltip:AddLine(button.timer["enchant"..i])
         end
     end

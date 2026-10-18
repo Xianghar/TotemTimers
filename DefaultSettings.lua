@@ -4,10 +4,10 @@ local _, TotemTimers = ...
 
 local SpellIDs = TotemTimers.SpellIDs
 local SpellNames = TotemTimers.SpellNames
-local Version = 11.3
+local Version = 11.4
 
 TotemTimers.DefaultGlobalSettings = {
-	Version = 11.3,
+	Version = 11.4,
     Profiles = {},
     Sink = {
         sink20OutputSink="Default",
@@ -87,7 +87,6 @@ TotemTimers.DefaultProfile = {
         TrackerArrange = "horizontal",
         TrackerTimePos = "BOTTOM",
         TrackerSize = 30,
-        TrackerTimeHeight=12,
         TrackerSpacing = 5,
         TrackerTimeSpacing = 0,
         TrackerTimerBarWidth = 36,
@@ -304,7 +303,6 @@ TotemTimers.DefaultProfile = {
         },
         EnhanceCDs = true,
         EnhanceCDsSize = 30,
-        EnhanceCDsTimeHeight = 12,
         EnhanceCDsMaelstromHeight = 14,
         ShowOmniCCOnEnhanceCDs = true,
         OOCAlpha = 1,
@@ -444,6 +442,14 @@ local SettingsConverters = {
     [11.2] = function()
         for k,profile in pairs(TotemTimers_Profiles) do
             if profile.OOCAlpha == 0.4 then profile.OOCAlpha = 1 end
+        end
+        TotemTimers_GlobalSettings.Version = Version
+    end,
+    -- TrackerTimeHeight and EnhanceCDsTimeHeight were merged into TimerTimeHeight
+    [11.3] = function()
+        for k,profile in pairs(TotemTimers_Profiles) do
+            profile.TrackerTimeHeight = nil
+            profile.EnhanceCDsTimeHeight = nil
         end
         TotemTimers_GlobalSettings.Version = Version
     end,
@@ -612,7 +618,7 @@ function TotemTimers.CopyTimerSettings(p1,p2)
 end
 
 local TrackerList = {
-    TrackerArrange, TrackerTimePos, TrackerSize, TrackerTimeHeight,
+    TrackerArrange, TrackerTimePos, TrackerSize,
     TrackerSpacing, TrackerTimeSpacing, TrackerTimerBarWidth, AnkhTracker,
     ShieldTracker, EarthShieldTracker, 
     EarthShieldLeftButton, EarthShieldRightButton, EarthShieldMiddleButton,
@@ -631,7 +637,7 @@ end
 
 --[[ local CDSettings = {
     EnhanceCDs_Spells, EnhanceCDs_Order, EnhanceCDs, EnhanceCDsSize,
-    EnhanceCDsTimeHeight, EnhanceCDsMaelstromHeight, ShowOmniCCOnEnhanceCDs,
+    EnhanceCDsMaelstromHeight, ShowOmniCCOnEnhanceCDs,
     EnhanceCDsOOCAlpha, CDTimersOnButtons, FlameShockDurationOnTop, EnhanceCDs_Clickthrough,
 	LongCooldowns, LongCooldownSpells,	LongCooldownsArrange, CooldownSpacing,
 }

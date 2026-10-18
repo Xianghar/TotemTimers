@@ -12,17 +12,42 @@ local SpellTextures = TotemTimers.SpellTextures
 
 local shield = nil
 
+
+-- The shield aura can be secret, so it is displayed by an AuraDisplay (see AuraDisplay.lua) over the tracker button.
+-- Two slots: Lightning/Water Shield on top, Earth Shield (only with EarthShieldOnSelf) below.
+
+local SLOT_SHIELD = "shield"
+local SLOT_EARTHSHIELD = "earthshield"
+
+local function SpellIDSet(...)
+    local set = {}
+    for i = 1, select("#", ...) do
+        for _, id in pairs(TotemTimers.ShieldAuraSpells[select(i, ...)] or {}) do
+            set[id] = true
+        end
+    end
+    return set
+end
+
+local function CreateAuraDisplay()
+    local display = TotemTimers.AuraDisplay:new(shield.button)
+    if not display then return end
+    display:AddSlot(SLOT_EARTHSHIELD, SpellIDSet(SpellIDs.EarthShield), 2)
+    display:AddSlot(SLOT_SHIELD, SpellIDSet(SpellIDs.LightningShield, SpellIDs.WaterShield), 4)
+    shield.auraDisplay = display
+end
+
+
 function TotemTimers.CreateShieldTracker()
     shield = XiTimers:new(1)
     shield.button.icons[1]:SetTexture(SpellTextures[SpellIDs.LightningShield])
     shield.button.anchorframe = TotemTimers_TrackerFrame
     shield.button:SetScript("OnEvent", TotemTimers.ShieldEvent)
     shield.events[1] = "UNIT_SPELLCAST_SUCCEEDED"
-    shield.events[2] = "UNIT_AURA"
     shield.timeStyle = "blizz"
     shield.Activate = function(self)
         XiTimers.Activate(self)
-        TotemTimers.ShieldEvent(self.button, "UNIT_AURA")
+        TotemTimers.ShieldEvent(self.button, "UNIT_AURA", "player")
         if not TotemTimers.ActiveProfile.ShieldTracker then
             self.button:Hide()
         end
@@ -41,6 +66,8 @@ function TotemTimers.CreateShieldTracker()
         XiTimers.StopMoving(self)
     end)
 
+    CreateAuraDisplay()
+
     TotemTimers.ShieldTracker = shield
 end
 
@@ -49,20 +76,11 @@ table.insert(TotemTimers.Modules, TotemTimers.CreateShieldTracker)
 
 local ShieldChargesOnly = false
 
-
-local function EmptyUpdate()
-end
-
+-- charges only: the time and the swipe of the aura display are hidden, only the charges are shown
 local function ConfigShieldButtonUpdate(sco)
-    if sco then
-        Timers[6].Update = EmptyUpdate
-        Timers[6].prohibitCooldown = true
-        Timers[6].timeStyle = "sec"
-        Timers[6].button.count:SetText("")
-    else
-        Timers[6].Update = nil
-        Timers[6].prohibitCooldown = false
-        Timers[6].timeStyle = TotemTimers.ActiveProfile.TimeStyle --"blizz"
+    local display = Timers[6].auraDisplay
+    if display then
+        display:SetTimeShown(not sco)
     end
 end
 
@@ -73,81 +91,12 @@ function TotemTimers.SetShieldUpdate()
 end
 
 
-local ShieldSpellNames = {}
-for k,v in pairs(TotemTimers.ShieldSpells) do
-    ShieldSpellNames[SpellNames[v]] = true
-end
-
-local EarthShieldName = SpellNames[SpellIDs.EarthShield]
-local LightningShieldName = SpellNames[SpellIDs.LightningShield]
-local WaterShieldName = SpellNames[SpellIDs.WaterShield]
-
-local function ShieldPredicate(_, _, _, auraName)
-    return auraName == LightningShieldName or auraName == WaterShieldName
-end
-
+-- UNIT_AURA is only sent by the addon itself to apply settings, the aura container tracks the auras
 function TotemTimers.ShieldEvent(self, event, unit)
-   --[[ if event == "UNIT_SPELLCAST_SUCCEEDED" and unit == "player" then
-       -- local start, duration, enable = GetSpellCooldown(SpellIDs.LightningShield)
-       -- if start and duration and (not self.timer.timerOnButton or self.timer.timers[1] <= 0) then
-       --     CooldownFrame_Set(self.cooldown, start, duration, enable)
-       -- end
-    elseif unit == "player" then
-        self.count:SetText("")
-        local name, texture, count, duration, endtime
-        local hasBuff = false
-
-        name, texture, count, _, duration, endtime = AuraUtil.FindAura(ShieldPredicate, "player", "HELPFUL")
-        if not name and TotemTimers.ActiveProfile.EarthShieldOnSelf then
-            name, texture, count, _, duration, endtime = AuraUtil.FindAuraByName(EarthShieldName, "player", "HELPFUL")
+    if event == "UNIT_AURA" and unit == "player" then
+        local display = self.timer.auraDisplay
+        if display then
+            display:SetSlotEnabled(SLOT_EARTHSHIELD, TotemTimers.ActiveProfile.EarthShieldOnSelf)
         end
-
-        if name then
-            hasBuff = true
-            local timeleft = endtime - GetTime()
-            if name == EarthShieldName and self.name ~= EarthShieldName then
-                self.timer:Stop(1)
-            end
-
-            local sco = ShieldChargesOnly
-            if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_MISTS_OF_PANDARIA then
-                if name ~= EarthShieldName then
-                    sco = false
-                end
-                ConfigShieldButtonUpdate(sco)
-            end
-
-            if name ~= self.shield
-             or (not ShieldChargesOnly and timeleft > self.timer.timers[1])
-             or ShieldChargesOnly
-              then
-                self.icons[1]:SetTexture(texture)
-                self.timer.expirationMsgs[1] = "Shield"
-                self.timer.earlyExpirationMsgs[1] = "Shield"
-                self.timer.warningIcons[1] = texture
-                self.timer.warningSpells[1] = name
-                self.shield = name
-                if not sco then
-                    self.timer.warningPoint = 10
-                    self.timer:Start(1, timeleft, duration)
-                else
-                    self.timer.warningPoint = 0
-                    self.timer:Start(1, count, 3)
-                end
-            end
-            if not sco then
-                if count and count > 0 then
-                    self.count:SetText(count)
-                else
-                    self.count:SetText("")
-                end
-            end
-        end
-        if not hasBuff and self.timer.timers[1] > 0 then
-            self.shield = nil
-            self.timer:Stop(1)
-        end
-    end]]
+    end
 end
-
-
