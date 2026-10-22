@@ -23,6 +23,9 @@ L["Ctrl-Leftclick to remove weapon buffs"] = true
 L["Delete Set"] = "Delete Totem Set %s?"
 L["Earth Button"] = true
 L["Fire Button"] = true
+-- the words for left/rightclick in the tooltips, replaced by gamepad button icons while navigating the menus by gamepad
+L["Leftclick"] = true
+L["Rightclick"] = true
 L["Leftclick to cast %s"] = true
 L["Leftclick to cast spell"] = true
 L["Leftclick to load totem set"] = true

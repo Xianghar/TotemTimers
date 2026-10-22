@@ -2,9 +2,6 @@ if select(2,UnitClass("player")) ~= "SHAMAN" then return end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers")
 
-local GetSpellInfo = TotemTimers.GetSpellInfo
-local GetSpellCooldown = TotemTimers.GetSpellCooldown
-
 TTActionBars = {}
 TTActionBars.bars = {}
 TTActionBars.numbars = 0
@@ -156,8 +153,8 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
         b:SetScript("OnEvent", function(self)            
                 local spell = self:GetAttribute("*spell1")
                 if spell then
-                    local cd = GetSpellCooldown(spell)
-                    if cd.startTime and cd.duration then CooldownFrame_Set(self.cooldown, cd.startTime, cd.duration, cd.enable) end
+                    local durObj = C_Spell.GetSpellCooldownDuration(spell)
+                    if durObj then self.cooldown:SetCooldownFromDurationObject(durObj) end
                  end
             end)
         if bartype ~= "weapontimer" then 
@@ -230,9 +227,8 @@ function TTActionBars:SetSpell(nr, spell, asname)
     local button = self.buttons[nr]
     local texture = "Interface\\Buttons\\UI-TotemBar"
 	local _
-    local info = GetSpellInfo(spell)
-    if type(spell)~="number" or spell~=0 then texture = info.iconID end
-    if type(spell)=="number" then button:SetAttribute("spellname", info.name) end
+    if type(spell)~="number" or spell~=0 then texture = C_Spell.GetSpellTexture(spell) end
+    if type(spell)=="number" then button:SetAttribute("spellname", C_Spell.GetSpellName(spell)) end
 	if asname and type(spell) == "number" then
 		button:SetAttribute("spellid", spell)
 		spell = TotemTimers.SpellNames[spell]		
@@ -267,13 +263,11 @@ function TTActionBars:AddDoubleSpell(spell1,spell2)
     if self.numspells >= self.numbuttons then return end
     self.numspells = self.numspells+1
     local button = self.buttons[self.numspells]
-    local info1 = GetSpellInfo(spell1)
-    local info2 = GetSpellInfo(spell2)
-	button:SetAttribute("doublespell1", info1.name)
-    button:SetAttribute("doublespell2", info2.name)
+	button:SetAttribute("doublespell1", C_Spell.GetSpellName(spell1))
+    button:SetAttribute("doublespell2", C_Spell.GetSpellName(spell2))
 	button:SetAttribute("inactive", false)
-    button.icon:SetTexture(info1.iconID)
-    button.icon2:SetTexture(info2.iconID)
+    button.icon:SetTexture((C_Spell.GetSpellTexture(spell1)))
+    button.icon2:SetTexture((C_Spell.GetSpellTexture(spell2)))
     TotemTimers.SetDoubleTexture(button, true)
     local f = button:GetScript("OnEvent")
     if f then f(button) end
@@ -370,6 +364,8 @@ function TTActionBars:SetDirection(dir, parentdir, freenotself)
         dir = self:CalcDirection(dir, parentdir, freenotself)
     end
     self.actualDirection = dir
+    -- read by the gamepad menu navigation (GamePad.lua) in combat
+    self.parent:SetAttribute("ttMenuDirection", dir)
     local x = 0
     local y = 0
     if self.alwaysvisible then

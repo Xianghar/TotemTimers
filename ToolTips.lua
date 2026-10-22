@@ -1,8 +1,5 @@
 if select(2,UnitClass("player")) ~= "SHAMAN" then return end
 
-local GetSpellName = TotemTimers.GetSpellName
-local GetSpellInfo = TotemTimers.GetSpellInfo
-
 local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers", true)
 
 local SpellNames = TotemTimers.SpellNames
@@ -65,7 +62,8 @@ function XiTimersTooltip:SetSpell(spell)
     if not spellID then return end]]
     --local spellID = select(7, GetSpellInfo(spell))
 
-    GameTooltip:SetSpellByID(GetSpellInfo(spell).spellID)
+    local spellID = C_Spell.GetSpellIDForSpellIdentifier(spell)
+    if spellID then GameTooltip:SetSpellByID(spellID) end
 end
 
 
@@ -102,7 +100,7 @@ function TotemTooltip:SetText()
                 local message = L["Ctrl-Rightclick to disable totem for %s"]
                 if disabled then message = L["Ctrl-Rightclick to enable element for %s"] end
 
-                local mspell = GetSpellInfo(mspellID)
+                local mspell = C_Spell.GetSpellName(mspellID)
                 GameTooltip:AddLine(format(message, mspell),r,g,b,1)
 
             end
@@ -161,7 +159,7 @@ function WeaponTimerTooltip:SetText()
 
     local spell = button:GetAttribute("spell1")
     if spell and not button:GetAttribute("doublespell1") then
-        local spellName = GetSpellName(spell)
+        local spellName = C_Spell.GetSpellName(spell)
         if spellName then GameTooltip:AddLine(format(L["Leftclick to cast %s"], spellName),r,g,b,1) end
     else
         local ds = button:GetAttribute("ds")
@@ -177,7 +175,7 @@ function WeaponTimerTooltip:SetText()
     end
     local spell2 = button:GetAttribute("spell2")
     if spell2 then
-        local spellname = GetSpellName(spell2)
+        local spellname = C_Spell.GetSpellName(spell2)
         if spellname then GameTooltip:AddLine(format(L["Rightclick to cast %s"], spellname),r,g,b,1) end
     end
     --[[s = self:GetAttribute("spell2")

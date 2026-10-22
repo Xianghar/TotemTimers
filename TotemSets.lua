@@ -1,7 +1,5 @@
 if select(2,UnitClass("player")) ~= "SHAMAN" then return end
 
-local GetSpellInfo = TotemTimers.GetSpellInfo
-
 local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers", true)
 
 local buttonlocations = {
@@ -64,7 +62,7 @@ function TotemTimers.ProgramSetButtons()
         if Sets[i] then
             for k = 1,4 do
                 if Sets[i][k] then
-                    local texture =  GetSpellInfo(Sets[i][k]).iconID
+                    local texture = C_Spell.GetSpellTexture(Sets[i][k])
                     if texture then
                         _G[b:GetName().."Icon"..k]:SetTexture(texture)
                     end

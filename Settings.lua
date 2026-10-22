@@ -2,9 +2,6 @@ if select(2, UnitClass("player")) ~= "SHAMAN" then
     return
 end
 
-local GetSpellInfo = TotemTimers.GetSpellInfo
-local GetSpellName = TotemTimers.GetSpellName
-
 local TRACKER_START = 5
 local TRACKER_END = 8
 local Timers = XiTimers.timers
@@ -211,7 +208,7 @@ SettingsFunctions = {
         local button = TotemTimers.WeaponTracker.button
 
         if type(value) ~= "number" then
-            value = GetSpellInfo(value).spellID
+            value = value and C_Spell.GetSpellIDForSpellIdentifier(value)
         end
 
         if value and value >= 5 and value <= 8 then
@@ -226,7 +223,7 @@ SettingsFunctions = {
             -- update rank and set macro from attribute because of ft-1/ft-button
             TotemTimers.UpdateRank(button)
         elseif value then
-            if not GetSpellName(value) or not AvailableSpells[TotemTimers.GetBaseSpellID(value)] then
+            if not C_Spell.GetSpellName(value) or not AvailableSpells[TotemTimers.GetBaseSpellID(value)] then
                 if AvailableSpells[SpellIDs.RockbiterWeapon] then
                     value = SpellIDs.RockbiterWeapon
                 elseif AvailableSpells[SpellIDs.FlametongueWeapon] then
@@ -248,7 +245,7 @@ SettingsFunctions = {
         if TotemTimers.ActiveProfile.WeaponMenuOnRightclick then
             type = "spell3"
         end
-        if not GetSpellName(value) then
+        if not C_Spell.GetSpellName(value) then
             value = SpellIDs.RockbiterWeapon
         end
         Timers[8].button:SetAttribute(type, value)
@@ -258,7 +255,7 @@ SettingsFunctions = {
         if not value then
             return
         end
-        if not GetSpellName(value) then
+        if not C_Spell.GetSpellName(value) then
             value = SpellIDs.RockbiterWeapon
         end
         -- for sod alt-click only, no type4 needed
@@ -719,6 +716,11 @@ SettingsFunctions = {
 }
 
 SettingsFunctions.ReverseBarBindings = SettingsFunctions.BarBindings
+
+SettingsFunctions.GamePad = function(value, Timers)
+    TotemTimers.GamePad.Apply()
+end
+SettingsFunctions.GamePadLayerKey = SettingsFunctions.GamePad
 
 
 

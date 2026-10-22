@@ -5,8 +5,6 @@ local isSOD = (C_Seasons and C_Seasons.GetActiveSeason() == 2)
 
 local _, TotemTimers = ...
 
-local GetSpellInfo = TotemTimers.GetSpellInfo
-
 local SpellIDs = TotemTimers.SpellIDs
 local SpellTextures = TotemTimers.SpellTextures
 local SpellNames = TotemTimers.SpellNames
@@ -135,7 +133,7 @@ function TotemTimers.CreateEnhanceCDs()
         Maelstrom.button.icons[1]:SetVertexColor(1,1,1)
 
         --Maelstrom.button.icons[1]:SetTexture(237584)
-        Maelstrom.button.icons[1]:SetTexture(GetSpellTexture(SpellIDs.Maelstrom))
+        Maelstrom.button.icons[1]:SetTexture((C_Spell.GetSpellTexture(SpellIDs.Maelstrom)))
         Maelstrom.button.anchorframe = TotemTimers_EnhanceCDsFrame
         Maelstrom.dontAlpha = true
         Maelstrom.dontFlash = true
@@ -481,16 +479,19 @@ function TotemTimers.EnhanceCDEvents(self, event, spell)
     if event == "SPELL_UPDATE_COOLDOWN" then
         local cdspell = self.cdspell
         if isSOD then cdspell = SpellNames[cdspell] end
-        local start, duration, enable = GetSpellCooldown(cdspell)
-        if (not start and not duration) then --or (duration <= 1.5 and not InCombatLockdown()) then 			
+        -- the cooldown can be secret: only the never secret isActive and isOnGCD flags are read,
+        -- timer and swirl are driven by DurationObjects
+        local info = C_Spell.GetSpellCooldown(cdspell)
+        if not info or not info.isActive then
             self.timer:Stop(1)
         else
-            if duration <= 1.5 then
+            if info.isOnGCD then
                 self.timer:Stop(1)
-            elseif duration > 1.5 then
-                self.timer:Start(1,start+duration-GetTime(),duration)
+            else
+                self.timer:Start(1, C_Spell.GetSpellCooldownDuration(cdspell, true))
             end
-            CooldownFrame_Set(self.cooldown, start, duration, enable)
+            local durObj = C_Spell.GetSpellCooldownDuration(cdspell)
+            if durObj then self.cooldown:SetCooldownFromDurationObject(durObj) end
         end
     elseif event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" then
         if spell == self.glowSpell then
@@ -685,7 +686,7 @@ local function FindActionButtons(spellList)
         local spell = spellList[i]
         if AvailableSpells[spell] then
             local spellName = SpellNames[spell]
-            local spellID = GetSpellInfo(spell).spellID
+            local spellID = C_Spell.GetSpellIDForSpellIdentifier(spell)
 
             local slots = C_ActionBar.FindSpellActionButtons(spellID);
             if slots then
@@ -740,7 +741,7 @@ TotemTimers.HideButtonsOverlayGlow = HideButtonsOverlayGlow
 local maelstromSpells = TotemTimers.MaelstromSpells
 local maelstromSpellsButtons = nil
 
-local MaelstromName = GetSpellInfo(SpellIDs.Maelstrom)
+local MaelstromName = C_Spell.GetSpellName(SpellIDs.Maelstrom)
 local lastMaelstromCount = 0
 
 function TotemTimers.MaelstromEvent(self)

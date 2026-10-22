@@ -4,9 +4,6 @@ end
 
 local _, TotemTimers = ...
 
-local GetSpellInfo = TotemTimers.GetSpellInfo
-local GetSpellCooldown = TotemTimers.GetSpellCooldown
-local GetSpellTexture = TotemTimers.GetSpellTexture
 
 
 
@@ -103,7 +100,7 @@ end
         tt.button.UpdateMiniIconAndProfile = function(self)
             local spell = self:GetAttribute("*spell1")
             if spell and spell ~= 0 then
-                local texture = GetSpellInfo(self:GetAttribute("*spell1")).iconID
+                local texture = C_Spell.GetSpellTexture(self:GetAttribute("*spell1"))
                 local oldTexture = self.miniIcon:GetTexture()
                 self.miniIcon:SetTexture(texture)
                 if (not self.timer.timers[1] and texture ~= oldTexture) then
@@ -204,7 +201,7 @@ end
                     for k, v in pairs(TotemData) do
                         if AvailableSpells[k] and v.element == self.nr then
                             self.button:SetAttribute("*spell1", k)
-                            self.button.icon:SetTexture(GetSpellTexture(k))
+                            self.button.icon:SetTexture((C_Spell.GetSpellTexture(k)))
                             break
                         end
                     end
@@ -212,7 +209,7 @@ end
                     activeProfile.LastTotems[self.nr] = lastTotem or activeProfile.LastTotems[self.nr]
                 else
                     self.button:SetAttribute("*spell1", lastTotem)
-                    self.button.icon:SetTexture(GetSpellTexture(lastTotem))
+                    self.button.icon:SetTexture((C_Spell.GetSpellTexture(lastTotem)))
                 end
             end
         end
@@ -429,7 +426,7 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
         --[[ -- SPELL_UPDATE_COOLDOWN
         local spell = self:GetAttribute("*spell1")
         if spell and (not self.timer.timerOnButton or self.timer.timers[1] <= 0) then
-            local cd = GetSpellCooldown(spell)
+            local cd = C_Spell.GetSpellCooldown(spell)
             if cd.startTime and cd.duration then
                 CooldownFrame_Set(self.cooldown, cd.startTime, cd.duration, cd.enable)
             end
@@ -438,7 +435,7 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
             for key, spell in pairs(Cooldowns[self.timer.nr]) do
                 local timerIndex = key + 1
                 if AvailableSpells[spell] then
-                    local cd = GetSpellCooldown(spell)
+                    local cd = C_Spell.GetSpellCooldown(spell)
                     if not cd.startTime and not cd.duration then
                         self.timer:stop(timerIndex)
                         return

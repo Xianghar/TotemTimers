@@ -40,6 +40,7 @@ Ankh.lua
 Shield.lua
 EarthShield.lua
 Weapon.lua
+GamePad.lua
 #EnhanceCDs.lua
 #LongCooldowns.lua
 

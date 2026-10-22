@@ -4,8 +4,6 @@ end
 
 local _, TotemTimers = ...
 
-local GetSpellName = TotemTimers.GetSpellName
-
 local SpellNames = TotemTimers.SpellNames
 local SpellIDs = TotemTimers.SpellIDs
 local SpellTextures = TotemTimers.SpellTextures
@@ -283,7 +281,7 @@ function TotemTimers.EarthShieldEvent(self, event, ...)
     end
     if event == "UNIT_SPELLCAST_SENT" then
         local _, target, castGUID, spellID = ...
-        local spellName = GetSpellName(spellID)
+        local spellName = C_Spell.GetSpellName(spellID)
 
         if spellName == EarthShieldSpellName then
             lastESCastTarget = target
@@ -296,9 +294,9 @@ function TotemTimers.EarthShieldEvent(self, event, ...)
             end
         end
     elseif event == "UNIT_SPELLCAST_SUCCEEDED" then
-        local start, duration, enable = GetSpellCooldown(EarthShieldSpellName)
-        if start and duration and (not self.timer.timerOnButton or self.timer.timers[1] <= 0) then
-            CooldownFrame_Set(self.cooldown, start, duration, enable)
+        local durObj = C_Spell.GetSpellCooldownDuration(EarthShieldSpellName)
+        if durObj and (not self.timer.timerOnButton or not self.timer.timers[1]) then
+            self.cooldown:SetCooldownFromDurationObject(durObj)
         end
         local _, castGUID = ...
         if castGUID == lastESCastGUID then

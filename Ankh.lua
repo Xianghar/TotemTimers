@@ -37,19 +37,21 @@ local AnkhName = SpellNames[SpellIDs.Ankh]
 local AnkhID = SpellIDs.Ankh
 local AnkhItem = 17030
 
+-- The cooldown can be secret, so the timer is started with a DurationObject of the cooldown and only the
+-- never secret isActive and isOnGCD flags of the cooldown info are read.
 function TotemTimers.AnkhEvent(self, event)
-    --[[if event == "SPELL_UPDATE_COOLDOWN" then
+    if event == "SPELL_UPDATE_COOLDOWN" then
         if not AvailableSpells[SpellIDs.Ankh] then
             return
         end
-        local start, duration, enable = GetSpellCooldown(AnkhID)
-        if duration == 0 then
+        local info = C_Spell.GetSpellCooldown(AnkhID)
+        if not info or not info.isActive then
             self.timer:Stop(1)
-        elseif self.timer.timers[1] <= 0 and duration > 2 then
-            self.timer:Start(1, start + duration - floor(GetTime()), duration)
+        elseif not info.isOnGCD and not self.timer.timers[1] then
+            self.timer:Start(1, C_Spell.GetSpellCooldownDuration(AnkhID, true))
         end
     else
         local countfunc = GetItemCount or C_Item.GetItemCount
         self.count:SetText(countfunc(AnkhItem))
-    end]]
+    end
 end

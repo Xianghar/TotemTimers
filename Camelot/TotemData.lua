@@ -1,7 +1,6 @@
 if select(2,UnitClass("player")) ~= "SHAMAN" then return end
 
 local _, TotemTimers = ...
-local GetSpellName = TotemTimers.GetSpellName
 
 TotemTimers.IsForever = true
 
@@ -83,6 +82,7 @@ TotemTimers.SpellIDs = {
     PowerSurgeBuffHeal = 468526,
 
     TotemicCall = 36936,
+    TotemicProjection = 437009, -- Season of Discovery rune id
 
     CallOfElements = 66842,
     CallOfAncestors = 66843,
@@ -267,7 +267,7 @@ TotemTimers.TotemCount = TotemCount
 
 
 for k,v in pairs(TotemData) do
-    if  v.buff then v.buffName = GetSpellName(v.buff) end
+    if  v.buff then v.buffName = C_Spell.GetSpellName(v.buff) end
 end
 
 

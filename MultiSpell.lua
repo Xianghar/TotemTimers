@@ -4,8 +4,6 @@ end
 
 local _, TotemTimers = ...
 
-local GetSpellInfo = TotemTimers.GetSpellInfo
-
 local mb  -- abrev for MulticastButton
 
 local SpellNames = TotemTimers.SpellNames
@@ -64,7 +62,7 @@ function TotemTimers.CreateMultiCastButtons()
     mb.UpdateTexture = function(self)
         local spell = self:GetAttribute("*spell1")
         if spell then
-            local texture = GetSpellInfo(spell).iconID
+            local texture = C_Spell.GetSpellTexture(spell)
             if texture then
                 self.icon:SetTexture(texture)
             end

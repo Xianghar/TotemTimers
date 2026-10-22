@@ -4,9 +4,6 @@ end
 
 local _, TotemTimers = ...
 
-local GetSpellInfo = TotemTimers.GetSpellInfo
-local GetSpellTexture = TotemTimers.GetSpellTexture
-
 local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers")
 
 local Timers = XiTimers.timers
@@ -77,7 +74,7 @@ function TotemTimers.CreateWeaponTracker()
             local spell = self:GetAttribute(spellType..i)
                 if not spell and i == 2 then spell = self:GetAttribute(spellType..1) end
                 if spell then
-                    self.icons[i]:SetTexture(GetSpellTexture(spell))
+                    self.icons[i]:SetTexture((C_Spell.GetSpellTexture(spell)))
                 end
             end
         end
@@ -178,7 +175,7 @@ function TotemTimers.SetWeaponTrackerSpells()
             weapon.actionBar:AddDoubleSpell(SpellIDs.WindfuryWeapon, SpellIDs.FrostbrandWeapon)
         end
         if AvailableSpells[SpellIDs.FlametongueWeapon]
-                and SpellIDs.FlametongueWeapon  ~= GetSpellInfo(SpellNames[SpellIDs.FlametongueWeapon]).spellID then
+                and SpellIDs.FlametongueWeapon  ~= C_Spell.GetSpellIDForSpellIdentifier(SpellNames[SpellIDs.FlametongueWeapon]) then
             weapon.actionBar:AddDoubleSpell(SpellIDs.FlametongueWeapon, SpellIDs.FlametongueWeapon)
             --set ft-1/ft-button visually apart from ft-button by switching texture positions
             local button = weapon.actionBar.buttons[weapon.actionBar.numspells]

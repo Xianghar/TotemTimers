@@ -4,9 +4,6 @@ end
 
 local _, TotemTimers = ...
 
-local GetSpellInfo = TotemTimers.GetSpellInfo
-local GetSpellName = TotemTimers.GetSpellName
-
 TotemTimers.AvailableSpells = {}
 TotemTimers.AvailableTalents = {}
 
@@ -30,8 +27,8 @@ local TextureToSpellID = TotemTimers.TextureToSpellID
 -- TT inits with that info and upgrades ranks later when ranks are available
 
 for _, spellID in pairs(SpellIDs) do
-    local info = GetSpellInfo(spellID)
-    if info.name then
+    local info = C_Spell.GetSpellInfo(spellID)
+    if info and info.name then
         NameToSpellID[info.name] = spellID
         SpellNames[spellID] = info.name
         SpellTextures[spellID] = info.iconID
@@ -112,7 +109,7 @@ elseif LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_MISTS_OF_PANDARIA then
 end
 
 function TotemTimers.GetBaseSpellID(spell)
-    local name = GetSpellName(spell)
+    local name = C_Spell.GetSpellName(spell)
     if not name then
         return spell
     end
@@ -120,14 +117,14 @@ function TotemTimers.GetBaseSpellID(spell)
 end
 
 local function UpdateSpellRank(spell, useName)
-    local name = GetSpellName(spell)
+    local name = C_Spell.GetSpellName(spell)
 
-    return useName and name or select(7, GetSpellInfo(name))
+    return useName and name or (name and C_Spell.GetSpellIDForSpellIdentifier(name))
 end
 
 if LE_EXPANSION_LEVEL_CURRENT < 2 then
     UpdateSpellRank = function(spell, useName)
-        local name = GetSpellName(spell)
+        local name = C_Spell.GetSpellName(spell)
         if not name then return nil end
 
         if name == SpellNames[SpellIDs.Windfury] and TotemTimers.ActiveProfile.WindfuryDownrank then
@@ -138,13 +135,13 @@ if LE_EXPANSION_LEVEL_CURRENT < 2 then
             end
         end
         -- ... or spell is a workaround for SOD GetSpellInfo not working immediately on login
-        return (useName or ForceSpellNames[name]) and name or (GetSpellInfo(name).spellID or spell)
+        return (useName or ForceSpellNames[name]) and name or (C_Spell.GetSpellIDForSpellIdentifier(name) or spell)
     end
 end
 
 if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_MISTS_OF_PANDARIA then
     UpdateSpellRank = function(spell)
-        local name = GetSpellName(spell)
+        local name = C_Spell.GetSpellName(spell)
         return name
     end
 end

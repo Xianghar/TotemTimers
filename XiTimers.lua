@@ -46,6 +46,10 @@ local function GetSecondsFormatter()
     return secondsFormatter
 end
 
+-- also used for time texts outside of timers (e.g. GamePad.lua)
+XiTimers.CanBindDurationText = CanBindDurationText
+XiTimers.GetSecondsFormatter = GetSecondsFormatter
+
 -- curves evaluated on remaining time: "below" up to point seconds, "above" after that
 local thresholdCurves = {}
 local function GetThresholdCurve(point, below, above)

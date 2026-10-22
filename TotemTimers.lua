@@ -20,44 +20,6 @@ TotemTimers.timers = XiTimers
 SetCVar("addonCombatRestrictionsForced", 1)
 
 
-if not C_Spell then
-    TotemTimers.GetSpellInfo = function(spellIDorName)
-    local name, _, icon, castTime, minRange, maxRange, spellID, originalIcon = GetSpellInfo(spellIDorName)
-        return {
-            ["name"] = name,
-            ["iconID"] = icon,
-            ["originalIconID"] = originalIcon,
-            ["minRange"] = minRange,
-            ["maxRange"] = maxRange,
-            ["spellID"] = spellID
-        }
-    end
-    TotemTimers.GetSpellName = GetSpellInfo
-    TotemTimers.GetSpellCooldown = function(spell)
-        local start, duration, enabled, modRate = GetSpellCooldown(spell)
-        return {
-            ["startTime"] = start,
-            ["duration"] = duration,
-            ["isEnabled"] = enabled,
-            ["modRate"] = modRate
-        }
-    end
-    TotemTimers.GetSpellTexture = GetSpellTexture
-else
-    TotemTimers.GetSpellInfo = function(spell)
-        local info = C_Spell.GetSpellInfo(spell)
-        return info or {}
-    end
-    TotemTimers.GetSpellName = C_Spell.GetSpellName
-    TotemTimers.GetSpellCooldown = function(spell)
-        local cd = C_Spell.GetSpellCooldown(spell)
-        return cd or {}
-    end
-    TotemTimers.GetSpellTexture = C_Spell.GetSpellTexture
-end
-
-local GetSpellInfo = TotemTimers.GetSpellInfo
-
 TotemTimers.Modules = {}
 TotemTimers.SpellUpdaters = {}
 
@@ -353,6 +315,13 @@ function TotemTimers.ShowDebug()
 	debugframe:Show()
 end
 
+-- shows any text in the debug window, from which it can be copied
+function TotemTimers.ShowDebugText(text)
+    debugframe.editbox:SetText(text)
+    debugframe.editbox:HighlightText()
+    debugframe:Show()
+end
+
 
 local skin = false
 local mask = nil
@@ -514,7 +483,7 @@ function TotemTimers.UpdateMacro()
             local spell = timer.button:GetAttribute("*spell1")
 
             if (tonumber(spell)) then
-                local spellName = TotemTimers.GetSpellName(spell)
+                local spellName = C_Spell.GetSpellName(spell)
                 if GetSpellSubText then
                     local rank = GetSpellSubtext(spell)
                     if rank then spellName = spellName .. '('..rank..')' end
