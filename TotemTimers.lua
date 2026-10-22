@@ -17,7 +17,7 @@ _G["TotemTimers"] = TotemTimers
 TotemTimers.timers = XiTimers
 
 -- for debugging
-SetCVar("addonCombatRestrictionsForced", 1)
+-- SetCVar("addonCombatRestrictionsForced", 1)
 
 
 TotemTimers.Modules = {}

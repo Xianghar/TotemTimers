@@ -242,6 +242,59 @@ TotemTimers.options = {
     },
 }
 
+if TotemTimers.GamePad and C_InputInterfaceStyle then
+    local GamePadLayerKeys = { "PADLTRIGGER", "PADRTRIGGER", TotemTimers.GamePad.BOTH_TRIGGERS,
+                               "PADLSHOULDER", "PADRSHOULDER",
+                               "PADPADDLE1", "PADPADDLE2", "PADPADDLE3", "PADPADDLE4", "PAD5", "PAD6" }
+
+    TotemTimers.options.args.general.args.gamepadheader = {
+        order = 150,
+        type = "header",
+        name = L["GamePad"],
+    }
+    TotemTimers.options.args.general.args.gamepad = {
+        order = 151,
+        type = "toggle",
+        name = L["GamePad Support"],
+        desc = L["GamePad Desc"],
+        set = function(info, val)
+            TotemTimers.ActiveProfile.GamePad = val
+            TotemTimers.ProcessSetting("GamePad")
+        end,
+        get = function(info)
+            return TotemTimers.ActiveProfile.GamePad
+        end,
+    }
+    TotemTimers.options.args.general.args.gamepadlayerkey = {
+        order = 152,
+        type = "select",
+        name = L["GamePad Layer Key"],
+        desc = L["GamePad Layer Key Desc"],
+        values = function()
+            local values = {}
+            for _, key in ipairs(GamePadLayerKeys) do
+                if key == TotemTimers.GamePad.BOTH_TRIGGERS then
+                    values[key] = GetBindingText("PADLTRIGGER") .. " + " .. GetBindingText("PADRTRIGGER")
+                else
+                    values[key] = GetBindingText(key)
+                end
+            end
+            return values
+        end,
+        sorting = GamePadLayerKeys,
+        disabled = function()
+            return not TotemTimers.ActiveProfile.GamePad
+        end,
+        set = function(info, val)
+            TotemTimers.ActiveProfile.GamePadLayerKey = val
+            TotemTimers.ProcessSetting("GamePadLayerKey")
+        end,
+        get = function(info)
+            return TotemTimers.ActiveProfile.GamePadLayerKey
+        end,
+    }
+end
+
 local ACR =	LibStub("AceConfigRegistry-3.0")
 ACR:RegisterOptionsTable("TotemTimers", TotemTimers.options)
 local ACD = LibStub("AceConfigDialog-3.0")

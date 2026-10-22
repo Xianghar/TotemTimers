@@ -598,54 +598,6 @@ if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC then
 
 end
 
-if TotemTimers.GamePad and C_InputInterfaceStyle then
-    local GamePadLayerKeys = { "PADLTRIGGER", "PADRTRIGGER", "PADLSHOULDER", "PADRSHOULDER",
-                               "PADPADDLE1", "PADPADDLE2", "PADPADDLE3", "PADPADDLE4", "PAD5", "PAD6" }
-
-    TotemTimers.options.args.timers.args.gamepadheader = {
-        order = 70,
-        type = "header",
-        name = L["GamePad"],
-    }
-    TotemTimers.options.args.timers.args.gamepad = {
-        order = 71,
-        type = "toggle",
-        name = L["GamePad Support"],
-        desc = L["GamePad Desc"],
-        set = function(info, val)
-            TotemTimers.ActiveProfile.GamePad = val
-            TotemTimers.ProcessSetting("GamePad")
-        end,
-        get = function(info)
-            return TotemTimers.ActiveProfile.GamePad
-        end,
-    }
-    TotemTimers.options.args.timers.args.gamepadlayerkey = {
-        order = 72,
-        type = "select",
-        name = L["GamePad Layer Key"],
-        desc = L["GamePad Layer Key Desc"],
-        values = function()
-            local values = {}
-            for _, key in ipairs(GamePadLayerKeys) do
-                values[key] = GetBindingText(key)
-            end
-            return values
-        end,
-        sorting = GamePadLayerKeys,
-        disabled = function()
-            return not TotemTimers.ActiveProfile.GamePad
-        end,
-        set = function(info, val)
-            TotemTimers.ActiveProfile.GamePadLayerKey = val
-            TotemTimers.ProcessSetting("GamePadLayerKey")
-        end,
-        get = function(info)
-            return TotemTimers.ActiveProfile.GamePadLayerKey
-        end,
-    }
-end
-
 local ACD = LibStub("AceConfigDialog-3.0")
 local frame, categoryID = ACD:AddToBlizOptions("TotemTimers", L["Timers"], "TotemTimers", "timers")
 TotemTimers.HookGUIFrame(frame, categoryID)
