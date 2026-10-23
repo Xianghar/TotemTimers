@@ -49,6 +49,11 @@ local LayerKeyBars = {
 }
 GamePad.BOTH_TRIGGERS = "PADLTRIGGER+PADRTRIGGER"
 
+-- the layer key uses bar mode (LT, RT or LT + RT)
+function GamePad.IsBarModeKey(key)
+    return key ~= nil and LayerKeyBars[key] ~= nil
+end
+
 -- button index of a face button on a Gamepad UI action bar (GAMEPAD_ACTION_BAR_BUTTON_INDICES)
 local FaceButtonIndices = {
     PAD3 = 5, -- left
@@ -158,34 +163,58 @@ local STOP = [[
     self:CallMethod("SetHighlight", nil)
 ]]
 
--- Neighbor(m, vertical, forward): next usable menu on screen. Vertical menus are ordered left to right
+-- Neighbor(currentMenu, vertical, forward): next usable menu on screen. Vertical menus are ordered left to right
 -- (then top to bottom), horizontal menus top to bottom (then left to right), wrapping around at the end.
+-- Each menu gets a sort position from the center of its parent button: a primary value (x for vertical menus,
+-- -y for horizontal ones, so that the values grow in the order above) and a secondary value for menus at the same
+-- primary position. Positions within 1 pixel count as the same. Going backward the values are negated, so the same
+-- search for the next bigger position works in both directions.
 local NEIGHBOR = [[
-    local m, vertical, forward = ...
-    local cl, cb, cw, ch = self:GetFrameRef("menu" .. m):GetRect()
-    if not cl then return end
-    local c1, c2
-    if vertical then c1, c2 = cl + cw / 2, -(cb + ch / 2) else c1, c2 = -(cb + ch / 2), cl + cw / 2 end
-    if not forward then c1, c2 = -c1, -c2 end
-    local best, b1, b2, first, f1, f2
-    for k = 1, self:GetAttribute("nmenus") or 0 do
-        if k ~= m and self:RunAttribute("Usable", k) then
-            local l, b, w, h = self:GetFrameRef("menu" .. k):GetRect()
-            if l then
-                local k1, k2
-                if vertical then k1, k2 = l + w / 2, -(b + h / 2) else k1, k2 = -(b + h / 2), l + w / 2 end
-                if not forward then k1, k2 = -k1, -k2 end
-                if ((k1 > c1 + 1) or (abs(k1 - c1) <= 1 and k2 > c2))
-                        and (not best or k1 < b1 - 1 or (abs(k1 - b1) <= 1 and k2 < b2)) then
-                    best, b1, b2 = k, k1, k2
+    local currentMenu, vertical, forward = ...
+    local left, bottom, width, height = self:GetFrameRef("menupos" .. currentMenu):GetRect()
+    if not left then return end
+
+    local currentPrimary, currentSecondary
+    if vertical then
+        currentPrimary, currentSecondary = left + width / 2, -(bottom + height / 2)
+    else
+        currentPrimary, currentSecondary = -(bottom + height / 2), left + width / 2
+    end
+    if not forward then currentPrimary, currentSecondary = -currentPrimary, -currentSecondary end
+
+    -- nextMenu: the menu with the smallest position after the current one,
+    -- firstMenu: the menu with the smallest position overall (wrapping around if there is no next one)
+    local nextMenu, nextPrimary, nextSecondary
+    local firstMenu, firstPrimary, firstSecondary
+    for menu = 1, self:GetAttribute("nmenus") or 0 do
+        if menu ~= currentMenu and self:RunAttribute("Usable", menu) then
+            left, bottom, width, height = self:GetFrameRef("menupos" .. menu):GetRect()
+            if left then
+                local primary, secondary
+                if vertical then
+                    primary, secondary = left + width / 2, -(bottom + height / 2)
+                else
+                    primary, secondary = -(bottom + height / 2), left + width / 2
                 end
-                if not first or k1 < f1 - 1 or (abs(k1 - f1) <= 1 and k2 < f2) then
-                    first, f1, f2 = k, k1, k2
+                if not forward then primary, secondary = -primary, -secondary end
+
+                local afterCurrent = primary > currentPrimary + 1
+                        or (abs(primary - currentPrimary) <= 1 and secondary > currentSecondary)
+                local beforeNext = not nextMenu or primary < nextPrimary - 1
+                        or (abs(primary - nextPrimary) <= 1 and secondary < nextSecondary)
+                if afterCurrent and beforeNext then
+                    nextMenu, nextPrimary, nextSecondary = menu, primary, secondary
+                end
+
+                local beforeFirst = not firstMenu or primary < firstPrimary - 1
+                        or (abs(primary - firstPrimary) <= 1 and secondary < firstSecondary)
+                if beforeFirst then
+                    firstMenu, firstPrimary, firstSecondary = menu, primary, secondary
                 end
             end
         end
     end
-    return best or first
+    return nextMenu or firstMenu
 ]]
 
 -- clicks of the bindings: "open" (layer key + d-pad up), d-pad directions and "close"
@@ -371,6 +400,9 @@ local function Build()
 end
 
 -- menus (parent button and its action bar): multicast button first (if there is one), then the totem timers
+-- menu index (nav frame refs "menu<m>") by parent button
+local menuIndices = {}
+
 local function UpdateMenus()
     local menus = {}
     local multiMenu, earthMenu
@@ -388,6 +420,9 @@ local function UpdateMenus()
 
     for m, menu in ipairs(menus) do
         SecureHandlerSetFrameRef(nav, "menu" .. m, menu.parent)
+        -- the frame where the menu is shown, for the order of the menus on screen (see SetMenusAtBar)
+        SecureHandlerSetFrameRef(nav, "menupos" .. m, menu.parent)
+        menuIndices[menu.parent] = m
         local buttons = menu.bar.buttons
         nav:SetAttribute("nbuttons" .. m, #buttons)
         for i, button in ipairs(buttons) do
@@ -420,6 +455,21 @@ local SQUARE_SWIPE = "Interface\\Buttons\\WHITE8X8"
 
 -- mask inset from the slot edges, like the CircleMask/SquareMask of the gamepad buttons (ActionBarButton.xml)
 local MASK_INSET = 3
+
+-- icon of the active totem (with hidden timers): size and offset downwards relative to the slot's size,
+-- mask inset scaled like the size, border of the round gamepad slots (ActionBarButton.lua CIRCLE_NORMAL_FRAME_ATLAS)
+local ACTIVE_SIZE = 0.6
+local ACTIVE_OFFSET_X = 0.1
+local ACTIVE_OFFSET_Y = 0.3
+local ACTIVE_MASK_INSET = MASK_INSET * ACTIVE_SIZE
+local ROUND_SLOT_BORDER = "gamepad-actionbar-circleslot-border-normal"
+
+-- the active totem icon is shown on the totem slots (option GamePadHideTimers in bar mode)
+local showActiveTotems = false
+
+-- slots showing the active totem of a timer, by the timer button's icon (which shows the active totem)
+local activeIconSlots = {}
+local activeIconHooked = {}
 
 -- expanded look of the Gamepad UI action bars (ActionBarStyles.lua, LEFTSQUARE_RIGHTCIRCLE_STYLE):
 -- slot centers relative to the bar's center by slot index (d-pad left, up, right, down, then the face buttons
@@ -478,18 +528,48 @@ local function GetBarIcon(button, index)
         slot.cooldown:SetDrawEdge(false)
         slot.cooldown:SetDrawBling(false)
 
-        -- above the swipe: the border of the gamepad button (copy of its normal texture) and the time
+        -- above the swipe: the border of the gamepad button (copy of its normal texture)
         local overlay = CreateFrame("Frame", nil, slot)
         overlay:SetAllPoints(slot)
         overlay:SetFrameLevel(slot.cooldown:GetFrameLevel() + 1)
         slot.border = overlay:CreateTexture(nil, "ARTWORK")
         slot.border:SetAllPoints(slot)
 
-        -- remaining time like on the timer buttons, bound to the DurationObject; without text bindings the
-        -- cooldown's countdown numbers are used instead
+        -- above the border: the icon of the active totem (with hidden timers), a round button in the bottom right
+        -- corner of the slot (ACTIVE_SIZE of the slot's size, moved right and down by ACTIVE_OFFSET_X/Y of the
+        -- slot's width/height),
+        -- following the slot's size (the bar expands)
+        local active = CreateFrame("Frame", nil, slot)
+        local function UpdateActiveSize()
+            local width, height = slot:GetSize()
+            active:SetSize(width * ACTIVE_SIZE, height * ACTIVE_SIZE)
+            active:ClearAllPoints()
+            active:SetPoint("BOTTOMRIGHT", slot, "BOTTOMRIGHT", width * ACTIVE_OFFSET_X, -height * ACTIVE_OFFSET_Y)
+        end
+        UpdateActiveSize()
+        slot:SetScript("OnSizeChanged", UpdateActiveSize)
+        active:SetFrameLevel(overlay:GetFrameLevel() + 1)
+        active.icon = active:CreateTexture(nil, "ARTWORK")
+        active.icon:SetAllPoints(active)
+        active.mask = active:CreateMaskTexture()
+        active.mask:SetAtlas("CircleMask", false, nil, nil, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        active.mask:SetPoint("TOPLEFT", ACTIVE_MASK_INSET, -ACTIVE_MASK_INSET)
+        active.mask:SetPoint("BOTTOMRIGHT", -ACTIVE_MASK_INSET, ACTIVE_MASK_INSET)
+        active.icon:AddMaskTexture(active.mask)
+        active.border = active:CreateTexture(nil, "OVERLAY")
+        active.border:SetAtlas(ROUND_SLOT_BORDER)
+        active.border:SetAllPoints(active)
+        active:Hide()
+        slot.active = active
+
+        -- above everything: remaining time like on the timer buttons, bound to the DurationObject; without text
+        -- bindings the cooldown's countdown numbers are used instead
+        local texts = CreateFrame("Frame", nil, slot)
+        texts:SetAllPoints(slot)
+        texts:SetFrameLevel(active:GetFrameLevel() + 1)
         if XiTimers.CanBindDurationText then
             slot.cooldown:SetHideCountdownNumbers(true)
-            slot.time = overlay:CreateFontString(nil, "OVERLAY")
+            slot.time = texts:CreateFontString(nil, "OVERLAY")
             slot.time:SetFontObject(TotemTimersButtonTimeFont)
             slot.time:SetPoint("CENTER", slot, "CENTER")
             slot.timeBinding = C_DurationUtil.CreateDurationTextBinding()
@@ -550,7 +630,18 @@ local function UpdateSlotLayout(slot, bar)
     end
 end
 
--- remaining duration of the totem, from the DurationObject of the running totem timer (never read in Lua)
+-- the active totem of the timer (timer.activeTotem, from the own cast) differs from the totem assigned to its
+-- button (*spell1). Compared by name, so ranks don't matter; an unknown active totem counts as different.
+local function IsOtherTotemActive(timer)
+    local active = timer and timer.activeTotem
+    if not active or (issecretvalue and issecretvalue(active)) then return true end
+    local assigned = timer.button:GetAttribute("*spell1")
+    if not assigned then return true end
+    return C_Spell.GetSpellName(active) ~= C_Spell.GetSpellName(assigned)
+end
+
+-- remaining duration of the totem, from the DurationObject of the running totem timer (never read in Lua),
+-- and the icon of the active totem while the timer runs and it isn't the assigned totem
 local function UpdateSlotDuration(slot)
     local durObj = slot.timer and slot.timer.timers[1]
     if durObj then
@@ -558,6 +649,7 @@ local function UpdateSlotDuration(slot)
     else
         slot.cooldown:Clear()
     end
+    slot.active:SetShown(showActiveTotems and durObj and IsOtherTotemActive(slot.timer) or false)
     if slot.timeBinding then
         if durObj then
             slot.timeBinding:SetDuration(durObj)
@@ -580,6 +672,24 @@ local function ShowSlot(bar, index, texture, timer)
     UpdateSlotLayout(slot, bar)
     slot.icon:SetTexture(texture)
     slot.timer = timer
+    if timer then
+        -- the timer button's icon shows the active totem while the timer runs, its texture is handed on without
+        -- being read (it might be secret)
+        local sourceIcon = timer.button.icons[1]
+        activeIconSlots[sourceIcon] = slot
+        if not activeIconHooked[sourceIcon] then
+            hooksecurefunc(sourceIcon, "SetTexture", function(icon, ...)
+                local activeSlot = activeIconSlots[icon]
+                if activeSlot then
+                    activeSlot.active.icon:SetTexture(...)
+                    -- a new totem is set after the timer was started (StartTotem), compare it again
+                    UpdateSlotDuration(activeSlot)
+                end
+            end)
+            activeIconHooked[sourceIcon] = true
+        end
+        slot.active.icon:SetTexture(sourceIcon:GetTexture())
+    end
     UpdateSlotDuration(slot)
     slot:Show()
 end
@@ -601,6 +711,7 @@ function GamePad.UpdateBarIcons()
         slot.timer = nil
         slot:Hide()
     end
+    wipe(activeIconSlots)
     local bar = nav and nav:GetAttribute("enabled") and GetLayerKeyBar()
     -- in bar mode the game focuses the bar itself
     SetFocusBackground(not barMode and bar or nil)
@@ -761,6 +872,257 @@ local function ApplyBarMode(bar)
     if projection then OverrideSlot(bar, DPAD_LEFT_INDEX, "spell", projection) end
 end
 
+-- Option GamePadHideTimers (bar mode only): the totem timer buttons and the multicast button are made invisible
+-- (alpha 0, mouse disabled), so the timers are only shown on the overlays of the bar slots. The buttons keep
+-- working (the slots and menus use them); their menus stay visible as the menu buttons ignore the parent's alpha.
+-- The out-of-combat fader sets the buttons' alpha on every combat change, a hook keeps hidden buttons at 0.
+local hiddenTimerButtons = {}
+local alphaHooked = {}
+
+local function KeepHidden(button)
+    if hiddenTimerButtons[button] and button:GetAlpha() ~= 0 then
+        button:SetAlpha(0)
+    end
+end
+
+-- the buttons (and their menus) hidden by the option
+local function GetHideableButtons()
+    local list = {}
+    for i = 1, 4 do
+        local timer = XiTimers.timers[i]
+        if timer then table.insert(list, { button = timer.button, menu = timer.actionBar }) end
+    end
+    local multiSpell = TotemTimers_MultiSpell
+    if multiSpell then table.insert(list, { button = multiSpell, menu = multiSpell.actionBar }) end
+    return list
+end
+
+-- out of combat only (mouse of secure buttons)
+local function SetTimersHidden(hide)
+    hide = hide and true or false
+    local restored = false
+    for _, entry in ipairs(GetHideableButtons()) do
+        local button = entry.button
+        if hide ~= (hiddenTimerButtons[button] or false) then
+            hiddenTimerButtons[button] = hide or nil
+            if not alphaHooked[button] then
+                hooksecurefunc(button, "SetAlpha", KeepHidden)
+                alphaHooked[button] = true
+            end
+            if entry.menu then
+                for _, menuButton in ipairs(entry.menu.buttons) do
+                    menuButton:SetIgnoreParentAlpha(hide)
+                end
+            end
+            if hide then
+                button:SetAlpha(0)
+                button:EnableMouse(false)
+            else
+                button:EnableMouse(true)
+                restored = true
+            end
+        end
+    end
+    if restored then
+        -- alpha (out-of-combat fader) and clickthrough of the timers as set by their own options
+        XiTimers.invokeOOCFader()
+        TotemTimers.ProcessSetting("Timer_Clickthrough")
+    end
+end
+
+-- With hidden timers the menus are shown at the bar slots of their buttons (totem timers: face button slots,
+-- multicast: d-pad right), growing upwards. They are anchored to the game's slot buttons (not the overlays, which
+-- have to stay movable in combat). The navigation orders the menus by the slots then (frame refs "menupos<m>").
+-- bar: the bar of the layer key, nil restores the normal menu positions. Out of combat only.
+local menusAtBar = {}
+
+local function SetMenuAtBar(parent, actionBar, slot)
+    if not actionBar then return end
+    local m = menuIndices[parent]
+    if m then SecureHandlerSetFrameRef(nav, "menupos" .. m, slot or parent) end
+    if slot then
+        actionBar:SetMenuAnchor(slot, "up")
+        menusAtBar[actionBar] = true
+    elseif menusAtBar[actionBar] then
+        actionBar:SetMenuAnchor(nil)
+        menusAtBar[actionBar] = nil
+    end
+end
+
+local function SetMenusAtBar(bar)
+    for i = 1, 4 do
+        local timer = XiTimers.timers[i]
+        if timer then
+            local slot = bar and bar:GetActionButtonByIndex(FaceButtonIndices[TimerKeys[timer.nr]])
+            SetMenuAtBar(timer.button, timer.actionBar, slot)
+        end
+    end
+    local multiSpell = TotemTimers_MultiSpell
+    if multiSpell then
+        local slot = bar and bar:GetActionButtonByIndex(DPAD_RIGHT_INDEX)
+        SetMenuAtBar(multiSpell, multiSpell.actionBar, slot)
+    end
+end
+
+-- Input legend (bar mode): while the triggers of the layer key are held, a legend of TotemTimers' slots is shown in
+-- place of the Gamepad UI's persistent input legend (GamepadPersistentInputLegend, which has no group for the
+-- action bar triggers). It is a frame of our own built from the game's legend templates and laid out like the
+-- game's groups (Blizzard_Gamepad/UI/PersistentInputLegend); the game's legend is only faded out meanwhile.
+-- Visual only, so the state of the triggers is taken from the game (GamepadMode, not secure).
+local LEGEND_ROW_HEIGHT = 24
+local LEGEND_INDENT = 20
+local LEGEND_HEADER_OFFSET = 10
+local LEGEND_ICON_SIZE = 18
+local LEGEND_COLUMN_WIDTH = 230
+local LEGEND_ROWS = 4
+
+-- entries: column 0 the d-pad, column 1 the face buttons, rows 1-4 (row 0 is the header)
+local LegendEntries = {
+    { key = "PADDUP", column = 0, row = 1, slot = OPEN_BUTTON_INDEX },
+    { key = "PADDRIGHT", column = 0, row = 2, slot = DPAD_RIGHT_INDEX },
+    { key = "PADDDOWN", column = 0, row = 3, slot = DPAD_DOWN_INDEX },
+    { key = "PADDLEFT", column = 0, row = 4, slot = DPAD_LEFT_INDEX },
+    { key = "PAD1", column = 1, row = 1, element = EARTH_TOTEM_SLOT },
+    { key = "PAD3", column = 1, row = 2, element = FIRE_TOTEM_SLOT },
+    { key = "PAD4", column = 1, row = 3, element = WATER_TOTEM_SLOT },
+    { key = "PAD2", column = 1, row = 4, element = AIR_TOTEM_SLOT },
+}
+
+-- the triggers of a bar mode layer key
+local LayerKeyTriggers = {
+    PADLTRIGGER = { "PADLTRIGGER" },
+    PADRTRIGGER = { "PADRTRIGGER" },
+    ["PADLTRIGGER+PADRTRIGGER"] = { "PADLTRIGGER", "PADRTRIGGER" },
+}
+
+local legend
+
+local function CreateLegendEntry(parent, keys, column, row)
+    local template = #keys > 1 and "GamepadPersistentInputLegendEntryWithTwoIconsTemplate"
+            or "GamepadPersistentInputLegendEntryTemplate"
+    local entry = CreateFrame("Frame", nil, parent, template)
+    for i, key in ipairs(keys) do
+        entry:SetPromptInputIconKey(i, key)
+        entry:SetInputIconSize(i, LEGEND_ICON_SIZE, LEGEND_ICON_SIZE)
+    end
+    entry:EnablePrompt()
+    local y = -LEGEND_INDENT - LEGEND_ROW_HEIGHT * row
+    if row > 0 then y = y - LEGEND_HEADER_OFFSET end
+    entry:ClearAllPoints()
+    entry:SetPoint("TOPLEFT", parent, "TOPLEFT", LEGEND_INDENT + column * LEGEND_COLUMN_WIDTH, y)
+    return entry
+end
+
+local function BuildLegend()
+    if legend then return legend end
+    -- the game's legend (and its templates) exist with the Gamepad UI addons only
+    if not GamepadPersistentInputLegend then return end
+    legend = CreateFrame("Frame", "TotemTimers_GamePadLegend", UIParent)
+    legend:SetFrameStrata("LOW")
+    legend:SetSize(10, 10)
+    legend:SetPoint("TOPLEFT", GamepadPersistentInputLegend, "TOPLEFT")
+    legend:Hide()
+
+    local background = CreateFrame("Frame", nil, legend, "GamepadPersistentInputLegendBackgroundTemplate")
+    background:SetSize(LEGEND_INDENT + 2 * LEGEND_COLUMN_WIDTH,
+            LEGEND_ROW_HEIGHT * LEGEND_ROWS + LEGEND_INDENT * 2 - (LEGEND_ROW_HEIGHT - LEGEND_ICON_SIZE)
+                    + LEGEND_ROW_HEIGHT + LEGEND_HEADER_OFFSET)
+    background:SetPoint("TOPLEFT", legend, "TOPLEFT")
+    background.HeaderTrim:Show()
+    background.HeaderTrim:SetDesaturation(1.0)
+    background:Show()
+
+    legend.entries = {}
+    for _, info in ipairs(LegendEntries) do
+        legend.entries[info] = CreateLegendEntry(legend, { info.key }, info.column, info.row)
+    end
+    legend.headers = {}
+    return legend
+end
+
+-- texts of the entries: the spells of the slots (totem names of the timers), nil hides the entry
+local function GetLegendText(info)
+    if info.element then
+        for i = 1, 4 do
+            local timer = XiTimers.timers[i]
+            if timer and timer.nr == info.element then
+                local index = FaceButtonIndices[TimerKeys[timer.nr]]
+                local spell = barModeSlots[index] and timer.button:GetAttribute("*spell1")
+                return spell and C_Spell.GetSpellName(spell)
+            end
+        end
+        return nil
+    end
+    if not barModeSlots[info.slot] then return nil end
+    if info.slot == OPEN_BUTTON_INDEX then
+        return L["Totem Menus"]
+    elseif info.slot == DPAD_RIGHT_INDEX then
+        local spell = TotemTimers_MultiSpell and TotemTimers_MultiSpell:GetAttribute("*spell1")
+        return spell and C_Spell.GetSpellName(spell)
+    elseif info.slot == DPAD_DOWN_INDEX then
+        return GetAvailableSpellName(SpellIDs.TotemicCall)
+    elseif info.slot == DPAD_LEFT_INDEX then
+        return GetAvailableSpellName(SpellIDs.TotemicProjection)
+    end
+end
+
+-- header: the icons of the layer key's triggers and "TotemTimers" (one entry per trigger combination)
+local function GetLegendHeader(triggers)
+    local id = table.concat(triggers, "+")
+    if not legend.headers[id] then
+        local header = CreateLegendEntry(legend, triggers, 0, 0)
+        header:SetPromptText(WHITE_FONT_COLOR:WrapTextInColorCode("TotemTimers"))
+        legend.headers[id] = header
+    end
+    return legend.headers[id]
+end
+
+local function AreLayerTriggersDown(triggers)
+    if not (GamepadMode and GamepadMode.IsLeftModifierDown and GamepadMode.IsRightModifierDown) then return false end
+    local left, right = GamepadMode.IsLeftModifierDown(), GamepadMode.IsRightModifierDown()
+    if #triggers == 2 then return left and right end
+    if triggers[1] == "PADLTRIGGER" then return left and not right end
+    return right and not left
+end
+
+function GamePad.UpdateLegend()
+    local key = TotemTimers.ActiveProfile and TotemTimers.ActiveProfile.GamePadLayerKey
+    local triggers = barMode and LayerKeyTriggers[key]
+    local show = triggers and nav and nav:GetAttribute("enabled") and AreLayerTriggersDown(triggers)
+            and GetCVarBool("GamepadShowPersistentInputLegend") and BuildLegend() and true or false
+
+    if not legend then return end
+    -- the game's legend is only touched when ours is shown or hidden
+    if show ~= legend:IsShown() and GamepadPersistentInputLegend then
+        GamepadPersistentInputLegend:SetAlpha(show and 0 or 1)
+    end
+    if not show then
+        legend:Hide()
+        return
+    end
+
+    for id, header in pairs(legend.headers) do header:Hide() end
+    GetLegendHeader(triggers):Show()
+    for info, entry in pairs(legend.entries) do
+        local text = GetLegendText(info)
+        if text then
+            entry:SetPromptText(text)
+            entry:Show()
+        else
+            entry:Hide()
+        end
+    end
+    legend:Show()
+end
+
+-- the game's state of the action bar triggers changed (after its own handling, not secure)
+local legendHooked = false
+local function HookLegend()
+    if legendHooked or not (GamepadMode and GamepadMode.OnCrossBarModifierChanged) then return end
+    hooksecurefunc(GamepadMode, "OnCrossBarModifierChanged", GamePad.UpdateLegend)
+    legendHooked = true
+end
+
 -- sets up or releases everything, out of combat only (a call in combat waits for the end of combat)
 function GamePad.Apply()
     if not TotemTimers.ActiveProfile or not (XiTimers.timers[1] and XiTimers.timers[1].actionBar) then
@@ -795,6 +1157,13 @@ function GamePad.Apply()
         end
     end
     GamePad.UpdateBarIcons()
+    local hideTimers = barMode and TotemTimers.ActiveProfile.GamePadHideTimers
+    showActiveTotems = hideTimers and true or false
+    GamePad.UpdateBarDurations()
+    SetTimersHidden(hideTimers)
+    SetMenusAtBar(hideTimers and GetLayerKeyBar())
+    HookLegend()
+    GamePad.UpdateLegend()
     if not active or barMode then return end
     -- LT + RT can't be bound as a key
     if not key or key == "" or key == GamePad.BOTH_TRIGGERS then return end

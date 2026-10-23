@@ -293,6 +293,23 @@ if TotemTimers.GamePad and C_InputInterfaceStyle then
             return TotemTimers.ActiveProfile.GamePadLayerKey
         end,
     }
+    TotemTimers.options.args.general.args.gamepadhidetimers = {
+        order = 153,
+        type = "toggle",
+        name = L["GamePad Hide Timers"],
+        desc = L["GamePad Hide Timers Desc"],
+        disabled = function()
+            return not TotemTimers.ActiveProfile.GamePad
+                or not TotemTimers.GamePad.IsBarModeKey(TotemTimers.ActiveProfile.GamePadLayerKey)
+        end,
+        set = function(info, val)
+            TotemTimers.ActiveProfile.GamePadHideTimers = val
+            TotemTimers.ProcessSetting("GamePadHideTimers")
+        end,
+        get = function(info)
+            return TotemTimers.ActiveProfile.GamePadHideTimers
+        end,
+    }
 end
 
 local ACR =	LibStub("AceConfigRegistry-3.0")

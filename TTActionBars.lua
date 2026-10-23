@@ -354,10 +354,23 @@ function TTActionBars:CalcDirection(dir, parentdir, freenotself)
     return dir
 end
 
+-- anchors the menu to another frame instead of its parent button, growing in direction dir (up, down, left, right),
+-- nil restores the normal anchoring (used by GamePad.lua to show the menus at the Gamepad UI action bar).
+-- Out of combat only, like SetDirection.
+function TTActionBars:SetMenuAnchor(anchor, dir)
+    self.menuAnchor = anchor
+    self.menuAnchorDirection = dir
+    if self.direction and self.parentdirection then self:SetDirection(self.direction, self.parentdirection) end
+end
+
 function TTActionBars:SetDirection(dir, parentdir, freenotself)
     self.direction = dir
     self.parentdirection = parentdir
-    if self.alwaysvisible then
+    if self.menuAnchor then
+        -- a column (up/down) or row (left/right) of buttons starting at the menu anchor
+        dir = self.menuAnchorDirection or "up"
+        parentdir = (dir == "up" or dir == "down") and "horizontal" or "vertical"
+    elseif self.alwaysvisible then
         parentdir = "free"
         if dir == "auto" then dir = "right" end
     else
@@ -368,7 +381,7 @@ function TTActionBars:SetDirection(dir, parentdir, freenotself)
     self.parent:SetAttribute("ttMenuDirection", dir)
     local x = 0
     local y = 0
-    if self.alwaysvisible then
+    if self.alwaysvisible and not self.menuAnchor then
         if dir == "up" then
             y = TotemTimers.ActiveProfile.TotemMenuSpacing
         elseif dir == "down" then
@@ -380,7 +393,11 @@ function TTActionBars:SetDirection(dir, parentdir, freenotself)
         end
     end
     local anchor = self.parent
-    if self.alwaysvisible then anchor = self.secondanchor end 
+    if self.menuAnchor then
+        anchor = self.menuAnchor
+    elseif self.alwaysvisible then
+        anchor = self.secondanchor
+    end
 	for i = 1,self.numbuttons do
 		local button = self.buttons[i]
 		button:ClearAllPoints()
@@ -389,7 +406,7 @@ function TTActionBars:SetDirection(dir, parentdir, freenotself)
 		else
 			button:SetPoint(CastButtonPositions[parentdir][self.order][dir][3], self.buttons[i-1], CastButtonPositions[parentdir][self.order][dir][4],x,y)
 		end
-        if self.alwaysvisible then
+        if self.alwaysvisible and not self.menuAnchor then
             button:SetFrameStrata("MEDIUM")
         else
             button:SetFrameStrata("HIGH")

@@ -721,6 +721,7 @@ SettingsFunctions.GamePad = function(value, Timers)
     TotemTimers.GamePad.Apply()
 end
 SettingsFunctions.GamePadLayerKey = SettingsFunctions.GamePad
+SettingsFunctions.GamePadHideTimers = SettingsFunctions.GamePad
 
 
 
