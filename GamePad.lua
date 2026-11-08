@@ -1124,6 +1124,11 @@ local function GetHideableButtons()
     end
     local multiSpell = TotemTimers_MultiSpell
     if multiSpell then table.insert(list, { button = multiSpell, menu = multiSpell.actionBar }) end
+    -- the shield and weapon trackers, their timers are shown on the Gamepad UI buttons of the spells; their menus
+    -- open from the (then mouse disabled) buttons only, so they stay hidden with them
+    for _, tracker in ipairs({ TotemTimers.ShieldTracker, TotemTimers.WeaponTracker }) do
+        if tracker then table.insert(list, { button = tracker.button }) end
+    end
     return list
 end
 
