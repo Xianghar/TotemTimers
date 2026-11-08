@@ -715,7 +715,10 @@ function GamePad.UpdateBarIcons()
     local bar = nav and nav:GetAttribute("enabled") and GetLayerKeyBar()
     -- in bar mode the game focuses the bar itself
     SetFocusBackground(not barMode and bar or nil)
-    if not bar then return end
+    if not bar then
+        GamePad.UpdateShieldButtons()
+        return
+    end
     for i = 1, 4 do
         local timer = XiTimers.timers[i]
         if timer and timer.button:IsShown() then
@@ -735,6 +738,8 @@ function GamePad.UpdateBarIcons()
             GetAvailableSpellName(SpellIDs.TotemicCall) and C_Spell.GetSpellTexture(SpellIDs.TotemicCall))
     ShowSlot(bar, DPAD_LEFT_INDEX,
             GetAvailableSpellName(SpellIDs.TotemicProjection) and C_Spell.GetSpellTexture(SpellIDs.TotemicProjection))
+    -- the buttons covered by the overlays changed
+    GamePad.UpdateShieldButtons()
 end
 
 -- the layer key went down or up (called by the layer button's click snippet, not protected)
@@ -754,6 +759,88 @@ GamePad.SetLayerExpanded = SetLayerExpanded
 function GamePad.UpdateBarDurations()
     for _, slot in pairs(barIcons) do
         if slot.timer then UpdateSlotDuration(slot) end
+    end
+end
+
+-- Lightning Shield and Water Shield on the Gamepad UI action buttons: like the shield tracker with "charges only",
+-- an AuraDisplay (see AuraDisplay.lua) laid over each button holding one of the shields shows the charges while the
+-- shield is up. The game shows the aura, it's never read in Lua. Buttons covered by an overlay of the totem bar
+-- (see above) are skipped. The buttons' UpdateAction is hooked, so action changes and paging are followed.
+local SHIELD_SLOT = "shield"
+local shieldDisplays = {} -- AuraDisplay by Gamepad UI button, kept once created (frames can't be destroyed)
+local shieldHooked = {}
+local shieldsShown = false
+local shieldAuraSpells
+
+-- aura spell ids of all ranks of both shields
+local function GetShieldAuraSpells()
+    if not shieldAuraSpells then
+        shieldAuraSpells = {}
+        local auraSpells = TotemTimers.ShieldAuraSpells or {}
+        for _, spell in ipairs({ SpellIDs.LightningShield, SpellIDs.WaterShield }) do
+            for _, id in pairs(auraSpells[spell] or {}) do
+                shieldAuraSpells[id] = true
+            end
+        end
+    end
+    return shieldAuraSpells
+end
+
+local function IsSecret(value)
+    return issecretvalue and issecretvalue(value) or false
+end
+
+-- spell of an action slot, also of a macro showing a spell
+local function GetActionSpell(action)
+    if not action or IsSecret(action) or action == 0 then return end
+    local actionType, id, subType = GetActionInfo(action)
+    if IsSecret(actionType) or IsSecret(id) then return end
+    if actionType == "spell" then return id end
+    if actionType == "macro" and id then
+        if subType == "spell" then return id end
+        local spell = GetMacroSpell(id)
+        if not IsSecret(spell) then return spell end
+    end
+end
+
+-- compared by name, so all ranks count
+local function IsShieldSpell(spellID)
+    local name = spellID and C_Spell.GetSpellName(spellID)
+    if not name or IsSecret(name) then return false end
+    local names = TotemTimers.SpellNames
+    return name == names[SpellIDs.LightningShield] or name == names[SpellIDs.WaterShield]
+end
+
+local function UpdateShieldButton(button)
+    local overlay = barIcons[button]
+    local show = shieldsShown and not (overlay and overlay:IsShown()) and IsShieldSpell(GetActionSpell(button.action))
+    local display = shieldDisplays[button]
+    if show and not display then
+        display = TotemTimers.AuraDisplay:new(button, "player", { textAnchor = button, noIcon = true })
+        if not display then return end
+        -- above the button's cooldown swipe
+        local base = button:GetFrameLevel()
+        local level = math.max((button.cooldown and button.cooldown:GetFrameLevel() or base) - base + 2, 2)
+        display:SetTimeShown(false)
+        display:AddSlot(SHIELD_SLOT, GetShieldAuraSpells(), level)
+        shieldDisplays[button] = display
+    end
+    if display then
+        display:SetSlotEnabled(SHIELD_SLOT, show)
+    end
+end
+
+function GamePad.UpdateShieldButtons()
+    local pageUnit = GamepadMainActionBarFrame and GamepadMainActionBarFrame.PageUnit
+    if not (pageUnit and pageUnit.actionBars) then return end
+    for _, bar in pairs(pageUnit.actionBars) do
+        for _, button in ipairs(bar.actionButtons or {}) do
+            if not shieldHooked[button] and button.UpdateAction then
+                hooksecurefunc(button, "UpdateAction", UpdateShieldButton)
+                shieldHooked[button] = true
+            end
+            UpdateShieldButton(button)
+        end
     end
 end
 
@@ -1135,6 +1222,8 @@ function GamePad.Apply()
     pending = false
 
     local active = TotemTimers.ActiveProfile.GamePad and IsGamepadUI()
+    shieldsShown = active and true or false
+    GamePad.UpdateShieldButtons()
     if not active and not nav then return end
     if not Build() then return end
 

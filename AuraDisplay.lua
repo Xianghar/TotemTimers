@@ -23,6 +23,7 @@ local _, TotemTimers = ...
 --
 -- usage:
 --   local display = TotemTimers.AuraDisplay:new(timer.button)    -- nil if aura containers aren't available
+--   (other buttons, e.g. of the Gamepad UI: AuraDisplay:new(button, unit, { textAnchor = button, noIcon = true }))
 --   display:AddSlot("key", { [spellID] = true, ... }, level)
 --   display:SetSlotEnabled("key", enabled)
 --   display:SetTimeShown(shown)
@@ -52,12 +53,17 @@ combatFrame:SetScript("OnEvent", function(self)
     end
 end)
 
-function AuraDisplay:new(parent, unit)
+-- options, for parents that aren't XiTimers buttons (without time, icons, count):
+--   textAnchor: region the time (or the charges) is centered on, instead of the parent's time string
+--   noIcon: the slot buttons show no icon (the parent shows one itself)
+function AuraDisplay:new(parent, unit, options)
     if not IsAuraContainerAvailable() then return end
     local display = setmetatable({}, AuraDisplay)
     display.parent = parent
     -- XiTimers timer of the button, if any
-    display.timer = parent.timer
+    display.timer = not options and parent.timer or nil
+    display.textAnchor = options and options.textAnchor
+    display.noIcon = options and options.noIcon or false
     display.unit = unit or "player"
     -- slot definitions in the order they were added
     display.slots = {}
@@ -226,10 +232,13 @@ function AuraDisplay:InitSlotButton(button, frameLevel, regions)
     pcall(button.SetMouseClickEnabled, button, false)
     pcall(button.EnableMouseMotion, button, false)
 
-    local icon = button:CreateTexture(nil, "ARTWORK")
-    icon:SetAllPoints(parent.icons[1])
-    icon:SetTexCoord(parent.icons[1]:GetTexCoord())
-    button:SetIcon(icon)
+    local icon
+    if not self.noIcon then
+        icon = button:CreateTexture(nil, "ARTWORK")
+        icon:SetAllPoints(parent.icons[1])
+        icon:SetTexCoord(parent.icons[1]:GetTexCoord())
+        button:SetIcon(icon)
+    end
 
     local texts = CreateFrame("Frame", nil, button)
     texts:SetAllPoints(button)
@@ -237,7 +246,7 @@ function AuraDisplay:InitSlotButton(button, frameLevel, regions)
 
     if config.timeShown and config.showSwirl then
         local cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
-        cooldown:SetAllPoints(icon)
+        cooldown:SetAllPoints(icon or parent)
         cooldown:SetDrawBling(false)
         cooldown:SetHideCountdownNumbers(true)
         cooldown.noCooldownCount = true
@@ -254,7 +263,7 @@ function AuraDisplay:InitSlotButton(button, frameLevel, regions)
         -- font strings size to their text, so only the anchor point of the button's own texts is taken
         time = texts:CreateFontString(nil, "OVERLAY")
         time:SetFontObject(TotemTimersButtonTimeFont)
-        time:SetPoint("CENTER", parent.time, "CENTER")
+        time:SetPoint("CENTER", self.textAnchor or parent.time, "CENTER")
     end
 
     local count
@@ -262,7 +271,7 @@ function AuraDisplay:InitSlotButton(button, frameLevel, regions)
         button:SetDurationText(time, nil)
         regions.time = time
         count = texts:CreateFontString(nil, "OVERLAY")
-        count:SetFontObject(parent.count:GetFontObject() or "NumberFontNormal")
+        count:SetFontObject(parent.count and parent.count:GetFontObject() or "NumberFontNormal")
         count:SetPoint("BOTTOMRIGHT", parent, "BOTTOMRIGHT", -2, 2)
     else
         count = time

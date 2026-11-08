@@ -320,7 +320,7 @@ local frame, categoryID = ACD:AddToBlizOptions("TotemTimers", "TotemTimers", nil
 function TotemTimers.HookGUIFrame(frame, categoryID)
     frame:SetScript("OnEvent", function(self)
         if Settings then
-            SettingsPanel:Hide()
+            HideUIPanel(SettingsPanel)
         elseif InterfaceOptionsFrame then
             InterfaceOptionsFrame:Hide()
         end
@@ -329,7 +329,7 @@ function TotemTimers.HookGUIFrame(frame, categoryID)
     frame:HookScript("OnShow", function(self)
         if InCombatLockdown() then
             if Settings then
-                SettingsPanel:Hide()
+                HideUIPanel(SettingsPanel)
             elseif InterfaceOptionsFrame then
                 InterfaceOptionsFrame:Hide()
             end

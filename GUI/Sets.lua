@@ -22,7 +22,7 @@ TotemTimers.HookGUIFrame(frame, categoryID)
 local function reloadFrame()
     ACR:NotifyChange("TotemTimers")
     if Settings then
-        SettingsPanel:Hide()
+        HideUIPanel(SettingsPanel)
     elseif InterfaceOptionsFrame then
         InterfaceOptionsFrame:Hide()
     end
