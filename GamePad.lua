@@ -769,9 +769,9 @@ end
 --   AuraDisplay.lua) laid over the button shows the charges while the shield is up. The game shows the aura, it's
 --   never read in Lua.
 -- - Weapon enchants (Rockbiter, Flametongue, Frostbrand, Windfury Weapon): the remaining time of the enchant on the
---   weapon, from the DurationObject of the weapon tracker (never read in Lua), on the button of that enchant, and the
---   glow of the weapon tracker in combat. Weapon.lua calls GamePad.UpdateActionButtons when an enchant starts or
---   ends and GamePad.SetWeaponGlow on its updates.
+--   weapon (swipe and time), from the DurationObject of the weapon tracker (never read in Lua), on the button of that
+--   enchant, and the glow of the weapon tracker in combat. Weapon.lua calls GamePad.UpdateActionButtons when an
+--   enchant starts or ends and GamePad.SetWeaponGlow on its updates.
 local SHIELD_SLOT = "shield"
 local shieldDisplays = {} -- AuraDisplay by Gamepad UI button, kept once created (frames can't be destroyed)
 local weaponOverlays = {} -- time overlay by Gamepad UI button
@@ -840,8 +840,9 @@ local function UpdateShieldButton(button, name)
     end
 end
 
--- overlay of a weapon enchant button: the time of the enchant, like the remaining time on the totem bar overlays
--- (without text bindings the countdown numbers of a cooldown without swipe), and the glow of the weapon tracker.
+-- overlay of a weapon enchant button: the cooldown swipe and the time of the enchant, like the remaining time on
+-- the totem bar overlays (without text bindings the countdown numbers of the cooldown), and the glow of the weapon
+-- tracker.
 -- Created for every enchant button out of combat (child of a protected button), so the glow is available in combat;
 -- the end of combat updates the buttons again.
 local function GetWeaponOverlay(button)
@@ -851,8 +852,22 @@ local function GetWeaponOverlay(button)
     overlay:SetAllPoints(button)
     overlay:SetFrameLevel(GetOverlayLevel(button))
     overlay:EnableMouse(false)
+
+    -- swipe like on the weapon tracker, inset like the icons of the totem bar overlays (the button's mask)
+    overlay.cooldown = CreateFrame("Cooldown", nil, overlay, "CooldownFrameTemplate")
+    overlay.cooldown:SetPoint("TOPLEFT", button, "TOPLEFT", MASK_INSET, -MASK_INSET)
+    overlay.cooldown:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -MASK_INSET, MASK_INSET)
+    overlay.cooldown:SetDrawEdge(false)
+    overlay.cooldown:SetDrawBling(false)
+    overlay.cooldown.noCooldownCount = true
+
     if XiTimers.CanBindDurationText then
-        overlay.time = overlay:CreateFontString(nil, "OVERLAY")
+        overlay.cooldown:SetHideCountdownNumbers(true)
+        -- the time above the swipe
+        local texts = CreateFrame("Frame", nil, overlay)
+        texts:SetAllPoints(button)
+        texts:SetFrameLevel(overlay.cooldown:GetFrameLevel() + 1)
+        overlay.time = texts:CreateFontString(nil, "OVERLAY")
         overlay.time:SetFontObject(TotemTimersButtonTimeFont)
         overlay.time:SetPoint("CENTER", button, "CENTER")
         overlay.binding = C_DurationUtil.CreateDurationTextBinding()
@@ -861,11 +876,6 @@ local function GetWeaponOverlay(button)
         overlay.binding:SetZeroDurationText("")
         overlay.binding:SetFontString(overlay.time)
     else
-        overlay.cooldown = CreateFrame("Cooldown", nil, overlay, "CooldownFrameTemplate")
-        overlay.cooldown:SetAllPoints(overlay)
-        overlay.cooldown:SetDrawSwipe(false)
-        overlay.cooldown:SetDrawEdge(false)
-        overlay.cooldown:SetDrawBling(false)
         overlay.cooldown:SetHideCountdownNumbers(false)
     end
     -- the glow is shown on a frame of its own over the button, the game's own spell alerts of the button aren't touched
@@ -928,20 +938,25 @@ local function UpdateWeaponButton(button, name)
             SpellIDs.FrostbrandWeapon, SpellIDs.WindfuryWeapon)
     local overlay = isEnchant and GetWeaponOverlay(button) or weaponOverlays[button]
     if not overlay then return end
+    -- round or square swipe, the gamepad buttons switch between their masks
+    local round = not (button.SquareMask and button.SquareMask:IsShown())
+    if overlay.round ~= round then
+        overlay.round = round
+        overlay.cooldown:SetSwipeTexture(round and CIRCLE_SWIPE or SQUARE_SWIPE)
+        overlay.cooldown:SetSwipeColor(0, 0, 0, 0.8)
+    end
     local durObj = isEnchant and GetWeaponEnchantDuration(name)
     if durObj then
+        overlay.cooldown:SetCooldownFromDurationObject(durObj)
         if overlay.binding then
             overlay.binding:SetDuration(durObj)
             overlay.binding:SetEnabled(true)
-        else
-            overlay.cooldown:SetCooldownFromDurationObject(durObj)
         end
     else
+        overlay.cooldown:Clear()
         if overlay.binding then
             overlay.binding:SetEnabled(false)
             overlay.time:SetText("")
-        else
-            overlay.cooldown:Clear()
         end
     end
     overlay.enchantName = isEnchant and name or nil
