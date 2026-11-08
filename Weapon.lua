@@ -248,11 +248,12 @@ function TotemTimers.WeaponUpdate(self, elapsed)
                 self.earlyExpirationMsgs[hand] = "Weapon"
             end
             expirations[hand] = expiration
-            if InCombatLockdown() and timeLeft < self.warningPoint then
-                showGlow = true
-            end
         elseif self.timers[hand] then
             self:Stop(hand)
+        end
+        -- in combat the button glows while an enchant is missing (timeLeft 0) or about to expire
+        if InCombatLockdown() and timeLeft < self.warningPoint then
+            showGlow = true
         end
     end
 
