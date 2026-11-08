@@ -327,7 +327,7 @@ local shieldValues = function()
     local values = {
         [SpellIDs.LightningShield] = SpellNames[SpellIDs.LightningShield],
         [SpellIDs.WaterShield] = SpellNames[SpellIDs.WaterShield],
-        [SpellIDs.EarthShield] = SpellNames[SpellIDs.EarthShield],
+       -- [SpellIDs.EarthShield] = SpellNames[SpellIDs.EarthShield],
     }
     if LE_EXPANSION_LEVEL_CURRENT ~= LE_EXPANSION_CLASSIC then
         values[SpellIDs.TotemicCall] = SpellNames[SpellIDs.TotemicCall]
@@ -336,7 +336,7 @@ local shieldValues = function()
 end
 
 
-    TotemTimers.options.args.trackers.args.individual.args.earthshield = {
+    --[[TotemTimers.options.args.trackers.args.individual.args.earthshield = {
         order = 3,
         name = L["Earth Shield Tracker"],
         desc = L["EarthShieldDesc"],
@@ -508,7 +508,7 @@ end
         get = function(info)
             return TotemTimers.ActiveProfile.EarthShieldOnSelf
         end,
-    }
+    } ]]
 
     TotemTimers.options.args.trackers.args.individual.args.shield.args.LeftButton = {
         order = 10,
@@ -568,7 +568,7 @@ end
         get = function(info)
             return TotemTimers.GetBaseSpellID(TotemTimers.ActiveProfile.ShieldButton4)
         end,
-    }
+    } --]]
 
 
 local ACD = LibStub("AceConfigDialog-3.0")
