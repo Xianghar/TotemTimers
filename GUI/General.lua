@@ -97,20 +97,20 @@ TotemTimers.options = {
                     set = function(info, val) TotemTimers.ActiveProfile.HideInVehicle = val TotemTimers.ProcessSetting("HideInVehicle") end,
                     get = function(info) return TotemTimers.ActiveProfile.HideInVehicle end,
                 },]]
-                --[[Keybinds = {
+                Keybinds = {
                      order = 111,
                    type = "toggle",
                     name = L["Show Key Bindings"],
                     desc = L["Shows key bindings on totem timers"],
                     set = function(info, val) TotemTimers.ActiveProfile.ShowKeybinds = val TotemTimers.ProcessSetting("ShowKeybinds") end,
                     get = function(info) return TotemTimers.ActiveProfile.ShowKeybinds end,
-                },]]
-                --[[h1 = {
+                },
+                h1 = {
                     order = 120,
                     type = "header",
                     name = "",
                 },
-                time = {
+                --[[time = {
                     order = 121,
                     type = "select",
                     name = L["Time Style"],
@@ -126,7 +126,7 @@ TotemTimers.options = {
                         end
                     end,
                     get = function(info) return TotemTimers.ActiveProfile.TimeStyle end,
-                },
+                },]]
                 TimerBarTexture = {
                     order = 135,
                     type = "select",
@@ -235,8 +235,8 @@ TotemTimers.options = {
                     desc = "Use Ctrl-A, Ctrl-C to copy url",
                     width = "full",
                     set = function() end,
-                    get = function() return "https://www.curseforge.com/wow/addons/totemtimers-classic/issues" end
-                },]]
+                    get = function() return "https://legacy.curseforge.com/wow/addons/totemtimers/settings/issues" end
+                },
             },
         },
     },

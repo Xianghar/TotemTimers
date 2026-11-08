@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.3
+- Added some options back for timer bars and debug
+
 ## 20.2
 - Gamepad support now has a mode, where totem timers and menus are shown in the default gamepad ui.
 
