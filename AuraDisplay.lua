@@ -35,6 +35,22 @@ TotemTimers.AuraDisplay = AuraDisplay
 
 local displays = {}
 
+-- formatter of the charges shown in place of the time: the game only shows counts above 1 without a formatter,
+-- but here a single charge is shown, too (auras without stacks, 0, show nothing). false if not available.
+local chargesFormatter
+local function GetChargesFormatter()
+    if chargesFormatter == nil then
+        local ok, formatter = pcall(function()
+            local f = C_StringUtil.CreateNumericRuleFormatter()
+            f:AddBreakpoint({ threshold = 0, format = "" })
+            f:AddBreakpoint({ threshold = 1, format = "%d" })
+            if f:FormatNumber(1) == "1" and f:FormatNumber(3) == "3" then return f end
+        end)
+        chargesFormatter = ok and formatter or false
+    end
+    return chargesFormatter or nil
+end
+
 local function IsAuraContainerAvailable()
     if not C_AddOns.IsAddOnLoaded("Blizzard_AuraContainer") then
         pcall(C_AddOns.LoadAddOn, "Blizzard_AuraContainer")
@@ -276,7 +292,8 @@ function AuraDisplay:InitSlotButton(button, frameLevel, regions)
     else
         count = time
     end
-    button:SetApplicationCount(count, nil)
+    local formatter = not config.timeShown and GetChargesFormatter()
+    button:SetApplicationCount(count, formatter and { formatter = formatter } or nil)
     regions.count = count
 end
 
