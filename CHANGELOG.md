@@ -1,5 +1,10 @@
 # TotemTimers
 
+## 20.4
+- Gamepad UI action buttons with Lightning Shield or Water Shield show the shield charges.
+- Gamepad UI action buttons with Rockbiter, Flametongue, Frostbrand or Windfury Weapon show a timer.
+- New option "Show Timers On Gamepad Buttons": if disabled, no timers are shown on the Gamepad UI buttons and the normal timers are shown.
+
 ## 20.3
 - Added some options back for timer bars and debug
 
