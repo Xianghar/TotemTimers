@@ -128,6 +128,7 @@ function TotemTimers.CreateWeaponTracker()
     weapon.Stop = function(self, ...)
         XiTimers.Stop(self, ...)
         self.running = 1
+        TotemTimers.WeaponEnchantChanged()
     end
     weapon.running = 1
     weapon.slotChanged = {}
@@ -210,9 +211,22 @@ local function GetTemporaryEnchant(hand)
     end
 end
 
+-- an enchant started or ended: the time on the Gamepad UI buttons of the enchants follows
+function TotemTimers.WeaponEnchantChanged()
+    if TotemTimers.GamePad and TotemTimers.GamePad.UpdateActionButtons then
+        TotemTimers.GamePad.UpdateActionButtons()
+    end
+end
+
+-- glow of the Gamepad UI buttons of the enchants (GamePad.SetWeaponGlow): all while an enchant is missing, by
+-- enchant name for enchants about to expire
+local glowNames = {}
+
 function TotemTimers.WeaponUpdate(self, elapsed)
     local hands = weapon.numtimers or 1
     local showGlow = false
+    local glowAll = false
+    wipe(glowNames)
     local now = GetTime()
     for hand = 1,hands do
         local info = GetTemporaryEnchant(hand)
@@ -246,6 +260,7 @@ function TotemTimers.WeaponUpdate(self, elapsed)
                 self.warningSpells[hand] = spell
                 self.expirationMsgs[hand] = "Weapon"
                 self.earlyExpirationMsgs[hand] = "Weapon"
+                TotemTimers.WeaponEnchantChanged()
             end
             expirations[hand] = expiration
         elseif self.timers[hand] then
@@ -254,13 +269,22 @@ function TotemTimers.WeaponUpdate(self, elapsed)
         -- in combat the button glows while an enchant is missing (timeLeft 0) or about to expire
         if InCombatLockdown() and timeLeft < self.warningPoint then
             showGlow = true
+            if timeLeft > 0 and self["enchant"..hand] then
+                glowNames[self["enchant"..hand]] = true
+            else
+                glowAll = true
+            end
         end
     end
 
-    if showGlow and TotemTimers.Specialization == 2 and TotemTimers.ActiveProfile.WeaponGlow then
+    local glowEnabled = TotemTimers.Specialization == 2 and TotemTimers.ActiveProfile.WeaponGlow
+    if showGlow and glowEnabled then
         self:ShowOverlayGlow()
     else
         self:HideOverlayGlow()
+    end
+    if TotemTimers.GamePad and TotemTimers.GamePad.SetWeaponGlow then
+        TotemTimers.GamePad.SetWeaponGlow(glowEnabled and glowAll, glowEnabled and glowNames or nil)
     end
 
     XiTimers.Update(self, 0)

@@ -716,7 +716,7 @@ function GamePad.UpdateBarIcons()
     -- in bar mode the game focuses the bar itself
     SetFocusBackground(not barMode and bar or nil)
     if not bar then
-        GamePad.UpdateShieldButtons()
+        GamePad.UpdateActionButtons()
         return
     end
     for i = 1, 4 do
@@ -739,7 +739,7 @@ function GamePad.UpdateBarIcons()
     ShowSlot(bar, DPAD_LEFT_INDEX,
             GetAvailableSpellName(SpellIDs.TotemicProjection) and C_Spell.GetSpellTexture(SpellIDs.TotemicProjection))
     -- the buttons covered by the overlays changed
-    GamePad.UpdateShieldButtons()
+    GamePad.UpdateActionButtons()
 end
 
 -- the layer key went down or up (called by the layer button's click snippet, not protected)
@@ -762,14 +762,21 @@ function GamePad.UpdateBarDurations()
     end
 end
 
--- Lightning Shield and Water Shield on the Gamepad UI action buttons: like the shield tracker with "charges only",
--- an AuraDisplay (see AuraDisplay.lua) laid over each button holding one of the shields shows the charges while the
--- shield is up. The game shows the aura, it's never read in Lua. Buttons covered by an overlay of the totem bar
--- (see above) are skipped. The buttons' UpdateAction is hooked, so action changes and paging are followed.
+-- Overlays on the Gamepad UI action buttons, by the spell of the button's action (also of a macro showing a spell,
+-- compared by name, so all ranks count). Buttons covered by an overlay of the totem bar (see above) are skipped.
+-- The buttons' UpdateAction is hooked, so action changes and paging are followed.
+-- - Lightning Shield and Water Shield: like the shield tracker with "charges only", an AuraDisplay (see
+--   AuraDisplay.lua) laid over the button shows the charges while the shield is up. The game shows the aura, it's
+--   never read in Lua.
+-- - Weapon enchants (Rockbiter, Flametongue, Frostbrand, Windfury Weapon): the remaining time of the enchant on the
+--   weapon, from the DurationObject of the weapon tracker (never read in Lua), on the button of that enchant, and the
+--   glow of the weapon tracker in combat. Weapon.lua calls GamePad.UpdateActionButtons when an enchant starts or
+--   ends and GamePad.SetWeaponGlow on its updates.
 local SHIELD_SLOT = "shield"
 local shieldDisplays = {} -- AuraDisplay by Gamepad UI button, kept once created (frames can't be destroyed)
-local shieldHooked = {}
-local shieldsShown = false
+local weaponOverlays = {} -- time overlay by Gamepad UI button
+local actionHooked = {}
+local actionOverlaysShown = false
 local shieldAuraSpells
 
 -- aura spell ids of all ranks of both shields
@@ -803,26 +810,29 @@ local function GetActionSpell(action)
     end
 end
 
--- compared by name, so all ranks count
-local function IsShieldSpell(spellID)
-    local name = spellID and C_Spell.GetSpellName(spellID)
-    if not name or IsSecret(name) then return false end
+-- the name is the name of one of the spells
+local function IsSpellName(name, ...)
     local names = TotemTimers.SpellNames
-    return name == names[SpellIDs.LightningShield] or name == names[SpellIDs.WaterShield]
+    for i = 1, select("#", ...) do
+        local spellID = select(i, ...)
+        if spellID and name == names[spellID] then return true end
+    end
+    return false
 end
 
-local function UpdateShieldButton(button)
-    local overlay = barIcons[button]
-    local show = shieldsShown and not (overlay and overlay:IsShown()) and IsShieldSpell(GetActionSpell(button.action))
+-- frame level above the button's cooldown swipe
+local function GetOverlayLevel(button)
+    return (button.cooldown and button.cooldown:GetFrameLevel() or button:GetFrameLevel()) + 2
+end
+
+local function UpdateShieldButton(button, name)
+    local show = name and IsSpellName(name, SpellIDs.LightningShield, SpellIDs.WaterShield) or false
     local display = shieldDisplays[button]
     if show and not display then
         display = TotemTimers.AuraDisplay:new(button, "player", { textAnchor = button, noIcon = true })
         if not display then return end
-        -- above the button's cooldown swipe
-        local base = button:GetFrameLevel()
-        local level = math.max((button.cooldown and button.cooldown:GetFrameLevel() or base) - base + 2, 2)
         display:SetTimeShown(false)
-        display:AddSlot(SHIELD_SLOT, GetShieldAuraSpells(), level)
+        display:AddSlot(SHIELD_SLOT, GetShieldAuraSpells(), math.max(GetOverlayLevel(button) - button:GetFrameLevel(), 2))
         shieldDisplays[button] = display
     end
     if display then
@@ -830,16 +840,134 @@ local function UpdateShieldButton(button)
     end
 end
 
-function GamePad.UpdateShieldButtons()
+-- overlay of a weapon enchant button: the time of the enchant, like the remaining time on the totem bar overlays
+-- (without text bindings the countdown numbers of a cooldown without swipe), and the glow of the weapon tracker.
+-- Created for every enchant button out of combat (child of a protected button), so the glow is available in combat;
+-- the end of combat updates the buttons again.
+local function GetWeaponOverlay(button)
+    local overlay = weaponOverlays[button]
+    if overlay or InCombatLockdown() then return overlay end
+    overlay = CreateFrame("Frame", nil, button)
+    overlay:SetAllPoints(button)
+    overlay:SetFrameLevel(GetOverlayLevel(button))
+    overlay:EnableMouse(false)
+    if XiTimers.CanBindDurationText then
+        overlay.time = overlay:CreateFontString(nil, "OVERLAY")
+        overlay.time:SetFontObject(TotemTimersButtonTimeFont)
+        overlay.time:SetPoint("CENTER", button, "CENTER")
+        overlay.binding = C_DurationUtil.CreateDurationTextBinding()
+        overlay.binding:SetFormatter(XiTimers.GetSecondsFormatter())
+        overlay.binding:SetExpiredText("")
+        overlay.binding:SetZeroDurationText("")
+        overlay.binding:SetFontString(overlay.time)
+    else
+        overlay.cooldown = CreateFrame("Cooldown", nil, overlay, "CooldownFrameTemplate")
+        overlay.cooldown:SetAllPoints(overlay)
+        overlay.cooldown:SetDrawSwipe(false)
+        overlay.cooldown:SetDrawEdge(false)
+        overlay.cooldown:SetDrawBling(false)
+        overlay.cooldown:SetHideCountdownNumbers(false)
+    end
+    -- the glow is shown on a frame of its own over the button, the game's own spell alerts of the button aren't touched
+    overlay.glow = CreateFrame("Frame", nil, overlay)
+    overlay.glow:SetAllPoints(button)
+    overlay:Hide()
+    weaponOverlays[button] = overlay
+    return overlay
+end
+
+local function SetGlow(frame, shown)
+    if ActionButtonSpellAlertManager then
+        if shown then
+            ActionButtonSpellAlertManager:ShowAlert(frame)
+        else
+            ActionButtonSpellAlertManager:HideAlert(frame)
+        end
+    elseif ActionButton_ShowOverlayGlow then
+        if shown then ActionButton_ShowOverlayGlow(frame) else ActionButton_HideOverlayGlow(frame) end
+    end
+end
+
+-- glow of the weapon tracker (see TotemTimers.WeaponUpdate): all enchant buttons glow while an enchant is missing,
+-- the buttons of enchants about to expire glow (weaponGlowNames, by enchant name)
+local NO_GLOW_NAMES = {}
+local weaponGlowAll = false
+local weaponGlowNames = NO_GLOW_NAMES
+
+local function UpdateWeaponGlow(overlay)
+    local glow = overlay.enchantName and (weaponGlowAll or weaponGlowNames[overlay.enchantName]) and true or false
+    if glow ~= overlay.glowing then
+        overlay.glowing = glow
+        SetGlow(overlay.glow, glow)
+    end
+end
+
+-- called by the weapon tracker on every update, names: set of enchant names, kept by the caller
+function GamePad.SetWeaponGlow(all, names)
+    weaponGlowAll = all and true or false
+    weaponGlowNames = names or NO_GLOW_NAMES
+    for _, overlay in pairs(weaponOverlays) do
+        UpdateWeaponGlow(overlay)
+    end
+end
+
+-- DurationObject of the weapon tracker's timer of the enchant, nil if that enchant isn't on a weapon
+local function GetWeaponEnchantDuration(name)
+    local weapon = TotemTimers.WeaponTracker
+    if not weapon then return end
+    for hand = 1, weapon.numtimers or 1 do
+        local durObj = weapon.timers[hand]
+        if durObj and weapon["enchant" .. hand] == name then
+            return durObj
+        end
+    end
+end
+
+local function UpdateWeaponButton(button, name)
+    local isEnchant = name and IsSpellName(name, SpellIDs.RockbiterWeapon, SpellIDs.FlametongueWeapon,
+            SpellIDs.FrostbrandWeapon, SpellIDs.WindfuryWeapon)
+    local overlay = isEnchant and GetWeaponOverlay(button) or weaponOverlays[button]
+    if not overlay then return end
+    local durObj = isEnchant and GetWeaponEnchantDuration(name)
+    if durObj then
+        if overlay.binding then
+            overlay.binding:SetDuration(durObj)
+            overlay.binding:SetEnabled(true)
+        else
+            overlay.cooldown:SetCooldownFromDurationObject(durObj)
+        end
+    else
+        if overlay.binding then
+            overlay.binding:SetEnabled(false)
+            overlay.time:SetText("")
+        else
+            overlay.cooldown:Clear()
+        end
+    end
+    overlay.enchantName = isEnchant and name or nil
+    overlay:SetShown(isEnchant and true or false)
+    UpdateWeaponGlow(overlay)
+end
+
+local function UpdateActionButton(button)
+    local covered = barIcons[button] and barIcons[button]:IsShown()
+    local spell = actionOverlaysShown and not covered and GetActionSpell(button.action)
+    local name = spell and C_Spell.GetSpellName(spell)
+    if IsSecret(name) then name = nil end
+    UpdateShieldButton(button, name)
+    UpdateWeaponButton(button, name)
+end
+
+function GamePad.UpdateActionButtons()
     local pageUnit = GamepadMainActionBarFrame and GamepadMainActionBarFrame.PageUnit
     if not (pageUnit and pageUnit.actionBars) then return end
     for _, bar in pairs(pageUnit.actionBars) do
         for _, button in ipairs(bar.actionButtons or {}) do
-            if not shieldHooked[button] and button.UpdateAction then
-                hooksecurefunc(button, "UpdateAction", UpdateShieldButton)
-                shieldHooked[button] = true
+            if not actionHooked[button] and button.UpdateAction then
+                hooksecurefunc(button, "UpdateAction", UpdateActionButton)
+                actionHooked[button] = true
             end
-            UpdateShieldButton(button)
+            UpdateActionButton(button)
         end
     end
 end
@@ -1222,8 +1350,8 @@ function GamePad.Apply()
     pending = false
 
     local active = TotemTimers.ActiveProfile.GamePad and IsGamepadUI()
-    shieldsShown = active and true or false
-    GamePad.UpdateShieldButtons()
+    actionOverlaysShown = active and true or false
+    GamePad.UpdateActionButtons()
     if not active and not nav then return end
     if not Build() then return end
 
@@ -1337,7 +1465,12 @@ if C_EventUtils.IsEventValid("INPUT_DEVICE_INTERFACE_TRANSITION") then
 end
 eventFrame:SetScript("OnEvent", function(self, event, addon)
     if event == "PLAYER_REGEN_ENABLED" then
-        if pending then GamePad.Apply() end
+        if pending then
+            GamePad.Apply()
+        else
+            -- weapon enchant overlays needed in combat are created now
+            GamePad.UpdateActionButtons()
+        end
     elseif event == "ADDON_LOADED" then
         -- the Gamepad UI action bars can be loaded after TotemTimers
         if addon == "Blizzard_GamepadActionBars" then GamePad.Apply() end
