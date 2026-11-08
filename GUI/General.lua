@@ -12,6 +12,7 @@ local metadatafunc = GetAddOnMetadata or C_AddOns.GetAddOnMetadata
 
 TotemTimers.options = {
     type = "group",
+    name = "TotemTimers",
     args = {
         general = {
             type = "group",
@@ -224,7 +225,8 @@ TotemTimers.options = {
                     type = "execute",
                     name = L["Debug"] ,
                     func = function()
-                        HideUIPanel(InterfaceOptionsFrame) --TotemTimers_DebugScrollFrame:Show()
+                        LibStub("AceConfigDialog-3.0"):Close("TotemTimers")
+                        if InterfaceOptionsFrame then HideUIPanel(InterfaceOptionsFrame) end
                         TotemTimers.ShowDebug()
                     end
                 },
@@ -319,6 +321,8 @@ local frame, categoryID = ACD:AddToBlizOptions("TotemTimers", "TotemTimers", nil
 
 function TotemTimers.HookGUIFrame(frame, categoryID)
     frame:SetScript("OnEvent", function(self)
+        -- entering combat: the options window (/tt) and the settings panel are closed
+        ACD:Close("TotemTimers")
         if Settings then
             HideUIPanel(SettingsPanel)
         elseif InterfaceOptionsFrame then

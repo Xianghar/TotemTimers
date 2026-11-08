@@ -19,22 +19,10 @@ local frame, categoryID = ACD:AddToBlizOptions("TotemTimers", "Sets", "TotemTime
 TotemTimers.HookGUIFrame(frame, categoryID)
 
 
-local function reloadFrame()
-    ACR:NotifyChange("TotemTimers")
-    if Settings then
-        HideUIPanel(SettingsPanel)
-    elseif InterfaceOptionsFrame then
-        InterfaceOptionsFrame:Hide()
-    end
-    if Settings and Settings.OpenToCategory then
-        Settings.OpenToCategory(frame.name)
-    elseif InterfaceOptionsFrame_OpenToCategory then
-        InterfaceOptionsFrame_OpenToCategory(frame)
-    end
-end
+local reloadFrame
 
-
-frame:HookScript("OnShow", function(self)
+-- the options of the sets are built from the profile when they are shown (settings panel page or options window)
+function TotemTimers.BuildSetsOptions()
     TotemTimers.options.args.sets.args = {}
 
     local args = TotemTimers.options.args.sets.args
@@ -92,8 +80,12 @@ frame:HookScript("OnShow", function(self)
     end
 
     ACR:NotifyChange("TotemTimers")
+end
 
-end)
+-- after renaming or deleting a set
+reloadFrame = TotemTimers.BuildSetsOptions
+
+frame:HookScript("OnShow", TotemTimers.BuildSetsOptions)
 
 
 local deleteOnAccept = StaticPopupDialogs["TOTEMTIMERS_DELETESET"].OnAccept

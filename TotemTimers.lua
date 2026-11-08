@@ -211,8 +211,18 @@ function TotemTimers_Slash()
 	end
 
     if Settings then
-        -- wow10
-        Settings.OpenToCategory(TotemTimers.LastGUIPanel)
+        -- wow10: opening the settings panel at a category doesn't work for addons in WoW Forever (it shows its first
+        -- category), so the options are shown in an own AceConfig window, starting at the general options
+        local ACD = LibStub("AceConfigDialog-3.0")
+        if TotemTimers.BuildSetsOptions then TotemTimers.BuildSetsOptions() end
+        if not TotemTimers.OptionsWindowOpened then
+            ACD:SetDefaultSize("TotemTimers", 860, 660)
+        end
+        ACD:Open("TotemTimers")
+        if not TotemTimers.OptionsWindowOpened then
+            ACD:SelectGroup("TotemTimers", "general")
+            TotemTimers.OptionsWindowOpened = true
+        end
     else
         -- wow classic
         InterfaceAddOnsList_Update()
