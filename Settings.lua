@@ -722,6 +722,7 @@ SettingsFunctions.GamePad = function(value, Timers)
 end
 SettingsFunctions.GamePadLayerKey = SettingsFunctions.GamePad
 SettingsFunctions.GamePadHideTimers = SettingsFunctions.GamePad
+SettingsFunctions.GamePadTimers = SettingsFunctions.GamePad
 
 
 

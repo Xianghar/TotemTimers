@@ -70,6 +70,7 @@ TotemTimers.DefaultProfile = {
         ReverseBarBindings = false,
         GamePad = true,
         GamePadLayerKey = "PADLTRIGGER+PADRTRIGGER", -- LT + RT, see GamePad.lua
+        GamePadTimers = true,
         GamePadHideTimers = true,
         MiniIcons = true,
         ProcFlash = true,

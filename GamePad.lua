@@ -466,6 +466,9 @@ local ROUND_SLOT_BORDER = "gamepad-actionbar-circleslot-border-normal"
 
 -- the active totem icon is shown on the totem slots (option GamePadHideTimers in bar mode)
 local showActiveTotems = false
+-- option GamePadTimers: timers on the Gamepad UI buttons (totem durations on the bar slots, shield charges, weapon
+-- enchant times and glow); without it the slots only show the icons and GamePadHideTimers is ignored
+local timersShown = true
 
 -- slots showing the active totem of a timer, by the timer button's icon (which shows the active totem)
 local activeIconSlots = {}
@@ -643,7 +646,7 @@ end
 -- remaining duration of the totem, from the DurationObject of the running totem timer (never read in Lua),
 -- and the icon of the active totem while the timer runs and it isn't the assigned totem
 local function UpdateSlotDuration(slot)
-    local durObj = slot.timer and slot.timer.timers[1]
+    local durObj = timersShown and slot.timer and slot.timer.timers[1]
     if durObj then
         slot.cooldown:SetCooldownFromDurationObject(durObj)
     else
@@ -1370,7 +1373,8 @@ function GamePad.Apply()
     pending = false
 
     local active = TotemTimers.ActiveProfile.GamePad and IsGamepadUI()
-    actionOverlaysShown = active and true or false
+    timersShown = TotemTimers.ActiveProfile.GamePadTimers and true or false
+    actionOverlaysShown = active and timersShown or false
     GamePad.UpdateActionButtons()
     if not active and not nav then return end
     if not Build() then return end
@@ -1394,7 +1398,7 @@ function GamePad.Apply()
         end
     end
     GamePad.UpdateBarIcons()
-    local hideTimers = barMode and TotemTimers.ActiveProfile.GamePadHideTimers
+    local hideTimers = barMode and timersShown and TotemTimers.ActiveProfile.GamePadHideTimers
     showActiveTotems = hideTimers and true or false
     GamePad.UpdateBarDurations()
     SetTimersHidden(hideTimers)

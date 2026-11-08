@@ -295,6 +295,22 @@ if TotemTimers.GamePad and C_InputInterfaceStyle then
             return TotemTimers.ActiveProfile.GamePadLayerKey
         end,
     }
+    TotemTimers.options.args.general.args.gamepadtimers = {
+        order = 152.5,
+        type = "toggle",
+        name = L["GamePad Timers"],
+        desc = L["GamePad Timers Desc"],
+        disabled = function()
+            return not TotemTimers.ActiveProfile.GamePad
+        end,
+        set = function(info, val)
+            TotemTimers.ActiveProfile.GamePadTimers = val
+            TotemTimers.ProcessSetting("GamePadTimers")
+        end,
+        get = function(info)
+            return TotemTimers.ActiveProfile.GamePadTimers
+        end,
+    }
     TotemTimers.options.args.general.args.gamepadhidetimers = {
         order = 153,
         type = "toggle",
@@ -302,6 +318,7 @@ if TotemTimers.GamePad and C_InputInterfaceStyle then
         desc = L["GamePad Hide Timers Desc"],
         disabled = function()
             return not TotemTimers.ActiveProfile.GamePad
+                or not TotemTimers.ActiveProfile.GamePadTimers
                 or not TotemTimers.GamePad.IsBarModeKey(TotemTimers.ActiveProfile.GamePadLayerKey)
         end,
         set = function(info, val)
