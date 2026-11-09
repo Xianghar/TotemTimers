@@ -1,7 +1,7 @@
 # TotemTimers
 
 ## 20.5
-- Fix combat log taint
+- Fix floting combat text taint
 
 ## 20.4
 - Gamepad UI action buttons with Lightning Shield or Water Shield show the shield charges.
