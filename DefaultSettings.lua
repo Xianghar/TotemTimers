@@ -77,6 +77,7 @@ TotemTimers.DefaultProfile = {
         ColorTimerBars = false,
         ShowCooldowns = true,
         CheckPlayerRange = true,
+        PlayerRangeStyle = "tint",
         CheckRaidRange = true,
         PartyRangePosition = "TOP",
         ShowRaidRangeTooltip = true,
@@ -586,17 +587,18 @@ end
 
 function TotemTimers.CopyFramePositions(p1, p2)
     TotemTimers_Profiles[p2].FramePositions = copy(TotemTimers_Profiles[p1].FramePositions)
-    TotemTimers_Profiles[p2].TimerPositions = copy(TotemTimers_Profiles[p2].TimerPositions)
+    TotemTimers_Profiles[p2].TimerPositions = copy(TotemTimers_Profiles[p1].TimerPositions)
 end
 
 
 local GeneralList = {
-    Lock, FlashRed, --ShowTimerBars,
-    HideBlizzTimers, Tooltips, TooltipsAtButtons,
-    TimeFont, TimeColor, TimerBarTexture,
-    TimerBarColor, ShowKeybinds, HideInVehicle,
-    TimersOnButtons, LavaSurgeAura,
-    LavaSurgeGlow, FulminationAura, FulminationGlow,
+    "Lock", "FlashRed", --"ShowTimerBars",
+    "HideBlizzTimers", "Tooltips", "TooltipsAtButtons",
+    "TimeFont", "TimeColor", "TimerBarTexture",
+    "TimerBarColor", "ShowKeybinds", "HideInVehicle",
+    "TimersOnButtons", "LavaSurgeAura",
+    "LavaSurgeGlow", "FulminationAura", "FulminationGlow",
+    "StopPulse", "TrackerStopPulse", "CooldownAlpha", "OOCAlpha",
 }
 
 function TotemTimers.CopyGeneralSettings(p1,p2)
@@ -607,12 +609,15 @@ end
 
 
 local TimerList = {
-    Show, Order, Arrange, TimeStyle,
-    TimerTimePos, CastBarDirection, TimerSize, TimerTimeHeight,
-    TimerSpacing, TimerTimeSpacing, TotemTimerBarWidth, TotemMenuSpacing,
-    OpenOnRightclick, MenusAlwaysVisible, BarBindings, ReverseBarBindings,
-    MiniIcons, ProcFlash, ColorTimerBars, ShowCooldowns, 
-    CheckPlayerRange, CheckRaidRange, ShowRaidRangeTooltip, Timer_Clickthrough,
+    "Show", "Order", "Arrange", "TimeStyle",
+    "TimerTimePos", "CastBarDirection", "TimerSize", "TimerTimeHeight",
+    "TimerSpacing", "TimerTimeSpacing", "TotemTimerBarWidth", "TotemMenuSpacing",
+    "OpenOnRightclick", "MenusAlwaysVisible", "BarBindings", "ReverseBarBindings",
+    "MiniIcons", "ProcFlash", "ColorTimerBars", "ShowCooldowns", 
+    "CheckPlayerRange", "PlayerRangeStyle", "CheckRaidRange", "PartyRangePosition", "ShowRaidRangeTooltip",
+    "Timer_Clickthrough", "IncludeInMacro", "MacroReset", "TwistingTimer", "WindfuryDownrank",
+    "MultiCast", "DisabledMultiSpells",
+    "GamePad", "GamePadLayerKey", "GamePadTimers", "GamePadHideTimers",
 }
 
 function TotemTimers.CopyTimerSettings(p1,p2)
@@ -622,14 +627,16 @@ function TotemTimers.CopyTimerSettings(p1,p2)
 end
 
 local TrackerList = {
-    TrackerArrange, TrackerTimePos, TrackerSize,
-    TrackerSpacing, TrackerTimeSpacing, TrackerTimerBarWidth, AnkhTracker,
-    ShieldTracker, EarthShieldTracker, 
-    EarthShieldLeftButton, EarthShieldRightButton, EarthShieldMiddleButton,
-    EarthShieldButton4, ShieldLeftButton, ShieldRightButton, ShieldMiddleButton,
-    EarthShieldTargetName, ESMainTankMenu, ESMainTankMenuDirection, ESChargesOnly,
-    Tracker_Clickthrough, WeaponTracker, WeaponBarDirection,
-    WeaponMenuOnRightclick, LastWeaponEnchant,
+    "TrackerArrange", "TrackerTimePos", "TrackerSize",
+    "TrackerSpacing", "TrackerTimeSpacing", "TrackerTimerBarWidth", "AnkhTracker",
+    "ShieldTracker", "EarthShieldTracker", 
+    "EarthShieldLeftButton", "EarthShieldRightButton", "EarthShieldMiddleButton",
+    "EarthShieldButton4", "ShieldLeftButton", "ShieldRightButton", "ShieldMiddleButton",
+    "EarthShieldTargetName", "ESMainTankMenu", "ESMainTankMenuDirection", "ESChargesOnly",
+    "Tracker_Clickthrough", "WeaponTracker", "WeaponBarDirection",
+    "WeaponMenuOnRightclick", "LastWeaponEnchant", "LastMainEnchants", "LastOffEnchants",
+    "WeaponGlow", "WeaponExpirationWarning", "WeaponWarningStopPulse",
+    "ShieldButton4", "ShieldChargesOnly", "EarthShieldOnSelf",
 }
 
 function TotemTimers.CopyTrackerSettings(p1,p2)
@@ -639,11 +646,17 @@ function TotemTimers.CopyTrackerSettings(p1,p2)
 end
 
 
---[[ local CDSettings = {
-    EnhanceCDs_Spells, EnhanceCDs_Order, EnhanceCDs, EnhanceCDsSize,
-    EnhanceCDsMaelstromHeight, ShowOmniCCOnEnhanceCDs,
-    EnhanceCDsOOCAlpha, CDTimersOnButtons, FlameShockDurationOnTop, EnhanceCDs_Clickthrough,
-	LongCooldowns, LongCooldownSpells,	LongCooldownsArrange, CooldownSpacing,
+-- combat cooldowns (EnhanceCDs.lua, LongCooldowns.lua), not loaded at the moment (see the TOC), as is its
+-- copy button in GUI/Profiles.lua
+--[[ local CDList = {
+    "EnhanceCDs_Spells", "EnhanceCDs_Order", "EnhanceCDs", "EnhanceCDsSize", "EnhanceCDsOneRow",
+    "EnhanceCDsMaelstromHeight", "ShowOmniCCOnEnhanceCDs", "EnhanceCDsStopPulse",
+    "EnhanceCDsOOCAlpha", "CDTimersOnButtons", "EnhanceCDsClickthrough", "EnhanceCDsTotemTwisting",
+    "FlameShockDurationOnTop", "EnhanceCDsFlameShockDuration", "EnhanceCDsFlameShockDuration_Specialization",
+    "FlameShockDurationSize", "FlameShockDurationStopPulse",
+    "EnhanceCDsMaelstrom", "MaelstromSize", "MaelstromStopPulse", "MaelstromNumberOnly",
+    "OverlayGlow", "PowerSurge", "PowerSurgeOverlay",
+    "LongCooldownSpells", "LongCooldownsStopPulse",
 }
 
 function TotemTimers.CopyCDSettings(p1,p2)
@@ -653,8 +666,8 @@ function TotemTimers.CopyCDSettings(p1,p2)
 end ]]
 
 
-local TotemSettings = {
-    TotemOrder, HiddenTotems, TotemSets,
+local TotemList = {
+    "TotemOrder", "HiddenTotems", "TotemSets", "LastTotems",
 }
 
 function TotemTimers.CopyTotemSettings(p1,p2)
@@ -665,8 +678,8 @@ end
 
 
 local CCList = {
-    CrowdControlEnable, CrowdControlArrange, CrowdControlTimePos, 
-    CrowdControlSize, CrowdControlClickthrough,
+    "CrowdControlEnable", "CrowdControlArrange", "CrowdControlTimePos", 
+    "CrowdControlSize", "CrowdControlClickthrough",
 }
 
 function TotemTimers.CopyCrowdControlSettings(p1,p2)
@@ -677,7 +690,7 @@ end
 
 
 local WarningsList = {
-    ActivateHiddenTimers, Warnings,
+    "ActivateHiddenTimers", "Warnings",
 }
 
 function TotemTimers.CopyWarnings(p1,p2)

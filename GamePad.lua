@@ -489,6 +489,25 @@ local FOCUS_SHADOW_SQUARE = "gamepad-actionbar-focus-bg-square"
 
 local layerExpanded = false
 
+-- range dots of the totem slots (like on the totem timer buttons, see TotemTimers.AddRangeDots)
+local RANGE_DOT_TEXTURE = "Interface\\AddOns\\TotemTimers\\textures\\dot"
+local RANGE_DOT_SIZE = 6
+local RangeDotKeys = { "playerDot", "party1", "party2", "party3", "party4" }
+
+-- the first party dot takes the place of the player's dot unless the player has a dot (option PlayerRangeStyle);
+-- only own hidden anchor textures are moved, so this works in combat
+local function UpdateRangeDotLayout(slot)
+    local dots = slot.rangeDots
+    if not dots then return end
+    local playerDot = TotemTimers.ActiveProfile and TotemTimers.ActiveProfile.PlayerRangeStyle == "dot"
+    dots.party1:ClearAllPoints()
+    if playerDot then
+        dots.party1:SetPoint("LEFT", dots.playerDot, "RIGHT", 1, 0)
+    else
+        dots.party1:SetPoint("TOPLEFT", slot, "TOPLEFT", 1, -1)
+    end
+end
+
 -- bar mode (layer key is a trigger): the key stays with the game, slots of its bar are TotemTimers buttons;
 -- only those slots get overlays (by bar button index)
 local barMode = false
@@ -583,6 +602,26 @@ local function GetBarIcon(button, index)
         else
             slot.cooldown:SetHideCountdownNumbers(false)
         end
+
+        -- anchors of the range dots (see ShowSlot), hidden: the dots are drawn by aura containers over them;
+        -- a row along the top edge, the player's dot first (option PlayerRangeStyle "dot", otherwise the party dots
+        -- move to its place and the player's buff tints the icon, see UpdateRangeDotLayout)
+        slot.rangeDots = { player = slot.icon }
+        local previous
+        for _, key in ipairs(RangeDotKeys) do
+            local dot = slot:CreateTexture(nil, "OVERLAY")
+            dot:SetTexture(RANGE_DOT_TEXTURE)
+            dot:SetSize(RANGE_DOT_SIZE, RANGE_DOT_SIZE)
+            if previous then
+                dot:SetPoint("LEFT", previous, "RIGHT", 1, 0)
+            else
+                dot:SetPoint("TOPLEFT", slot, "TOPLEFT", 1, -1)
+            end
+            dot:Hide()
+            slot.rangeDots[key] = dot
+            previous = dot
+        end
+        UpdateRangeDotLayout(slot)
         barIcons[button] = slot
     end
     slot.index = index
@@ -692,6 +731,14 @@ local function ShowSlot(bar, index, texture, timer)
             activeIconHooked[sourceIcon] = true
         end
         slot.active.icon:SetTexture(sourceIcon:GetTexture())
+        -- range dots of the timer's totem, created once per slot (a slot always shows the timer of the same
+        -- element, its button index is fixed by the element); shown with option GamePadTimers
+        if not slot.rangeDotTimer and TotemTimers.AddRangeDots then
+            slot.rangeDotTimer = timer
+            -- the player's tint is cut out like the icon (shape of the slot when the dots are created)
+            TotemTimers.AddRangeDots(timer, slot, slot.rangeDots, function() return timersShown end,
+                    { slot.round and "CircleMask" or "SquareMask", MASK_INSET })
+        end
     end
     UpdateSlotDuration(slot)
     slot:Show()
@@ -762,6 +809,13 @@ GamePad.SetLayerExpanded = SetLayerExpanded
 function GamePad.UpdateBarDurations()
     for _, slot in pairs(barIcons) do
         if slot.timer then UpdateSlotDuration(slot) end
+    end
+end
+
+-- option PlayerRangeStyle changed
+function GamePad.UpdateRangeDotLayout()
+    for _, slot in pairs(barIcons) do
+        UpdateRangeDotLayout(slot)
     end
 end
 
@@ -1376,6 +1430,7 @@ function GamePad.Apply()
     timersShown = TotemTimers.ActiveProfile.GamePadTimers and true or false
     actionOverlaysShown = active and timersShown or false
     GamePad.UpdateActionButtons()
+    TotemTimers.UpdateRangeDots()
     if not active and not nav then return end
     if not Build() then return end
 

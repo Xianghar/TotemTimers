@@ -550,52 +550,32 @@ SettingsFunctions = {
         end
     end,
 
+    -- the range dots of totem buffs are aura containers (see UpdateRangeDots in SetupTimers.lua)
     CheckPlayerRange = function(value, Timers)
-        local checkRaid = TotemTimers.ActiveProfile.CheckRaidRange
-        if value then
-            for i = 1, 4 do
-                if Timers[i].active then
-                    Timers[i].button:RegisterEvent("UNIT_AURA")
-                    if Timers[i].timers[1] then
-                        TotemTimers.TotemEvent(Timers[i].button, "UNIT_AURA", "player")
-                    end
-                end
-            end
-        else
-            for i = 1, 4 do
-                if not checkRaid then
-                    Timers[i].button:UnregisterEvent("UNIT_AURA")
-                end
-                Timers[i].button.playerRange:Hide()
-            end
-        end
+        TotemTimers.UpdateRangeDots()
+    end,
+
+    -- "tint": the player's buff tints the totem icon green, "dot": a green dot
+    PlayerRangeStyle = function(value, Timers)
+        if TotemTimers.GamePad then TotemTimers.GamePad.UpdateRangeDotLayout() end
+        TotemTimers.UpdateRangeDots()
     end,
 
     CheckRaidRange = function(value, Timers)
-        local checkPlayer = TotemTimers.ActiveProfile.CheckPlayerRange
+        TotemTimers.UpdateRangeDots()
         if value then
             C_ChatInfo.RegisterAddonMessagePrefix("WF_STATUS")
             for i = 1, 4 do
-                local timer = Timers[i]
                 if Timers[i].active then
-                    Timers[i].button:RegisterEvent("UNIT_AURA")
                     Timers[i].button:RegisterEvent("GROUP_ROSTER_UPDATE")
                     if i == AIR_TOTEM_SLOT or i == FIRE_TOTEM_SLOT then
                         Timers[i].button:RegisterEvent("CHAT_MSG_ADDON")
-                    end
-                    if Timers[i].timers[1] then
-                        for j = 1, 4 do
-                            TotemTimers.TotemEvent(Timers[i].button, "UNIT_AURA", "party" .. j)
-                        end
                     end
                 end
             end
             TotemTimers.UpdateParty()
         else
             for i = 1, 4 do
-                if not checkPlayer then
-                    Timers[i].button:UnregisterEvent("UNIT_AURA")
-                end
                 Timers[i].button:UnregisterEvent("GROUP_ROSTER_UPDATE")
                 Timers[i].button:UnregisterEvent("CHAT_MSG_ADDON")
                 for j = 1, 4 do

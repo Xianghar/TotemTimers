@@ -26,7 +26,99 @@ local AvailableTalents = TotemTimers.AvailableTalents
 local Cooldowns = TotemTimers.TotemCooldowns
 
 local UpdatePartyRange
-local TotemUpdate
+
+
+-- Range dots: the buff of the active totem can be secret, so aura containers in dot mode (see AuraDisplay.lua)
+-- show a dot while a party member has it; while the player has it the icon is tinted green or a green dot is
+-- shown (option PlayerRangeStyle). The addon never reads the buff. Each display has one slot per totem of the
+-- element with a buff, only the slot of the active totem is enabled.
+-- A timer can have several sets of dots (timer.rangeDotSets): on its button and on Gamepad UI bar slots.
+-- (Windfury has no buff, its party dots come from addon messages, see UpdatePartyRange.)
+-- r, g, b, alpha; added to the icon's colors (additive blending), the alpha scales the color
+local PlayerTintColor = { 0, 1, 0, 0.3 }
+local PlayerDotColor = { 0.1, 0.85, 0.1 }
+-- keys of the dots of a set and their units ("player": the tint, "playerDot": the player's dot)
+local RangeDotKeys = { "player", "playerDot", "party1", "party2", "party3", "party4" }
+local RangeDotUnits = { playerDot = "player" }
+
+local UpdateRangeDots
+
+-- adds a set of range dots to the timer
+-- dots: by key (see RangeDotKeys): for "playerDot" and the party the dot textures, they stay hidden and are
+--   anchor, size and image of the dots; for "player" the icon region that is tinted green
+-- isShown: optional function, the set is only shown while it returns true
+-- playerMask: optional { atlas, inset }, mask of the player's tint (round icons)
+function TotemTimers.AddRangeDots(timer, parent, dots, isShown, playerMask)
+    local set = { displays = {}, isShown = isShown }
+    for _, key in ipairs(RangeDotKeys) do
+        local unit = RangeDotUnits[key] or key
+        local options = { dot = dots[key] }
+        if key == "player" then
+            options.tint = true
+            options.maskAtlas = playerMask and playerMask[1]
+            options.maskInset = playerMask and playerMask[2]
+        end
+        local display = dots[key] and TotemTimers.AuraDisplay:new(parent, unit, options)
+        if display then
+            for totem, data in pairs(TotemData) do
+                if data.element == timer.nr and data.buff then
+                    local spellIDs = {}
+                    for _, id in ipairs(TotemTimers.TotemBuffAuraSpells[data.buff] or { data.buff }) do
+                        spellIDs[id] = true
+                    end
+                    local key = tostring(totem)
+                    display:AddSlot(key, spellIDs, 11, "HELPFUL")
+                    display:SetSlotEnabled(key, false)
+                end
+            end
+            if key == "player" then
+                display:SetDotColor(unpack(PlayerTintColor))
+            elseif key == "playerDot" then
+                display:SetDotColor(unpack(PlayerDotColor))
+            else
+                local color = RAID_CLASS_COLORS[select(2, UnitClass(unit)) or ""]
+                if color then display:SetDotColor(color.r, color.g, color.b) end
+            end
+            set.displays[key] = display
+        end
+    end
+    timer.rangeDotSets = timer.rangeDotSets or {}
+    table.insert(timer.rangeDotSets, set)
+    UpdateRangeDots(timer)
+    return set
+end
+
+-- enables the slot of the active totem in the displays of the units the options allow
+UpdateRangeDots = function(timer)
+    local profile = TotemTimers.ActiveProfile
+    if not timer.rangeDotSets or not profile then return end
+    local totem = timer.timers[1] and timer.activeTotem
+    local activeKey = profile and totem and TotemData[totem] and TotemData[totem].buff and tostring(totem)
+    local playerDot = profile and profile.PlayerRangeStyle == "dot"
+    for _, set in ipairs(timer.rangeDotSets) do
+        local setShown = activeKey and (not set.isShown or set.isShown())
+        for key, display in pairs(set.displays) do
+            local allowed
+            if key == "player" then
+                allowed = profile.CheckPlayerRange and not playerDot
+            elseif key == "playerDot" then
+                allowed = profile.CheckPlayerRange and playerDot
+            else
+                allowed = profile.CheckRaidRange
+            end
+            allowed = setShown and allowed
+            for _, slot in ipairs(display.slots) do
+                display:SetSlotEnabled(slot.key, allowed and slot.key == activeKey or false)
+            end
+        end
+    end
+end
+
+function TotemTimers.UpdateRangeDots()
+    for e = 1, 4 do
+        if XiTimers.timers[e] then UpdateRangeDots(XiTimers.timers[e]) end
+    end
+end
 
 
 -- sawtooth curves for the pulse bar of totems with flashInterval, evaluated on the elapsed time of the totem:
@@ -173,23 +265,13 @@ end
             TotemTimers.TotemEvent(self.button, "PLAYER_TOTEM_UPDATE", self.nr)
             TotemTimers.TotemEvent(self.button, "SPELL_UPDATE_COOLDOWN", self.nr)
 
-            if activeProfile.CheckPlayerRange or activeProfile.CheckRaidRange then
-                self.button:RegisterEvent("UNIT_AURA")
-                if activeProfile.CheckRaidRange then
-                    self.button:RegisterEvent("GROUP_ROSTER_UPDATE")
-                    if self.nr == AIR_TOTEM_SLOT or self.nr == FIRE_TOTEM_SLOT then
-                        self.button:RegisterEvent("CHAT_MSG_ADDON")
-                    end
-                end
-
-                --show range dots on ui reload
-                if (self.totemBuff or self.totemRange) and self.timers[1] then
-                    if activeProfile.CheckPlayerRange then UpdatePartyRange(self, "player") end
-                    if activeProfile.CheckRaidRange then
-                        for i = 1,4 do UpdatePartyRange(self, "party"..i) end
-                    end
+            if activeProfile.CheckRaidRange then
+                self.button:RegisterEvent("GROUP_ROSTER_UPDATE")
+                if self.nr == AIR_TOTEM_SLOT or self.nr == FIRE_TOTEM_SLOT then
+                    self.button:RegisterEvent("CHAT_MSG_ADDON")
                 end
             end
+            UpdateRangeDots(self)
 
             local lastTotem = TotemTimers.GetBaseSpellID(activeProfile.LastTotems[self.nr])
 
@@ -229,10 +311,9 @@ end
             if timer == 1 then
                 self.button.playerRange:Hide()
                 for i = 1,4 do self.button.partyRange[i]:Hide() end
+                UpdateRangeDots(self)
             end
         end
-
-        tt.Update = TotemUpdate
 
         --[[ tt.Update = function(self, elapsed)
             XiTimers.Update(self, elapsed)
@@ -298,6 +379,10 @@ end
             partyRange:Hide()
             table.insert(tt.button.partyRange, partyRange)
         end
+
+        local dots = { player = tt.button.icons[1], playerDot = tt.button.playerRange }
+        for i = 1, 4 do dots["party" .. i] = tt.button.partyRange[i] end
+        TotemTimers.AddRangeDots(tt, tt.button, dots)
     end
 
     XiTimers.timers[1].button:SetAttribute("*type5", "macro")
@@ -315,15 +400,6 @@ table.insert(TotemTimers.Modules, TotemTimers.SetupTimers)
 
 local TotemicCall = TotemTimers.SpellIDs.TotemicCall
 
-TotemUpdate = function(self, ...)
-    XiTimers.Update(self, ...)
-    if self.timers[1] and self.totemRange then
-        UpdatePartyRange(self, "player")
-        for i = 1,4 do
-            UpdatePartyRange(self, "party"..i)
-        end
-    end
-end
 
 -- a totem cast is only accepted as the source of a following PLAYER_TOTEM_UPDATE for this long
 local PENDING_TOTEM_TIMEOUT = 1
@@ -374,8 +450,7 @@ local function StartTotem(button, totem, icon)
     timer.warningSpells[1] = totem and SpellNames[totem]
 
     local data = totem and TotemData[totem]
-    timer.totemBuff = data and data.buffName
-    timer.totemRange = data and data.rangeCheck and data.rangeCheck + AvailableTalents.TotemicMastery
+    UpdateRangeDots(timer)
     if timer.procFlash and data and data.flashCurve then
         timer:StartBarTimer(duration, data.flashCurve)
     else
@@ -417,10 +492,6 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
         if TotemData[totem] and TotemData[totem].element == self.element then
             self.timer.pendingTotem = totem
             self.timer.pendingTotemTime = GetTime()
-        end
-    elseif event == "UNIT_AURA" and self.timer.totemBuff and self.timer.timers[1] then
-        if (settings.CheckPlayerRange and arg1 == "player") or settings.CheckRaidRange then
-            UpdatePartyRange(self.timer, arg1)
         end
     elseif event == "SPELL_UPDATE_COOLDOWN" then
         --[[ -- SPELL_UPDATE_COOLDOWN
@@ -479,7 +550,7 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
         else
             duration = 0
         end
-        UpdatePartyRange(self.timer, nil, guid, tonumber(enchantID), duration)
+        UpdatePartyRange(self.timer, guid, tonumber(enchantID), duration)
     end
 end
 
@@ -698,59 +769,16 @@ local partyGUIDs = {}
 
 local TotemWeaponEnchants = TotemTimers.TotemWeaponEnchants
 
-UpdatePartyRange = function(timer, unit, unitGUID, enchantID, wfDuration)
-    if unit and unit ~= "player" and (not strmatch(unit, "^party%d$") or not UnitExists(unit)) or not UnitBuff then
-        return
-    end
-
-    local rangeDot
-
-    if unitGUID then
-        unit = partyGUIDs[unitGUID]
-        if not unit then return end
-    end
-    if unit == "player" then
-        rangeDot = timer.button.playerRange
+-- party dots of totems with a weapon enchant instead of a buff (Windfury): party members report their enchant
+-- by addon message (WF_STATUS). Totems with a buff use the aura containers of UpdateRangeDots.
+UpdatePartyRange = function(timer, unitGUID, enchantID)
+    local unit = unitGUID and partyGUIDs[unitGUID]
+    if not unit then return end
+    local rangeDot = timer.button.partyRange[tonumber(strsub(unit, -1))]
+    if enchantID and TotemWeaponEnchants[enchantID] == timer.activeTotem then
+        rangeDot:Show()
     else
-        rangeDot = timer.button.partyRange[tonumber(strsub(unit, -1))]
-    end
-
-    local inRange = false
-
-    if unitGUID then
-        if enchantID and TotemWeaponEnchants[enchantID] == timer.activeTotem then
-            inRange = true
-            if timer.twisting and wfDuration and wfDuration > 0
-              and timer.barTimer > 0 and math.abs(wfDuration - timer.barTimer) > 0.5 then
-                timer.barTimer = wfDuration
-            end
-        end
-    else
-        local totemBuff = timer.totemBuff
-
-        local found = false
-
-        for i = 1, 32 do
-            local name = UnitBuff(unit, i)
-            if not name then break end
-            if name == totemBuff then
-                inRange = true
-                break
-            end
-        end
-    end
-    if unit == "player" then
-        if inRange then
-            rangeDot:Hide()
-        else
-            rangeDot:Show()
-        end
-    else
-        if inRange then
-            rangeDot:Show()
-        else
-            rangeDot:Hide()
-        end
+        rangeDot:Hide()
     end
 end
 
@@ -762,15 +790,16 @@ TotemTimers.UpdateParty = function()
             partyGUIDs[UnitGUID(unit)] = unit
             local class = select(2, UnitClass(unit))
             if class and RAID_CLASS_COLORS[class] then
-
+                local color = RAID_CLASS_COLORS[class]
                 for element = 1,4 do
-                    XiTimers.timers[element].button.partyRange[i]:SetVertexColor(
-                RAID_CLASS_COLORS[class].r,
-                RAID_CLASS_COLORS[class].g,
-                    RAID_CLASS_COLORS[class].b
-                    )
+                    local timer = XiTimers.timers[element]
+                    timer.button.partyRange[i]:SetVertexColor(color.r, color.g, color.b)
+                    for _, set in ipairs(timer.rangeDotSets or {}) do
+                        local display = set.displays[unit]
+                        if display then display:SetDotColor(color.r, color.g, color.b) end
                     end
                 end
+            end
         else
             for element = 1,4 do XiTimers.timers[element].button.partyRange[i]:Hide() end
         end

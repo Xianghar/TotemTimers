@@ -419,6 +419,21 @@ TotemTimers.options.args.timers = {
                 return TotemTimers.ActiveProfile.CheckPlayerRange
             end,
         },
+        PlayerRangeStyle = {
+            order = 39.5,
+            type = "select",
+            name = L["Player Range Style"],
+            desc = L["Player Range Style Desc"],
+            values = { ["tint"] = L["Green Tint"], ["dot"] = L["Green Dot"], },
+            disabled = function() return not TotemTimers.ActiveProfile.CheckPlayerRange end,
+            set = function(info, val)
+                TotemTimers.ActiveProfile.PlayerRangeStyle = val
+                TotemTimers.ProcessSetting("PlayerRangeStyle")
+            end,
+            get = function(info)
+                return TotemTimers.ActiveProfile.PlayerRangeStyle
+            end,
+        },
         PartyRange = {
             order = 40,
             type = "toggle",

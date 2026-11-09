@@ -81,7 +81,6 @@ L["loose"] = "loose" -- Requires localization
 L["Mini Icons Desc"] = "Shows the small icons in the lower right of the timer buttons which indicate the totem assigned to the active multicast spell and the timer  button will cast." -- Requires localization
 L["Open On Rightclick"] = "Open On Rightclick" -- Requires localization
 L["Player Range"] = "Player Range" -- Requires localization
-L["Player Range Desc"] = "Shows a red dot on a totem timer if player is out of range" -- Requires localization
 L["Pulse desc"] = "Shows a green status bar inside the timers that fills until a totem pulses." -- Requires localization
 L["Raid Member Range"] = "Raid Member Range" -- Requires localization
 L["Raid Range Tooltip"] = "Raid Range Tooltip" -- Requires localization

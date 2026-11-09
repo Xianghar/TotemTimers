@@ -28,6 +28,12 @@ local _, TotemTimers = ...
 --   display:SetSlotEnabled("key", enabled)
 --   display:SetTimeShown(shown)
 --   TotemTimers.AuraDisplay.UpdateAll()                          -- after changing settings of the timers
+--
+-- dot mode (AuraDisplay:new(button, unit, { dot = texture })): the slot buttons show only a dot laid over the
+-- given texture (which stays hidden and serves as anchor, size and image), no icon, time or charges.
+-- With tint = true the "dot" is a colored additive layer over the given region (e.g. the icon) instead, optionally
+-- cut out by a mask atlas (maskAtlas, inset maskInset from the region's edges).
+--   display:SetDotColor(r, g, b)
 
 local AuraDisplay = {}
 AuraDisplay.__index = AuraDisplay
@@ -72,6 +78,8 @@ end)
 -- options, for parents that aren't XiTimers buttons (without time, icons, count):
 --   textAnchor: region the time (or the charges) is centered on, instead of the parent's time string
 --   noIcon: the slot buttons show no icon (the parent shows one itself)
+--   dot: texture the slot buttons show a dot over (dot mode, see above)
+--   tint, maskAtlas, maskInset: dot mode with a tint over the dot region (see above)
 function AuraDisplay:new(parent, unit, options)
     if not IsAuraContainerAvailable() then return end
     local display = setmetatable({}, AuraDisplay)
@@ -80,6 +88,11 @@ function AuraDisplay:new(parent, unit, options)
     display.timer = not options and parent.timer or nil
     display.textAnchor = options and options.textAnchor
     display.noIcon = options and options.noIcon or false
+    display.dot = options and options.dot
+    display.tint = options and options.tint or false
+    display.maskAtlas = options and options.maskAtlas
+    display.maskInset = options and options.maskInset or 0
+    display.dotColor = { 1, 1, 1, 1 }
     display.unit = unit or "player"
     -- slot definitions in the order they were added
     display.slots = {}
@@ -237,8 +250,41 @@ function AuraDisplay:CreateTimerBar(button, showDuration)
     return bar, time
 end
 
+-- dot mode: the slot button covers the dot texture and shows only the dot
+function AuraDisplay:InitDotButton(button, frameLevel, regions)
+    local dot = self.dot
+    button:ClearAllPoints()
+    button:SetAllPoints(dot)
+    button:SetFrameLevel(frameLevel)
+    pcall(button.SetMouseClickEnabled, button, false)
+    pcall(button.EnableMouseMotion, button, false)
+
+    local texture = button:CreateTexture(nil, "OVERLAY")
+    texture:SetAllPoints(button)
+    if self.tint then
+        texture:SetColorTexture(1, 1, 1)
+        texture:SetBlendMode("ADD")
+        if self.maskAtlas then
+            local inset = self.maskInset
+            local mask = button:CreateMaskTexture()
+            mask:SetAtlas(self.maskAtlas, false, nil, nil, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+            mask:SetPoint("TOPLEFT", button, "TOPLEFT", inset, -inset)
+            mask:SetPoint("BOTTOMRIGHT", button, "BOTTOMRIGHT", -inset, inset)
+            texture:AddMaskTexture(mask)
+        end
+    else
+        texture:SetTexture(dot:GetTexture())
+    end
+    texture:SetVertexColor(unpack(self.dotColor))
+    regions.dot = texture
+end
+
 -- runs inside AddAuraSlot, the only point where the slot button can be set up
 function AuraDisplay:InitSlotButton(button, frameLevel, regions)
+    if self.dot then
+        self:InitDotButton(button, frameLevel, regions)
+        return
+    end
     local parent = self.parent
     local config = self.config
     button:ClearAllPoints()
@@ -324,4 +370,13 @@ end
 function AuraDisplay:SetTimeShown(shown)
     self.timeShown = shown and true or false
     self:ScheduleBuild()
+end
+
+-- color (and optional alpha) of the dot in dot mode, changes the existing slot buttons, too
+function AuraDisplay:SetDotColor(r, g, b, a)
+    a = a or 1
+    self.dotColor = { r, g, b, a }
+    for _, regions in pairs(self.regions) do
+        if regions.dot then regions.dot:SetVertexColor(r, g, b, a) end
+    end
 end

@@ -379,6 +379,24 @@ TotemTimers.ShieldAuraSpells = {
     [SpellIDs.EarthShield] = { 408514 },
 }
 
+-- aura spell IDs of all ranks of the totem buffs, by the buff of TotemData (rank 1), used by the aura containers
+-- of the range dots
+TotemTimers.TotemBuffAuraSpells = {
+    [8072] = { 8072, 8156, 8157, 10403, 10404, 10405 }, -- Stoneskin
+    [8076] = { 8076, 8162, 8163, 10441, 25362 }, -- Strength of Earth
+    [8182] = { 8182, 10476, 10477 }, -- Frost Resistance
+    [5672] = { 5672, 6371, 6372, 10460, 10461 }, -- Healing Stream
+    [16191] = { 16191, 17355, 17360 }, -- Mana Tide
+    [5677] = { 5677, 10491, 10493, 10494 }, -- Mana Spring
+    [8185] = { 8185, 10534, 10535 }, -- Fire Resistance
+    [8178] = { 8178 }, -- Grounding
+    [10596] = { 10596, 10598, 10599 }, -- Nature Resistance
+    [15108] = { 15108, 15109, 15110 }, -- Windwall
+    [8836] = { 8836, 10626, 25360 }, -- Grace of Air
+    [25909] = { 25909 }, -- Tranquil Air
+    [436391] = { 436391 }, -- Decoy Totem
+}
+
 TotemTimers.CombatCooldownSpells = {
     [2] = {
         SpellIDs.StormStrike,
