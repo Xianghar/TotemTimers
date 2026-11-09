@@ -460,11 +460,60 @@ end
 local Sink = LibStub:GetLibrary("LibSink-2.0")
 local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers")
 
+-- LibSink's "Floating Combat Text" output (also its fallback for "Default" without SCT/MikSBT) calls
+-- CombatText:AddMessage from addon code. That taints the font string pool of Blizzard_CombatText, after which
+-- every combat text message of the game runs tainted and fails on secret values. Messages for that output are
+-- shown in an own message frame instead.
+local function UsesBlizzardCombatText()
+    local handler = Sink.override and Sink.handlers[Sink.override] and Sink.override
+    if not handler then
+        local storage = TotemTimers_GlobalSettings and TotemTimers_GlobalSettings.Sink
+        handler = storage and storage.sink20OutputSink
+    end
+    local sctEnabled = _G.SCT and _G.SCT:IsEnabled()
+    local msbtEnabled = _G.MikSBT and not _G.MikSBT.IsModDisabled()
+    if handler == "Blizzard" then return true end
+    if handler == "SCT" and sctEnabled or handler == "MikSBT" and msbtEnabled then return false end
+    if handler and handler ~= "Default" and handler ~= "SCT" and handler ~= "MikSBT" and Sink.handlers[handler] then
+        return false
+    end
+    -- LibSink's default: SCT or MikSBT if available, Blizzard's floating combat text otherwise
+    return not sctEnabled and not msbtEnabled
+end
+
+local messageFrame
+local function GetMessageFrame()
+    if not messageFrame then
+        messageFrame = CreateFrame("MessageFrame", "TotemTimers_MessageFrame", UIParent)
+        messageFrame:SetSize(800, 90)
+        messageFrame:SetPoint("CENTER", UIParent, "CENTER", 0, 180)
+        messageFrame:SetFrameStrata("HIGH")
+        local font = CombatTextFont and CombatTextFont:GetFont() or STANDARD_TEXT_FONT
+        messageFrame:SetFont(font, 24, "OUTLINE")
+        messageFrame:SetShadowOffset(1, -1)
+        messageFrame:SetJustifyH("CENTER")
+        messageFrame:SetInsertMode("TOP")
+        messageFrame:SetFading(true)
+        messageFrame:SetTimeVisible(2)
+        messageFrame:SetFadeDuration(1)
+    end
+    return messageFrame
+end
+
+function TotemTimers.Pour(text, r, g, b, icon)
+    if not Sink or not text then return end
+    if UsesBlizzardCombatText() then
+        if icon then text = "\124T"..icon..":20:20:0:0:64:64:4:60:4:60\124t "..text end
+        GetMessageFrame():AddMessage(text, r or 1, g or 1, b or 1)
+    else
+        Sink:Pour(TotemTimers, text, r, g, b, nil, nil, nil, nil, nil, icon)
+    end
+end
+
 function TotemTimers.ThrowWarning(wtype, object, icon)
     local warning = TotemTimers.ActiveProfile.Warnings[wtype]
-    if warning and Sink then
-        Sink:Pour(TotemTimers, warning, format(L[wtype],object),warning.r,warning.g,warning.b,
-            nil,nil,nil,nil,nil,icon)
+    if warning then
+        TotemTimers.Pour(format(L[wtype], object), warning.r, warning.g, warning.b, icon)
     end
 end
 

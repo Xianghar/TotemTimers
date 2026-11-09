@@ -1,7 +1,6 @@
 if select(2,UnitClass("player")) ~= "SHAMAN" then return end
 
 local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers", true)
-local Sink = LibStub:GetLibrary("LibSink-2.0")
 local LSM = LibStub:GetLibrary("LibSharedMedia-3.0", true)
 
 local Warnings = TotemTimers.DefaultProfile.Warnings
@@ -23,10 +22,7 @@ function XiTimers.PlayWarning(self, warning, spell, icon)
     if not noTextWarnings[warning] then
         local text = L[Warnings[warning].text]
         if spell then text = string.format(text,spell) end
-        if Sink then
-            Sink:Pour(TotemTimers, text, Warnings[warning].r,Warnings[warning].g, Warnings[warning].b,
-                    nil,nil,nil,nil,nil,icon)
-        end
+        TotemTimers.Pour(text, Warnings[warning].r, Warnings[warning].g, Warnings[warning].b, icon)
     end
     local sound = LSM:Fetch("sound", Warnings[warning].sound)
     if sound then PlaySoundFile(sound, "Master") end
