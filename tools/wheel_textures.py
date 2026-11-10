@@ -2,7 +2,7 @@
 
 - wheel_base.tga: the wheel without dividers (outer rim, segment area, inner rim, inner disc), 512 px for 400 UI units
 - wheel_divider.tga: a radial divider (vertical bar over the full height), 128 px, rotated in game onto each border
-- wheel_highlight<n>.tga (n = 1..8): the highlight wedge of a wheel with n segments, centered at the top, 256 px for
+- wheel_highlight<n>.tga (n = 1..9): the highlight wedge of a wheel with n segments, centered at the top, 256 px for
   the whole wheel (400 UI units), rotated in game onto the selected segment
 
 The look follows the Gamepad UI's game menu wheel (atlas gamepad-radial-menu-wheelbg). Plain Python, no
@@ -146,7 +146,7 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     write_tga(os.path.join(OUT, "wheel_base.tga"), 512, render(512, base_shade))
     write_tga(os.path.join(OUT, "wheel_divider.tga"), 128, render(128, divider_shade))
-    for n in range(1, 9):
+    for n in range(1, 10):
         write_tga(os.path.join(OUT, "wheel_highlight%d.tga" % n), 256, render(256, highlight_shade(n)))
 
 

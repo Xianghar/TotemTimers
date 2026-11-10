@@ -1145,7 +1145,9 @@ local wrappedSources = {}
 -- read the sticks with GetGamePadState() (nav attributes wheelstickindex1/2: 1-based indices of the sticks "Movement"
 -- and "Camera", C_GamePad.StickIndexToConfigName is 0-based) and the release computes the wheel segment like the display
 -- (ShowWheel): one segment per totem (n, at most 8), segment i is centered at the angle (i - 1) * 360 / n, clockwise
--- from the top; it casts the *spell1 of menu button i (snippet WheelSelection).
+-- from the top; it casts the *spell1 of menu button i (snippet WheelSelection). Totem wheels (slot attribute
+-- ttTotemSlot: the totem slot of the timer's element) have one more segment at the top that destroys the totem of the
+-- element (secure action "destroytotem", like a rightclick on the timer button); the totems follow it.
 -- While the wheel is open, LB and RB assign the selected totem to the timer button (like Square/X in the menus): the
 -- ticker frame binds them to the navigation button ("wheelassign", snippet WheelAssign) when the wheel opens and
 -- clears the bindings on the release, so the game's targeting modifiers keep LB/RB otherwise.
@@ -1174,25 +1176,32 @@ local WHEEL_STICKS = [[
     return best ~= nil
 ]]
 
--- WheelSelection(m): the selected segment of menu m (nil: no armed stick is pushed)
+-- WheelSelection(m, extra): the selected segment of the wheel of menu m with extra segments before the menu's (at
+-- most 8) buttons (segment i shows menu button i - extra), and the number of the menu's buttons on the wheel; nil: no
+-- armed stick is pushed
 local WHEEL_SELECTION = [[
-    local m = ...
+    local m, extra = ...
     local n = m and self:RunAttribute("Count", m) or 0
     if n == 0 or not self:RunAttribute("ReadWheelSticks") then return end
     if n > 8 then n = 8 end
-    local segment = 2 * math.pi / n
+    local total = n + (extra or 0)
+    local segment = 2 * math.pi / total
     local angle = (math.atan2(wheelX, wheelY) + segment / 2) % (2 * math.pi)
     local i = math.floor(angle / segment) + 1
-    if i > n then i = n end
-    return i
+    if i > total then i = total end
+    return i, n
 ]]
 
 -- WheelAssign: the selected totem becomes the totem of the timer button of the open wheel
 local WHEEL_ASSIGN = [[
     if not (wheelOpen and wheelSlot) then return end
     local m = wheelSlot:GetAttribute("ttHoldMenu")
-    local i = m and self:RunAttribute("WheelSelection", m)
-    local b = i and self:GetFrameRef("m" .. m .. "b" .. i)
+    local i, n
+    if m then i, n = self:RunAttribute("WheelSelection", m, wheelSlot:GetAttribute("ttTotemSlot") and 1 or 0) end
+    local extra = wheelSlot:GetAttribute("ttTotemSlot") and 1 or 0
+    -- the destroy segment (the first one) can't be assigned
+    if not i or i <= extra then return end
+    local b = self:GetFrameRef("m" .. m .. "b" .. (i - extra))
     local spell = b and b:GetAttribute("*spell1")
     local source = wheelSlot:GetFrameRef("ttGamePadSource")
     if spell and source then
@@ -1255,13 +1264,23 @@ local HOLD_WRAP = [[
         control:CallMethod("HideWheel")
         -- the totem the stick points at, nothing with the stick in the center
         local m = self:GetAttribute("ttHoldMenu")
-        local i = control:RunAttribute("WheelSelection", m)
-        local b = i and control:GetFrameRef("m" .. m .. "b" .. i)
-        spell = b and b:GetAttribute("*spell1")
+        local totemSlot = self:GetAttribute("ttTotemSlot")
+        local i, n = control:RunAttribute("WheelSelection", m, totemSlot and 1 or 0)
         wheelOpen, wheelArmed1, wheelArmed2, wheelSlot = false, false, false, nil
+        if i and totemSlot and i == 1 then
+            -- the destroy segment (at the top): destroys the totem of the timer's element (like a rightclick on the
+            -- timer)
+            self:SetAttribute("type", "destroytotem")
+            self:SetAttribute("totem-slot", totemSlot)
+            return
+        end
+        local b = i and control:GetFrameRef("m" .. m .. "b" .. (i - (totemSlot and 1 or 0)))
+        spell = b and b:GetAttribute("*spell1")
         if not spell then return false end
     end
     wheelOpen, wheelArmed1, wheelArmed2 = false, false, false
+    -- a former destroy segment changed the type
+    self:SetAttribute("type", "spell")
     self:SetAttribute("spell", spell)
 ]]
 
@@ -1274,7 +1293,9 @@ local HOLD_WRAP = [[
 -- doesn't move the character or the camera); the other sticks (gyro) are passed on.
 local WHEEL_TEXTURES = "Interface\\AddOns\\TotemTimers\\textures\\wheel_"
 local WHEEL_SIZE = 400 -- displayed size of the wheel textures (UI units, see tools/wheel_textures.py)
-local WHEEL_MAX_SEGMENTS = 8
+local WHEEL_MAX_TOTEMS = 8 -- menu buttons on the wheel
+local WHEEL_MAX_SEGMENTS = 9 -- totems and the destroy segment
+local WHEEL_DESTROY_ICON = "Interface\\Buttons\\UI-GroupLoot-Pass-Up"
 local WHEEL_INNER_RIM = 66 -- segment area between the rims, like the textures
 local WHEEL_OUTER_RIM = 188
 local WHEEL_ICON_DISTANCE = 134 -- icon center, the label beside it stays between the rims in every direction
@@ -1433,27 +1454,35 @@ local function ShowWheel(_, m, armed1, armed2)
     local spells = {}
     for _, button in ipairs(menuButtons[m] or {}) do
         local spell = button:GetAttribute("*spell1")
-        if #spells == WHEEL_MAX_SEGMENTS or button:GetAttribute("inactive")
+        if #spells == WHEEL_MAX_TOTEMS or button:GetAttribute("inactive")
                 or not (spell or button:GetAttribute("doublespell1")) then
             break
         end
         table.insert(spells, spell or false)
     end
-    wheel.count = #spells
-    LayoutWheel(math.max(#spells, 1))
+    -- totem wheels: the first segment (at the top) destroys the element's totem (see HOLD_WRAP), the totems follow
+    local destroy = not multiSpell and #spells > 0
+    local extra = destroy and 1 or 0
+    wheel.count = #spells + extra
+    LayoutWheel(math.max(wheel.count, 1))
     for i, segment in ipairs(wheel.segments) do
-        local spell = spells[i] or nil
-        segment.icon:SetTexture(spell and (C_Spell.GetSpellTexture(spell)) or 134400)
-        segment.icon:SetShown(i <= #spells)
-        segment.label:SetText(spell and C_Spell.GetSpellName(spell) or "")
-        segment.label:SetShown(i <= #spells)
+        local spell = spells[i - extra] or nil
+        if destroy and i == 1 then
+            segment.icon:SetTexture(WHEEL_DESTROY_ICON)
+            segment.label:SetText(L["Destroy Totem"])
+        else
+            segment.icon:SetTexture(spell and (C_Spell.GetSpellTexture(spell)) or 134400)
+            segment.label:SetText(spell and C_Spell.GetSpellName(spell) or "")
+        end
+        segment.icon:SetShown(i <= wheel.count)
+        segment.label:SetShown(i <= wheel.count)
     end
     -- the totem of the timer button
     local assigned = menuParents[m] and menuParents[m]:GetAttribute("*spell1")
     wheel.assigned = nil
     for i, spell in ipairs(spells) do
         if spell and assigned and C_Spell.GetSpellName(spell) == C_Spell.GetSpellName(assigned) then
-            wheel.assigned = i
+            wheel.assigned = i + extra
         end
     end
     wheel.selected = false
@@ -1602,6 +1631,8 @@ local function RestoreSlots()
         slot:SetAttribute("ttGamePadOverride", nil)
         slot:SetAttribute("ttHoldMenu", nil)
         slot:SetAttribute("ttWheelOpen", nil)
+        slot:SetAttribute("ttTotemSlot", nil)
+        slot:SetAttribute("totem-slot", nil)
         slot:SetAttribute("useOnKeyDown", true)
         slot:SetAttribute("spell", nil)
         slot:SetAttribute("clickbutton", nil)
@@ -1618,7 +1649,8 @@ end
 
 -- the slot of a source button (totem timer, multicast button) casts on the release, holding the key opens the
 -- wheel of the source's menu
-local function SetupHoldWheel(bar, index, source)
+-- totemSlot: totem slot of the timer's element (totem wheels get a destroy segment)
+local function SetupHoldWheel(bar, index, source, totemSlot)
     local slot = bar:GetActionButtonByIndex(index)
     if not (slot and overriddenSlots[slot]) then return end
     slot:SetAttribute("useOnKeyDown", false)
@@ -1627,6 +1659,7 @@ local function SetupHoldWheel(bar, index, source)
     GetHoldTicker()
     if not stateDriverTimeChanged then SetStateDriverUpdateTime(HOLD_UPDATE_TIME) end
     slot:SetAttribute("ttHoldMenu", menu)
+    slot:SetAttribute("ttTotemSlot", totemSlot)
     if not holdWrapped[slot] then
         SecureHandlerWrapScript(slot, "OnClick", nav, HOLD_WRAP)
         holdWrapped[slot] = true
@@ -1639,7 +1672,7 @@ local function ApplyBarMode(bar)
         if timer and timer.button:IsShown() then
             local index = FaceButtonIndices[TimerKeys[timer.nr]]
             OverrideSlotWithSource(bar, index, timer.button)
-            SetupHoldWheel(bar, index, timer.button)
+            SetupHoldWheel(bar, index, timer.button, timer.nr)
         end
     end
     -- the click is handed on as a release, the navigation button takes the LeftButton click as "open"
