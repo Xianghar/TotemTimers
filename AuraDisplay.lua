@@ -33,7 +33,7 @@ local _, TotemTimers = ...
 -- given texture (which stays hidden and serves as anchor, size and image), no icon, time or charges.
 -- With tint = true the "dot" is a colored additive layer over the given region (e.g. the icon) instead, optionally
 -- cut out by a mask atlas (maskAtlas, inset maskInset from the region's edges).
---   display:SetDotColor(r, g, b)
+--   display:SetDotColor(r, g, b)     -- rebuilds the container if the color changed
 
 local AuraDisplay = {}
 AuraDisplay.__index = AuraDisplay
@@ -115,6 +115,9 @@ end
 function AuraDisplay:GetConfig()
     local timer = self.timer
     local config = { timeShown = self.timeShown }
+    if self.dot then
+        config.dotColor = { unpack(self.dotColor) }
+    end
     if timer then
         config.showBar = not timer.timerOnButton or timer.forceBar or false
         config.showSwirl = not config.showBar or timer.showCooldown or false
@@ -133,7 +136,8 @@ function AuraDisplay:GetConfig()
     return config
 end
 
-local configKeys = { "timeShown", "showBar", "showSwirl", "texture", "barColor", "backgroundColor", "font", "textColor" }
+local configKeys = { "timeShown", "showBar", "showSwirl", "texture", "barColor", "backgroundColor", "font", "textColor",
+    "dotColor" }
 
 local function ConfigSignature(config)
     local parts = {}
@@ -275,7 +279,7 @@ function AuraDisplay:InitDotButton(button, frameLevel, regions)
     else
         texture:SetTexture(dot:GetTexture())
     end
-    texture:SetVertexColor(unpack(self.dotColor))
+    texture:SetVertexColor(unpack(self.config.dotColor))
     regions.dot = texture
 end
 
@@ -372,11 +376,12 @@ function AuraDisplay:SetTimeShown(shown)
     self:ScheduleBuild()
 end
 
--- color (and optional alpha) of the dot in dot mode, changes the existing slot buttons, too
+-- color (and optional alpha) of the dot in dot mode. The slot buttons and their textures are forbidden after
+-- initializeFrame, so a changed color rebuilds the container (deferred, after combat).
 function AuraDisplay:SetDotColor(r, g, b, a)
     a = a or 1
+    local c = self.dotColor
+    if c[1] == r and c[2] == g and c[3] == b and c[4] == a then return end
     self.dotColor = { r, g, b, a }
-    for _, regions in pairs(self.regions) do
-        if regions.dot then regions.dot:SetVertexColor(r, g, b, a) end
-    end
+    self:ScheduleBuild()
 end
