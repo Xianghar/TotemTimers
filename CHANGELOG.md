@@ -1,7 +1,7 @@
 # TotemTimers
 
 ## 20.7
-- Added radial menus when holding a totem button in the gamepad UI.
+- Added radial menus when holding a totem or multispell button in the gamepad UI.
 
 ## 20.6
 - Added player and party range

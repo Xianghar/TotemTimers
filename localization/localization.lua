@@ -30,6 +30,8 @@ L["Totem Menus"] = true
 -- help in the totem wheel of the Gamepad UI: %s are the icons of the held face button, LB and RB
 L["Totem Wheel Cast Help"] = "Release %s to cast selected totem."
 L["Totem Wheel Assign Help"] = "Press %s or %s to set as active totem."
+L["Spell Wheel Cast Help"] = "Release %s to cast selected spell."
+L["Spell Wheel Assign Help"] = "Press %s or %s to set as active spell."
 L["Leftclick to cast %s"] = true
 L["Leftclick to cast spell"] = true
 L["Leftclick to load totem set"] = true
