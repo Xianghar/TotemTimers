@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.6
+- Added player and party range
+
 ## 20.5
 - Fix floting combat text taint
 

@@ -433,15 +433,6 @@ SettingsFunctions = {
         end
     end,
 
-    TwistingTimer = function(value, Timers)
-        if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE then return end
-        for i = 1, 4 do
-            if XiTimers.timers[i].nr == AIR_TOTEM_SLOT then
-                XiTimers.timers[i].twisting = value
-            end
-        end
-    end,
-
     Tooltips = function(value, Timers)
         for i = 1, TRACKER_END do
             Timers[i].button:SetAttribute("tooltip", value)

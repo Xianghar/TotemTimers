@@ -126,14 +126,6 @@ if LE_EXPANSION_LEVEL_CURRENT < 2 then
     UpdateSpellRank = function(spell, useName)
         local name = C_Spell.GetSpellName(spell)
         if not name then return nil end
-
-        if name == SpellNames[SpellIDs.Windfury] and TotemTimers.ActiveProfile.WindfuryDownrank then
-            if useName then
-                return SpellNames[SpellIDs.Windfury] .. "(" .. GetSpellSubtext(SpellIDs.Windfury) .. ")"
-            else
-                return SpellIDs.Windfury
-            end
-        end
         -- ... or spell is a workaround for SOD GetSpellInfo not working immediately on login
         return (useName or ForceSpellNames[name]) and name or (C_Spell.GetSpellIDForSpellIdentifier(name) or spell)
     end

@@ -538,19 +538,8 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
     elseif event == "GROUP_ROSTER_UPDATE" then
         TotemTimers.UpdateParty()
     elseif event == "CHAT_MSG_ADDON" and self.timer.timers[1] and arg1 == "WF_STATUS" then
-        local guid, enchantID, duration, lag = strsplit(':', arg2)
-        if self.timer.twisting and duration then
-            duration = tonumber(duration)
-            if duration and duration > 0 then
-                local playerLag = select(3, GetNetStats())
-                duration = (duration - lag - playerLag) / 1000
-            else
-                duration = 0
-            end
-        else
-            duration = 0
-        end
-        UpdatePartyRange(self.timer, guid, tonumber(enchantID), duration)
+        local guid, enchantID = strsplit(':', arg2)
+        UpdatePartyRange(self.timer, guid, tonumber(enchantID))
     end
 end
 

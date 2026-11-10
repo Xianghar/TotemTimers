@@ -4,10 +4,10 @@ local _, TotemTimers = ...
 
 local SpellIDs = TotemTimers.SpellIDs
 local SpellNames = TotemTimers.SpellNames
-local Version = 11.4
+local Version = 11.5
 
 TotemTimers.DefaultGlobalSettings = {
-	Version = 11.4,
+	Version = 11.5,
     Profiles = {},
     Sink = {
         sink20OutputSink="Default",
@@ -84,7 +84,6 @@ TotemTimers.DefaultProfile = {
         Timer_Clickthrough = false,
         IncludeInMacro = {[1] = true, [2] = true, [3] = true, [4] = true,},
         MacroReset = 15,
-        TwistingTimer = false,
         MultiCast = true,
         DisabledMultiSpells = {},
         
@@ -323,14 +322,12 @@ TotemTimers.DefaultProfile = {
         MaelstromSize = 2,
         MaelstromStopPulse = false,
         MaelstromNumberOnly = false,
-        EnhanceCDsTotemTwisting = true,
         OverlayGlow = true,
         PowerSurge = true,
         PowerSurgeOverlay = true,
         EnhanceCDsOneRow = false,
 
 
-        WindfuryDownrank = false,
 		
 		
 		LongCooldowns = true,
@@ -455,6 +452,15 @@ local SettingsConverters = {
         for k,profile in pairs(TotemTimers_Profiles) do
             profile.TrackerTimeHeight = nil
             profile.EnhanceCDsTimeHeight = nil
+        end
+        TotemTimers_GlobalSettings.Version = Version
+    end,
+    -- the twisting timer and the Windfury Totem downrank option were removed
+    [11.4] = function()
+        for k,profile in pairs(TotemTimers_Profiles) do
+            profile.TwistingTimer = nil
+            profile.WindfuryDownrank = nil
+            profile.EnhanceCDsTotemTwisting = nil
         end
         TotemTimers_GlobalSettings.Version = Version
     end,
@@ -615,7 +621,7 @@ local TimerList = {
     "OpenOnRightclick", "MenusAlwaysVisible", "BarBindings", "ReverseBarBindings",
     "MiniIcons", "ProcFlash", "ColorTimerBars", "ShowCooldowns", 
     "CheckPlayerRange", "PlayerRangeStyle", "CheckRaidRange", "PartyRangePosition", "ShowRaidRangeTooltip",
-    "Timer_Clickthrough", "IncludeInMacro", "MacroReset", "TwistingTimer", "WindfuryDownrank",
+    "Timer_Clickthrough", "IncludeInMacro", "MacroReset",
     "MultiCast", "DisabledMultiSpells",
     "GamePad", "GamePadLayerKey", "GamePadTimers", "GamePadHideTimers",
 }
@@ -651,7 +657,7 @@ end
 --[[ local CDList = {
     "EnhanceCDs_Spells", "EnhanceCDs_Order", "EnhanceCDs", "EnhanceCDsSize", "EnhanceCDsOneRow",
     "EnhanceCDsMaelstromHeight", "ShowOmniCCOnEnhanceCDs", "EnhanceCDsStopPulse",
-    "EnhanceCDsOOCAlpha", "CDTimersOnButtons", "EnhanceCDsClickthrough", "EnhanceCDsTotemTwisting",
+    "EnhanceCDsOOCAlpha", "CDTimersOnButtons", "EnhanceCDsClickthrough",
     "FlameShockDurationOnTop", "EnhanceCDsFlameShockDuration", "EnhanceCDsFlameShockDuration_Specialization",
     "FlameShockDurationSize", "FlameShockDurationStopPulse",
     "EnhanceCDsMaelstrom", "MaelstromSize", "MaelstromStopPulse", "MaelstromNumberOnly",
