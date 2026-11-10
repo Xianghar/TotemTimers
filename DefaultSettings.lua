@@ -72,6 +72,8 @@ TotemTimers.DefaultProfile = {
         GamePadLayerKey = "PADLTRIGGER+PADRTRIGGER", -- LT + RT, see GamePad.lua
         GamePadTimers = true,
         GamePadHideTimers = true,
+        GamePadUpdateRanks = false,
+        GamePadUpdateRanksOnLogin = false,
         MiniIcons = true,
         ProcFlash = true,
         ColorTimerBars = false,
@@ -108,7 +110,7 @@ TotemTimers.DefaultProfile = {
         EarthShieldButton4 = "player",
         ShieldLeftButton = SpellIDs.LightningShield,
         ShieldRightButton = SpellIDs.WaterShield,
-        ShieldMiddleButton = SpellIDs.TotemicCall,
+        ShieldMiddleButton = SpellIDs.TotemicRecall,
         ShieldButton4 = SpellIDs.EarthShield,
         EarthShieldTargetName = true,
         ESMainTankMenu = true,
@@ -623,7 +625,7 @@ local TimerList = {
     "CheckPlayerRange", "PlayerRangeStyle", "CheckRaidRange", "PartyRangePosition", "ShowRaidRangeTooltip",
     "Timer_Clickthrough", "IncludeInMacro", "MacroReset",
     "MultiCast", "DisabledMultiSpells",
-    "GamePad", "GamePadLayerKey", "GamePadTimers", "GamePadHideTimers",
+    "GamePad", "GamePadLayerKey", "GamePadTimers", "GamePadHideTimers", "GamePadUpdateRanks", "GamePadUpdateRanksOnLogin",
 }
 
 function TotemTimers.CopyTimerSettings(p1,p2)

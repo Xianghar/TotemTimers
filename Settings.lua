@@ -280,7 +280,7 @@ SettingsFunctions = {
                 Timers[i].button:SetAttribute("*type2", "destroytotem")
                 Timers[i].button:SetAttribute("*totem-slot2", Timers[i].nr)
                 Timers[i].button:SetAttribute("type3", "spell")
-                Timers[i].button:SetAttribute("spell3", SpellIDs.TotemicCall)
+                Timers[i].button:SetAttribute("spell3", SpellIDs.TotemicRecall)
             end
         end
         if TotemTimers_MultiSpell then
@@ -291,7 +291,7 @@ SettingsFunctions = {
             else
                 TotemTimers_MultiSpell:SetAttribute("OpenMenu", "mouseover")
                 TotemTimers_MultiSpell:SetAttribute("*type2", "spell")
-                TotemTimers_MultiSpell:SetAttribute("*spell2", SpellIDs.TotemicCall)
+                TotemTimers_MultiSpell:SetAttribute("*spell2", SpellIDs.TotemicRecall)
             end
         end
     end,

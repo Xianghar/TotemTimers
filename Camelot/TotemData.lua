@@ -81,8 +81,8 @@ TotemTimers.SpellIDs = {
     PowerSurgeBuffDps = 415105,
     PowerSurgeBuffHeal = 468526,
 
-    TotemicCall = 36936,
-    TotemicProjection = 437009, -- Season of Discovery rune id
+    TotemicRecall = 36936,
+    TotemicCall = 437009, -- Season of Discovery rune id
 
     CallOfElements = 66842,
     CallOfAncestors = 66843,
@@ -92,7 +92,7 @@ TotemTimers.SpellIDs = {
     --EnamoredWaterSpirit = 24854 -- Water Totem trinket
     --[[ WaterShield = 52127,
     EarthShield = 974,
-    TotemicCall = 36936,
+    TotemicRecall = 36936,
     
     StormStrike = 17364,
     PrimalStrike = 73899,
@@ -122,7 +122,7 @@ TotemTimers.SpellIDs = {
     CallOfElements = 108285,
     SpiritWalk = 58875,
     AstralShift = 108271,
-    TotemicProjection = 108287,
+    TotemicCall = 108287,
     AncestralSwiftness = 16188,
     AncestralGuidance = 108281,
     ElementalBlast = 117014,

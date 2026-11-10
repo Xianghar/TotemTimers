@@ -330,7 +330,7 @@ local shieldValues = function()
        -- [SpellIDs.EarthShield] = SpellNames[SpellIDs.EarthShield],
     }
     if LE_EXPANSION_LEVEL_CURRENT ~= LE_EXPANSION_CLASSIC then
-        values[SpellIDs.TotemicCall] = SpellNames[SpellIDs.TotemicCall]
+        values[SpellIDs.TotemicRecall] = SpellNames[SpellIDs.TotemicRecall]
     end
     return values
 end

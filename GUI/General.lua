@@ -329,6 +329,36 @@ if TotemTimers.GamePad and C_InputInterfaceStyle then
             return TotemTimers.ActiveProfile.GamePadHideTimers
         end,
     }
+    TotemTimers.options.args.general.args.gamepadupdateranks = {
+        order = 153.5,
+        type = "toggle",
+        name = L["GamePad Update Ranks"],
+        desc = L["GamePad Update Ranks Desc"],
+        disabled = function()
+            return not TotemTimers.ActiveProfile.GamePad
+        end,
+        set = function(info, val)
+            TotemTimers.ActiveProfile.GamePadUpdateRanks = val
+        end,
+        get = function(info)
+            return TotemTimers.ActiveProfile.GamePadUpdateRanks
+        end,
+    }
+    TotemTimers.options.args.general.args.gamepadupdateranksonlogin = {
+        order = 153.6,
+        type = "toggle",
+        name = L["GamePad Update Ranks On Login"],
+        desc = L["GamePad Update Ranks On Login Desc"],
+        disabled = function()
+            return not TotemTimers.ActiveProfile.GamePad
+        end,
+        set = function(info, val)
+            TotemTimers.ActiveProfile.GamePadUpdateRanksOnLogin = val
+        end,
+        get = function(info)
+            return TotemTimers.ActiveProfile.GamePadUpdateRanksOnLogin
+        end,
+    }
 end
 
 local ACR =	LibStub("AceConfigRegistry-3.0")

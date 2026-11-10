@@ -398,7 +398,7 @@ end
 
 table.insert(TotemTimers.Modules, TotemTimers.SetupTimers)
 
-local TotemicCall = TotemTimers.SpellIDs.TotemicCall
+local TotemicRecall = TotemTimers.SpellIDs.TotemicRecall
 
 
 -- a totem cast is only accepted as the source of a following PLAYER_TOTEM_UPDATE for this long
@@ -487,7 +487,7 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
             self.timer:Stop(1)
             self.timer.activeTotem = nil
         end
-    elseif event == "UNIT_SPELLCAST_SUCCEEDED" and arg3 ~= TotemicCall then
+    elseif event == "UNIT_SPELLCAST_SUCCEEDED" and arg3 ~= TotemicRecall then
         local totem = TotemTimers.GetBaseSpellID(arg3)
         if TotemData[totem] and TotemData[totem].element == self.element then
             self.timer.pendingTotem = totem
@@ -527,7 +527,7 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
                 self.timer:Stop(i)
             end
         end ]]
-    elseif (event == "UNIT_SPELLCAST_SUCCEEDED" and arg3 == TotemicCall)
+    elseif (event == "UNIT_SPELLCAST_SUCCEEDED" and arg3 == TotemicRecall)
             or event == "PLAYER_ENTERING_WORLD" then
         self.timer.stopQuiet = true
         self.timer:Stop(1)

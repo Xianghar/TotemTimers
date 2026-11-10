@@ -15,7 +15,7 @@ local _, TotemTimers = ...
 -- later win, so the d-pad bindings are only set when the layer key goes down or a menu button is selected.
 -- While the layer key is held, the face buttons click the totem timer buttons (cast the totem):
 -- Cross/A earth, Square/X fire, Triangle/Y water, Circle/B air. D-pad right casts the selected multicast spell,
--- d-pad down Totemic Recall, d-pad left Totemic Projection.
+-- d-pad down Totemic Recall, d-pad left Totemic Call.
 -- If the layer key is a trigger, the icons (and the totem durations) are laid over the slots of the Gamepad UI
 -- action bar of that trigger (only visually, the action slots aren't changed).
 --
@@ -275,7 +275,7 @@ local MENU_ONHIDE = [[
 
 -- the layer key, held down: d-pad up opens a menu, the face buttons (attributes key1..n) click the totem timer
 -- buttons (frame refs timer1..n) that are shown, d-pad right clicks the multicast button (casts the selected
--- multicast spell), d-pad down and left cast Totemic Recall and Totemic Projection (attributes recall, projection).
+-- multicast spell), d-pad down and left cast Totemic Recall and Totemic Call (attributes recall, call).
 -- The bindings are set when the key goes down, so they are newer than the Gamepad UI's own bindings of the keys.
 local LAYER_ONCLICK = [[
     self:ClearBindings()
@@ -293,8 +293,8 @@ local LAYER_ONCLICK = [[
         end
         local recall = self:GetAttribute("recall")
         if recall then self:SetBindingSpell(true, "PADDDOWN", recall) end
-        local projection = self:GetAttribute("projection")
-        if projection then self:SetBindingSpell(true, "PADDLEFT", projection) end
+        local call = self:GetAttribute("call")
+        if call then self:SetBindingSpell(true, "PADDLEFT", call) end
     end
     self:CallMethod("SetLayerExpanded", down)
 ]]
@@ -683,15 +683,22 @@ local function IsOtherTotemActive(timer)
 end
 
 -- remaining duration of the totem, from the DurationObject of the running totem timer (never read in Lua),
--- and the icon of the active totem while the timer runs and it isn't the assigned totem
+-- and the icon of the active totem while the timer runs and it isn't the assigned totem; on slots of a spell with
+-- a cooldown (slot.cooldownSpell) its cooldown instead (without the global cooldown, shown without option
+-- GamePadTimers too, like the cooldown of the game's own button)
 local function UpdateSlotDuration(slot)
-    local durObj = timersShown and slot.timer and slot.timer.timers[1]
+    local durObj
+    if slot.timer then
+        durObj = timersShown and slot.timer.timers[1]
+    elseif slot.cooldownSpell then
+        durObj = C_Spell.GetSpellCooldownDuration(slot.cooldownSpell, true)
+    end
     if durObj then
         slot.cooldown:SetCooldownFromDurationObject(durObj)
     else
         slot.cooldown:Clear()
     end
-    slot.active:SetShown(showActiveTotems and durObj and IsOtherTotemActive(slot.timer) or false)
+    slot.active:SetShown(showActiveTotems and slot.timer and durObj and IsOtherTotemActive(slot.timer) or false)
     if slot.timeBinding then
         if durObj then
             slot.timeBinding:SetDuration(durObj)
@@ -703,8 +710,9 @@ local function UpdateSlotDuration(slot)
     end
 end
 
--- shows a slot with the texture, timer: totem timer whose duration is shown
-local function ShowSlot(bar, index, texture, timer)
+-- shows a slot with the texture, timer: totem timer whose duration is shown, cooldownSpell: spell whose cooldown
+-- is shown (slots without timer)
+local function ShowSlot(bar, index, texture, timer, cooldownSpell)
     if barMode and not barModeSlots[index] then return end
     local button = texture and index and bar:GetActionButtonByIndex(index)
     if not (button and button.icon) then return end
@@ -714,6 +722,7 @@ local function ShowSlot(bar, index, texture, timer)
     UpdateSlotLayout(slot, bar)
     slot.icon:SetTexture(texture)
     slot.timer = timer
+    slot.cooldownSpell = not timer and cooldownSpell or nil
     if timer then
         -- the timer button's icon shows the active totem while the timer runs, its texture is handed on without
         -- being read (it might be secret)
@@ -759,6 +768,7 @@ end
 function GamePad.UpdateBarIcons()
     for _, slot in pairs(barIcons) do
         slot.timer = nil
+        slot.cooldownSpell = nil
         slot:Hide()
     end
     wipe(activeIconSlots)
@@ -779,15 +789,16 @@ function GamePad.UpdateBarIcons()
     end
 
     -- d-pad: up opens the totem menus, right casts the selected multicast spell,
-    -- down Totemic Recall, left Totemic Projection
+    -- down Totemic Recall, left Totemic Call
     local multiSpell = TotemTimers_MultiSpell
     local multiSpellID = multiSpell and multiSpell:GetAttribute("active") and multiSpell:GetAttribute("*spell1")
     ShowSlot(bar, OPEN_BUTTON_INDEX, OPEN_ICON)
     ShowSlot(bar, DPAD_RIGHT_INDEX, multiSpellID and C_Spell.GetSpellTexture(multiSpellID))
     ShowSlot(bar, DPAD_DOWN_INDEX,
-            GetAvailableSpellName(SpellIDs.TotemicCall) and C_Spell.GetSpellTexture(SpellIDs.TotemicCall))
+            GetAvailableSpellName(SpellIDs.TotemicRecall) and C_Spell.GetSpellTexture(SpellIDs.TotemicRecall))
     ShowSlot(bar, DPAD_LEFT_INDEX,
-            GetAvailableSpellName(SpellIDs.TotemicProjection) and C_Spell.GetSpellTexture(SpellIDs.TotemicProjection))
+            GetAvailableSpellName(SpellIDs.TotemicCall) and C_Spell.GetSpellTexture(SpellIDs.TotemicCall), nil,
+            SpellIDs.TotemicCall)
     -- the buttons covered by the overlays changed
     GamePad.UpdateActionButtons()
 end
@@ -809,6 +820,13 @@ GamePad.SetLayerExpanded = SetLayerExpanded
 function GamePad.UpdateBarDurations()
     for _, slot in pairs(barIcons) do
         if slot.timer then UpdateSlotDuration(slot) end
+    end
+end
+
+-- cooldowns of the slots of spells with a cooldown (Totemic Call)
+local function UpdateSlotCooldowns()
+    for _, slot in pairs(barIcons) do
+        if slot.cooldownSpell and slot:IsShown() then UpdateSlotDuration(slot) end
     end
 end
 
@@ -1069,7 +1087,7 @@ local function HookTimers()
     end
 end
 
--- learned spells (Totemic Recall, Totemic Projection, multicast spells), runs out of combat
+-- learned spells (Totemic Recall, Totemic Call, multicast spells), runs out of combat
 table.insert(TotemTimers.SpellUpdaters, function() GamePad.Apply() end)
 
 -- Bar mode: the layer key is a trigger (LT/RT). The trigger stays with the Gamepad UI (its bar expands, LT+RT works),
@@ -1081,7 +1099,7 @@ table.insert(TotemTimers.SpellUpdaters, function() GamePad.Apply() end)
 
 -- slots of the bar in bar mode: face buttons cast the totems of the timers, d-pad up opens the totem menus
 -- (click on the navigation button), right casts the selected multicast spell, down Totemic Recall,
--- left Totemic Projection
+-- left Totemic Call
 
 local overriddenSlots = {}
 
@@ -1153,11 +1171,113 @@ local function ApplyBarMode(bar)
     if multiSpell and multiSpell:GetAttribute("active") then
         OverrideSlotWithSource(bar, DPAD_RIGHT_INDEX, multiSpell)
     end
-    local recall = GetAvailableSpellName(SpellIDs.TotemicCall)
+    local recall = GetAvailableSpellName(SpellIDs.TotemicRecall)
     if recall then OverrideSlot(bar, DPAD_DOWN_INDEX, "spell", recall) end
-    local projection = GetAvailableSpellName(SpellIDs.TotemicProjection)
-    if projection then OverrideSlot(bar, DPAD_LEFT_INDEX, "spell", projection) end
+    local call = GetAvailableSpellName(SpellIDs.TotemicCall)
+    if call then OverrideSlot(bar, DPAD_LEFT_INDEX, "spell", call) end
 end
+
+-- Option GamePadUpdateRanks: when a new rank of a spell is learned (at the trainer), the lower ranks of that spell
+-- in the Gamepad UI action slots (all standard pages, storage slots of GamepadActionBarBindingUtil) are replaced by
+-- the highest known rank. Only spells learned now are replaced, other lower ranks placed on purpose stay.
+-- Option GamePadUpdateRanksOnLogin: on login and UI reload the lower ranks of all spells in these slots are replaced.
+-- The slots taken over by TotemTimers in bar mode (on all pages) are skipped. Actions can't be placed in combat, the
+-- replacement then waits for the end of combat.
+local pendingRankNames = {}
+local pendingAllRanks = false
+
+local function GetTotemTimersPageUnitSlots()
+    local slots = {}
+    for slot in pairs(overriddenSlots) do
+        local id = slot.GetGamepadPageUnitSlotID and slot:GetGamepadPageUnitSlotID()
+        if id then slots[id] = true end
+    end
+    return slots
+end
+
+-- highest known rank by name: by name the spell API returns the highest rank the player knows
+local function GetHighestRank(name)
+    local info = C_Spell.GetSpellInfo(name)
+    if info and info.spellID and IsPlayerSpell(info.spellID) then return info.spellID end
+end
+
+local function ReplaceLowerRanks()
+    local profile = TotemTimers.ActiveProfile
+    if not profile then return end
+    if not (profile.GamePad and profile.GamePadUpdateRanks) then wipe(pendingRankNames) end
+    if not (profile.GamePad and profile.GamePadUpdateRanksOnLogin) then pendingAllRanks = false end
+    if not (pendingAllRanks or next(pendingRankNames)) then return end
+    -- the Gamepad UI action bars can be loaded later (ADDON_LOADED)
+    local util = GamepadActionBarBindingUtil
+    local constants = Constants.GamepadActionBarConstants
+    if not (util and util.GetGamepadStorageSlotIndexFromPageAndPageUnitSlotID and constants) then return end
+    -- in combat, or something on the cursor that placing would drop: later
+    if InCombatLockdown() then return end
+    if GetCursorInfo() then
+        C_Timer.After(1, ReplaceLowerRanks)
+        return
+    end
+
+    -- all spells (login) or the learned ones; false: no known rank
+    local all = pendingAllRanks
+    local highest = {}
+    if not all then
+        for name in pairs(pendingRankNames) do highest[name] = GetHighestRank(name) or false end
+    end
+    wipe(pendingRankNames)
+    pendingAllRanks = false
+
+    local skipped = GetTotemTimersPageUnitSlots()
+    for page = 1, constants.NUM_STANDARD_PAGES_PER_GAMEPAD_ACTION_BAR_PAGE_UNIT do
+        for pageUnitSlotID = 1, constants.NUM_PAGEABLE_SLOTS_PER_GAMEPAD_ACTION_BAR_PAGE_UNIT_STANDARD_PAGE do
+            local action = not skipped[pageUnitSlotID]
+                    and util.GetGamepadStorageSlotIndexFromPageAndPageUnitSlotID(page, pageUnitSlotID)
+            if action then
+                local actionType, id = GetActionInfo(action)
+                if actionType == "spell" and id and not IsSecret(id) then
+                    local name = C_Spell.GetSpellName(id)
+                    if name and all and highest[name] == nil then highest[name] = GetHighestRank(name) or false end
+                    local target = name and highest[name]
+                    if target and target ~= id then
+                        C_Spell.PickupSpell(target)
+                        PlaceAction(action)
+                        -- the replaced rank is on the cursor now
+                        ClearCursor()
+                    end
+                end
+            end
+        end
+    end
+end
+
+local rankFrame = CreateFrame("Frame")
+rankFrame:RegisterEvent("LEARNED_SPELL_IN_SKILL_LINE")
+rankFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+rankFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+rankFrame:RegisterEvent("ADDON_LOADED")
+rankFrame:SetScript("OnEvent", function(self, event, ...)
+    if event == "LEARNED_SPELL_IN_SKILL_LINE" then
+        local profile = TotemTimers.ActiveProfile
+        if not (profile and profile.GamePad and profile.GamePadUpdateRanks) then return end
+        local spellID = ...
+        local name = spellID and C_Spell.GetSpellName(spellID)
+        if not name then return end
+        pendingRankNames[name] = true
+        -- the spell book is updated after the event
+        C_Timer.After(0.2, ReplaceLowerRanks)
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        local isLogin, isReload = ...
+        if not (isLogin or isReload) then return end
+        -- the profile is selected on PLAYER_ENTERING_WORLD, checked when the replacement runs
+        pendingAllRanks = true
+        -- after the setup (profile, bar mode slots) and the spell book
+        C_Timer.After(1, ReplaceLowerRanks)
+    elseif event == "ADDON_LOADED" then
+        if ... == "Blizzard_GamepadActionBars" then ReplaceLowerRanks() end
+    else
+        ReplaceLowerRanks()
+    end
+end)
 
 -- Option GamePadHideTimers (bar mode only): the totem timer buttons and the multicast button are made invisible
 -- (alpha 0, mouse disabled), so the timers are only shown on the overlays of the bar slots. The buttons keep
@@ -1352,9 +1472,9 @@ local function GetLegendText(info)
         local spell = TotemTimers_MultiSpell and TotemTimers_MultiSpell:GetAttribute("*spell1")
         return spell and C_Spell.GetSpellName(spell)
     elseif info.slot == DPAD_DOWN_INDEX then
-        return GetAvailableSpellName(SpellIDs.TotemicCall)
+        return GetAvailableSpellName(SpellIDs.TotemicRecall)
     elseif info.slot == DPAD_LEFT_INDEX then
-        return GetAvailableSpellName(SpellIDs.TotemicProjection)
+        return GetAvailableSpellName(SpellIDs.TotemicCall)
     end
 end
 
@@ -1478,8 +1598,8 @@ function GamePad.Apply()
     if TotemTimers_MultiSpell then
         SecureHandlerSetFrameRef(layer, "multispell", TotemTimers_MultiSpell)
     end
-    layer:SetAttribute("recall", GetAvailableSpellName(SpellIDs.TotemicCall))
-    layer:SetAttribute("projection", GetAvailableSpellName(SpellIDs.TotemicProjection))
+    layer:SetAttribute("recall", GetAvailableSpellName(SpellIDs.TotemicRecall))
+    layer:SetAttribute("call", GetAvailableSpellName(SpellIDs.TotemicCall))
 
     SetOverrideBindingClick(keyOwner, true, key, LAYER_NAME, "LeftButton")
 end
@@ -1539,6 +1659,7 @@ end
 
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
 if C_EventUtils.IsEventValid("INPUT_DEVICE_INTERFACE_TRANSITION") then
     eventFrame:RegisterEvent("INPUT_DEVICE_INTERFACE_TRANSITION")
 end
@@ -1550,6 +1671,8 @@ eventFrame:SetScript("OnEvent", function(self, event, addon)
             -- weapon enchant overlays needed in combat are created now
             GamePad.UpdateActionButtons()
         end
+    elseif event == "SPELL_UPDATE_COOLDOWN" then
+        UpdateSlotCooldowns()
     elseif event == "ADDON_LOADED" then
         -- the Gamepad UI action bars can be loaded after TotemTimers
         if addon == "Blizzard_GamepadActionBars" then GamePad.Apply() end

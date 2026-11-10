@@ -12,7 +12,7 @@
 	<Binding name="TOTEMTIMERSCLOSE" description="Close all menus" category="TotemTimers ">--[[dummy]]</Binding>
 	<Binding name="TOTEMTIMERSLIGHTNINGSHIELD" description="Lightning Shield" category="TotemTimers ">--[[dummy]]</Binding>
 	<Binding name="TOTEMTIMERSWATERSHIELD" category="TotemTimers "> --[[dummy]]</Binding>
-	<Binding name="TOTEMTIMERSTOTEMICCALL" category="TotemTimers ">--[[dummy]]</Binding>
+	<Binding name="TOTEMTIMERSTOTEMICRECALL" category="TotemTimers ">--[[dummy]]</Binding>
 	<Binding name="TOTEMTIMERSEARTHSHIELDLEFT" category="TotemTimers ">--[[dummy]]</Binding>
 	<Binding name="TOTEMTIMERSEARTHSHIELDRIGHT" category="TotemTimers ">--[[dummy]]</Binding>
 	<Binding name="TOTEMTIMERSEARTHSHIELDMIDDLE" category="TotemTimers ">--[[dummy]]</Binding>

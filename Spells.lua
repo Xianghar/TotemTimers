@@ -41,12 +41,6 @@ for _, spellID in pairs(SpellIDs) do
     AvailableSpells[spellID] = IsPlayerSpell(spellID) or IsSpellKnownOrOverridesKnown(spellID)
 end
 
-if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE then
-    NameToSpellID["Totemic Call"] = SpellIDs.TotemicCall
-    --small workaround for Totemic Call renamed Totemic Recall in WOTLK
-end
-
-
 -- get ranked spell names from spell book
 function TotemTimers.GetSpells()
     wipe(AvailableSpells)

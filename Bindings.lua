@@ -40,7 +40,7 @@ end
 local function SetupSpellNames()
     BINDING_NAME_TOTEMTIMERSLIGHTNINGSHIELD = SpellNames[SpellIDs.LightningShield]      
     BINDING_NAME_TOTEMTIMERSWATERSHIELD = SpellNames[SpellIDs.WaterShield] or "Water Shield"
-    BINDING_NAME_TOTEMTIMERSTOTEMICCALL = SpellNames[SpellIDs.TotemicCall] or "Totemic Recall"
+    BINDING_NAME_TOTEMTIMERSTOTEMICRECALL = SpellNames[SpellIDs.TotemicRecall] or "Totemic Recall"
     BINDING_NAME_TOTEMTIMERSEARTHSHOCK = SpellNames[SpellIDs.EarthShock]
 	BINDING_NAME_TOTEMTIMERSFLAMESHOCK = SpellNames[SpellIDs.FlameShock]
 	BINDING_NAME_TOTEMTIMERSFROSTSHOCK = SpellNames[SpellIDs.FrostShock]
@@ -92,8 +92,8 @@ local TotemTimers_Bindings = {
 	["TOTEMTIMERSWATERSHIELD"] = function(key)
 		SetOverrideBindingSpell(TotemTimersFrame, false, key, SpellNames[SpellIDs.WaterShield])
 	end,
-	["TOTEMTIMERSTOTEMICCALL"] = function(key)
-		SetOverrideBindingSpell(TotemTimersFrame, false, key, SpellNames[SpellIDs.TotemicCall])
+	["TOTEMTIMERSTOTEMICRECALL"] = function(key)
+		SetOverrideBindingSpell(TotemTimersFrame, false, key, SpellNames[SpellIDs.TotemicRecall])
 	end,
 	["TOTEMTIMERSCALLOFELEMENTS"] = function(key)
 		SetOverrideBindingSpell(TotemTimersFrame, false, key, SpellNames[SpellIDs.CallOfElements])
