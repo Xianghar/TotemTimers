@@ -10,6 +10,7 @@ enable-nolib-creation: no
 
 ignore:
   - textures/mw.afphoto
+  - tools
 
 externals:
  libs/LibStub:

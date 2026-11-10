@@ -219,6 +219,11 @@ local NEIGHBOR = [[
 
 -- clicks of the bindings: "open" (layer key + d-pad up), d-pad directions and "close"
 local NAV_ONCLICK = [[
+    -- LB/RB while the totem wheel is open (see WHEEL_ASSIGN)
+    if button == "wheelassign" then
+        if down then self:RunAttribute("WheelAssign") end
+        return
+    end
     if not self:GetAttribute("enabled") then return end
     -- the bar slot of d-pad up (bar mode) hands on its click as a LeftButton release, the bindings click on key down
     -- (their releases arrive, too, as the button is registered for LeftButton releases)
@@ -402,6 +407,9 @@ end
 -- menus (parent button and its action bar): multicast button first (if there is one), then the totem timers
 -- menu index (nav frame refs "menu<m>") by parent button
 local menuIndices = {}
+-- the menu buttons by menu index, for the totem wheel
+local menuButtons = {}
+local menuParents = {}
 
 local function UpdateMenus()
     local menus = {}
@@ -424,6 +432,8 @@ local function UpdateMenus()
         SecureHandlerSetFrameRef(nav, "menupos" .. m, menu.parent)
         menuIndices[menu.parent] = m
         local buttons = menu.bar.buttons
+        menuButtons[m] = buttons
+        menuParents[m] = menu.parent
         nav:SetAttribute("nbuttons" .. m, #buttons)
         for i, button in ipairs(buttons) do
             SecureHandlerSetFrameRef(nav, "m" .. m .. "b" .. i, button)
@@ -1116,6 +1126,398 @@ local SPELL_SOURCE_WRAP = [[
 
 local wrappedSources = {}
 
+-- Bar mode: the totem slots cast on the release of the key (attribute useOnKeyDown false, the Gamepad UI sets it to
+-- true on its slots). Layer key + holding a totem slot opens a totem wheel of its timer's menu (attribute
+-- ttHoldMenu: menu index of the navigation, see UpdateMenus) while the key is still held. The left stick selects a
+-- totem, releasing the key casts the totem the stick points at; with the stick in the center nothing is cast (the
+-- wheel closes). Like Blizzard's wheels, the stick only selects after it was in the center while the wheel is open
+-- (wheelArmed), so a stick still pushed from moving doesn't pick a totem.
+-- Secure code has no clock, so the hold is measured in ticks of the secure state driver: a hidden secure frame with
+-- a unit watch on "player" is shown by SecureStateDriverManager on every update, its OnShow wrap counts the tick and
+-- hides it again. The update interval of the state driver (0.2 s by default) is set to HOLD_UPDATE_TIME while bar
+-- mode is active (its attribute "updatetime", set by a secure snippet; this applies to all state drivers) and set
+-- back to 0.2 s with the slots. The unit watch is registered when the key goes down (first tick right away) and
+-- removed on the release; HOLD_TICKS ticks open the wheel (0.2 - 0.3 s: the first tick comes right away, the next one within 0.1 s), the following ticks read the stick (every
+-- 0.1 s) and arm the wheel once the stick is in the center. The wraps run in the navigation handler's environment (holdTicks, holdSlot, wheelOpen,
+-- wheelArmed).
+-- The stick directions aren't keys (no PADRSTICK* key events), so the cast comes from the key release: the wraps
+-- read the movement stick with GetGamePadState() (nav attribute wheelstickindex: 1-based index of the stick "Movement",
+-- C_GamePad.StickIndexToConfigName is 0-based) and the release computes the wheel segment like the display
+-- (ShowWheel): one segment per totem (n, at most 8), segment i is centered at the angle (i - 1) * 360 / n, clockwise
+-- from the top; it casts the *spell1 of menu button i (snippet WheelSelection).
+-- While the wheel is open, LB and RB assign the selected totem to the timer button (like Square/X in the menus): the
+-- ticker frame binds them to the navigation button ("wheelassign", snippet WheelAssign) when the wheel opens and
+-- clears the bindings on the release, so the game's targeting modifiers keep LB/RB otherwise.
+local HOLD_TICKS = 4
+local HOLD_UPDATE_TIME = 0.1
+local DEFAULT_STATE_DRIVER_UPDATE_TIME = 0.2
+
+-- stick of the wheel pushed out of the center (GetGamePadState inside a snippet), sets wheelX/wheelY
+local WHEEL_STICK = [[
+    local index = self:GetAttribute("wheelstickindex")
+    local state = GetGamePadState()
+    local stick = index and state and state.sticks and state.sticks[index]
+    wheelX, wheelY = stick and stick.x or 0, stick and stick.y or 0
+    return wheelX * wheelX + wheelY * wheelY >= 0.25
+]]
+
+-- WheelSelection(m): the selected segment of menu m (nil: the wheel isn't armed or the stick is in the center)
+local WHEEL_SELECTION = [[
+    local m = ...
+    local n = m and self:RunAttribute("Count", m) or 0
+    if not wheelArmed or n == 0 or not self:RunAttribute("ReadWheelStick") then return end
+    if n > 8 then n = 8 end
+    local segment = 2 * math.pi / n
+    local angle = (math.atan2(wheelX, wheelY) + segment / 2) % (2 * math.pi)
+    local i = math.floor(angle / segment) + 1
+    if i > n then i = n end
+    return i
+]]
+
+-- WheelAssign: the selected totem becomes the totem of the timer button of the open wheel
+local WHEEL_ASSIGN = [[
+    if not (wheelOpen and wheelSlot) then return end
+    local m = wheelSlot:GetAttribute("ttHoldMenu")
+    local i = m and self:RunAttribute("WheelSelection", m)
+    local b = i and self:GetFrameRef("m" .. m .. "b" .. i)
+    local spell = b and b:GetAttribute("*spell1")
+    local source = wheelSlot:GetFrameRef("ttGamePadSource")
+    if spell and source then
+        source:SetAttribute("*type1", "spell")
+        source:SetAttribute("*spell1", spell)
+        self:CallMethod("WheelAssigned", i)
+    end
+]]
+
+local HOLD_TICK_ONSHOW = [[
+    holdTicks = (holdTicks or 0) + 1
+    self:Hide()
+    if not holdSlot then return end
+    if not wheelOpen then
+        if holdTicks < (control:GetAttribute("holdticks") or 4) then return end
+        local m = holdSlot:GetAttribute("ttHoldMenu")
+        if not (m and control:RunAttribute("Count", m) > 0) then
+            UnregisterUnitWatch(self)
+            return
+        end
+        wheelOpen = true
+        wheelSlot = holdSlot
+        wheelArmed = not control:RunAttribute("ReadWheelStick")
+        holdSlot:SetAttribute("ttWheelOpen", true)
+        self:SetBindingClick(true, "PADLSHOULDER", control, "wheelassign")
+        self:SetBindingClick(true, "PADRSHOULDER", control, "wheelassign")
+        control:CallMethod("ShowWheel", m, wheelArmed)
+    elseif not wheelArmed and not control:RunAttribute("ReadWheelStick") then
+        wheelArmed = true
+        control:CallMethod("ArmWheel")
+    end
+]]
+
+local HOLD_WRAP = [[
+    if self:GetAttribute("ttGamePadOverride") ~= "spell" or not self:GetAttribute("ttHoldMenu") then return end
+    local ticker = control:GetFrameRef("holdticker")
+    if down then
+        holdTicks = 0
+        holdSlot = self
+        wheelOpen, wheelArmed = false, false
+        if ticker then RegisterUnitWatch(ticker) end
+        return
+    end
+    if holdSlot == self then
+        holdSlot = nil
+        if ticker then
+            UnregisterUnitWatch(ticker)
+            ticker:Hide()
+        end
+    end
+    -- the slot's own totem (the wheel may have changed the spell)
+    local source = self:GetFrameRef("ttGamePadSource")
+    local spell = source and source:GetAttribute("*spell1")
+    if self:GetAttribute("ttWheelOpen") then
+        self:SetAttribute("ttWheelOpen", nil)
+        if ticker then ticker:ClearBindings() end
+        control:CallMethod("HideWheel")
+        -- the totem the stick points at, nothing with the stick in the center
+        local m = self:GetAttribute("ttHoldMenu")
+        local i = control:RunAttribute("WheelSelection", m)
+        local b = i and control:GetFrameRef("m" .. m .. "b" .. i)
+        spell = b and b:GetAttribute("*spell1")
+        wheelOpen, wheelArmed, wheelSlot = false, false, nil
+        if not spell then return false end
+    end
+    wheelOpen, wheelArmed = false, false
+    self:SetAttribute("spell", spell)
+]]
+
+-- the totem wheel (display only, not protected), in the style of the Gamepad UI's game menu wheel (GamepadRadial),
+-- with one segment per totem (at most 8): own textures (tools/wheel_textures.py) for the wheel without dividers, a
+-- divider rotated onto each segment border and the highlight wedge of the segment count, rotated onto the selected
+-- segment; each segment shows its icon with the name on the side toward the center (below the icon in the upper
+-- half, above it in the lower half). The segment the movement stick points at is
+-- highlighted (once the wheel is armed, see HOLD_TICK_ONSHOW). While it is shown the frame takes the movement stick
+-- (handled stick input doesn't move the character); the other sticks (camera, gyro) are passed on.
+local WHEEL_TEXTURES = "Interface\\AddOns\\TotemTimers\\textures\\wheel_"
+local WHEEL_SIZE = 400 -- displayed size of the wheel textures (UI units, see tools/wheel_textures.py)
+local WHEEL_MAX_SEGMENTS = 8
+local WHEEL_INNER_RIM = 66 -- segment area between the rims, like the textures
+local WHEEL_OUTER_RIM = 188
+local WHEEL_ICON_DISTANCE = 134 -- icon center, the label beside it stays between the rims in every direction
+local WHEEL_LABEL_OFFSET = 34 -- vertical distance of the label center from the icon center, toward the center
+local WHEEL_ICON_SHIFT = 12 -- icons of the upper half are moved up by this, icons of the lower half down
+local WHEEL_DEADZONE_SQ = 0.25
+local WHEEL_HELP_WIDTH = 100 -- help text in the inner circle (diameter 116)
+local wheel
+
+-- segment of the stick direction for n segments: segment 1 at the top, clockwise
+local function WheelSegment(x, y, n)
+    if n == 0 or x * x + y * y < WHEEL_DEADZONE_SQ then return end
+    local segment = 2 * math.pi / n
+    local angle = (math.atan2(x, y) + segment / 2) % (2 * math.pi)
+    return math.min(math.floor(angle / segment) + 1, n)
+end
+
+-- labels: the totem of the timer button green with a check mark on its icon (also while selected), the selected
+-- totem white
+local function UpdateWheelLabelColors()
+    for i, segment in ipairs(wheel.segments) do
+        local color = (i == wheel.assigned and GREEN_FONT_COLOR) or (i == wheel.selected and HIGHLIGHT_FONT_COLOR)
+                or NORMAL_FONT_COLOR
+        segment.label:SetTextColor(color:GetRGB())
+        segment.check:SetShown(i == wheel.assigned and i <= wheel.count)
+    end
+end
+
+local function SetWheelSelection(index)
+    if wheel.selected == index then return end
+    wheel.selected = index
+    if index then
+        -- the wedge texture is centered at the top, SetRotation turns counterclockwise
+        wheel.highlight:SetRotation(-(index - 1) * 2 * math.pi / wheel.count)
+        wheel.highlight:Show()
+        if SOUNDKIT and SOUNDKIT.GAMEPAD_RADIAL_MENU_HIGHLIGHT then PlaySound(SOUNDKIT.GAMEPAD_RADIAL_MENU_HIGHLIGHT) end
+    else
+        wheel.highlight:Hide()
+    end
+    UpdateWheelLabelColors()
+end
+
+local function CreateWheel()
+    wheel = CreateFrame("Frame", "TotemTimers_GamePadWheel", UIParent)
+    wheel:SetFrameStrata("DIALOG")
+    wheel:SetSize(WHEEL_SIZE, WHEEL_SIZE)
+    wheel:SetPoint("CENTER")
+    wheel:Hide()
+    wheel.background = wheel:CreateTexture(nil, "BACKGROUND")
+    wheel.background:SetTexture(WHEEL_TEXTURES .. "base")
+    wheel.background:SetAllPoints()
+    wheel.highlight = wheel:CreateTexture(nil, "BORDER")
+    wheel.highlight:SetAllPoints()
+    wheel.highlight:Hide()
+    -- help in the inner circle, in the color of the help lines of the tooltips (ToolTips.lua)
+    wheel.help = wheel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+    wheel.help:SetPoint("CENTER")
+    wheel.help:SetWidth(WHEEL_HELP_WIDTH)
+    wheel.help:SetJustifyH("CENTER")
+    wheel.help:SetTextColor(0, 0.9, 1)
+    wheel.dividers = {}
+    wheel.segments = {}
+    for i = 1, WHEEL_MAX_SEGMENTS do
+        local divider = wheel:CreateTexture(nil, "BORDER", nil, 1)
+        divider:SetTexture(WHEEL_TEXTURES .. "divider")
+        divider:SetSize(WHEEL_OUTER_RIM - WHEEL_INNER_RIM, WHEEL_OUTER_RIM - WHEEL_INNER_RIM)
+        wheel.dividers[i] = divider
+        local segment = {}
+        segment.icon = wheel:CreateTexture(nil, "ARTWORK")
+        segment.icon:SetSize(38, 38)
+        segment.check = wheel:CreateTexture(nil, "OVERLAY")
+        segment.check:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+        segment.check:SetSize(24, 24)
+        segment.check:SetPoint("CENTER", segment.icon, "TOPRIGHT", -2, -2)
+        segment.check:Hide()
+        segment.label = wheel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        segment.label:SetSize(84, 30)
+        segment.label:SetWordWrap(true)
+        segment.label:SetJustifyH("CENTER")
+        segment.label:SetJustifyV("MIDDLE")
+        wheel.segments[i] = segment
+    end
+    wheel.count = 0
+    wheel:SetScript("OnGamePadStick", function(self, stick, x, y)
+        if stick ~= "Movement" then return true end
+        if self.armed then SetWheelSelection(WheelSegment(x, y, self.count)) end
+        return false
+    end)
+end
+
+-- the layout of n segments: dividers on the borders, icons and labels at the segment centers
+local function LayoutWheel(n)
+    if wheel.layout == n then return end
+    wheel.layout = n
+    wheel.highlight:SetTexture(WHEEL_TEXTURES .. "highlight" .. n)
+    local middle = (WHEEL_INNER_RIM + WHEEL_OUTER_RIM) / 2
+    for i = 1, WHEEL_MAX_SEGMENTS do
+        -- clockwise angle from the top
+        local center = (i - 1) * 2 * math.pi / n
+        local border = center + math.pi / n
+        local divider = wheel.dividers[i]
+        divider:SetShown(n > 1 and i <= n)
+        divider:ClearAllPoints()
+        divider:SetPoint("CENTER", wheel, "CENTER", middle * math.sin(border), middle * math.cos(border))
+        divider:SetRotation(-border)
+        local segment = wheel.segments[i]
+        -- upper half (segments exactly at the side count as upper half)
+        local upper = math.cos(center) >= -0.01
+        segment.icon:ClearAllPoints()
+        segment.icon:SetPoint("CENTER", wheel, "CENTER", WHEEL_ICON_DISTANCE * math.sin(center),
+                WHEEL_ICON_DISTANCE * math.cos(center) + (upper and WHEEL_ICON_SHIFT or -WHEEL_ICON_SHIFT))
+        segment.label:ClearAllPoints()
+        segment.label:SetPoint("CENTER", segment.icon, "CENTER", 0, upper and -WHEEL_LABEL_OFFSET or WHEEL_LABEL_OFFSET)
+    end
+end
+
+-- called by the hold tick (secure, CallMethod of the navigation button), also in combat
+local function ShowWheel(_, m, armed)
+    if not wheel then CreateWheel() end
+    -- help with the icons of the held face button (the key of the menu's timer) and of LB/RB
+    local key
+    for i = 1, 4 do
+        local timer = XiTimers.timers[i]
+        if timer and timer.button == menuParents[m] then key = TimerKeys[timer.nr] end
+    end
+    wheel.help:SetText(format(L["Totem Wheel Cast Help"], key and GetPadIconMarkup(key) or "")
+            .. "\n\n" .. format(L["Totem Wheel Assign Help"], GetPadIconMarkup("PADLSHOULDER"),
+            GetPadIconMarkup("PADRSHOULDER")))
+    -- the usable buttons of the menu, like COUNT (at most 8, one per segment)
+    local spells = {}
+    for _, button in ipairs(menuButtons[m] or {}) do
+        local spell = button:GetAttribute("*spell1")
+        if #spells == WHEEL_MAX_SEGMENTS or button:GetAttribute("inactive")
+                or not (spell or button:GetAttribute("doublespell1")) then
+            break
+        end
+        table.insert(spells, spell or false)
+    end
+    wheel.count = #spells
+    LayoutWheel(math.max(#spells, 1))
+    for i, segment in ipairs(wheel.segments) do
+        local spell = spells[i] or nil
+        segment.icon:SetTexture(spell and (C_Spell.GetSpellTexture(spell)) or 134400)
+        segment.icon:SetShown(i <= #spells)
+        segment.label:SetText(spell and C_Spell.GetSpellName(spell) or "")
+        segment.label:SetShown(i <= #spells)
+    end
+    -- the totem of the timer button
+    local assigned = menuParents[m] and menuParents[m]:GetAttribute("*spell1")
+    wheel.assigned = nil
+    for i, spell in ipairs(spells) do
+        if spell and assigned and C_Spell.GetSpellName(spell) == C_Spell.GetSpellName(assigned) then
+            wheel.assigned = i
+        end
+    end
+    wheel.selected = false
+    wheel.armed = armed
+    SetWheelSelection(nil)
+    wheel:EnableGamePadStick(true)
+    wheel:Show()
+end
+
+-- LB/RB assigned the totem of segment i to the timer button (WheelAssign)
+local function WheelAssigned(_, i)
+    if not wheel then return end
+    wheel.assigned = i
+    UpdateWheelLabelColors()
+    if SOUNDKIT and SOUNDKIT.U_CHAT_SCROLL_BUTTON then PlaySound(SOUNDKIT.U_CHAT_SCROLL_BUTTON) end
+end
+
+-- the stick was in the center, it selects from now on (secure tick)
+local function ArmWheel()
+    if wheel then wheel.armed = true end
+end
+
+-- After the wheel closes with the movement stick still pushed, the character only moves again after the stick was
+-- in the center once (like the "wait for centering" of Blizzard's axis bindings): an invisible frame keeps taking
+-- the movement stick until it is centered. Stick events only come with changes, so it is only enabled if the stick
+-- isn't centered when the wheel closes.
+local stickBlocker
+
+local function MovementStickCentered()
+    local state = C_GamePad.GetDeviceMappedState and C_GamePad.GetDeviceMappedState()
+    local index
+    for i = 1, (state and state.stickCount or 0) do
+        if C_GamePad.StickIndexToConfigName(i - 1) == "Movement" then index = i break end
+    end
+    local stick = index and state.sticks and state.sticks[index]
+    return not stick or (stick.x * stick.x + stick.y * stick.y) < 0.01
+end
+
+local function BlockMovementUntilCentered()
+    if MovementStickCentered() then return end
+    if not stickBlocker then
+        stickBlocker = CreateFrame("Frame", nil, UIParent)
+        stickBlocker:SetSize(1, 1)
+        stickBlocker:SetPoint("CENTER")
+        stickBlocker:SetScript("OnGamePadStick", function(self, stick, x, y)
+            if stick ~= "Movement" then return true end
+            if x * x + y * y < 0.01 then self:EnableGamePadStick(false) end
+            return false
+        end)
+    end
+    stickBlocker:EnableGamePadStick(true)
+end
+
+local function HideWheel()
+    if not (wheel and wheel:IsShown()) then return end
+    wheel:EnableGamePadStick(false)
+    wheel:Hide()
+    BlockMovementUntilCentered()
+end
+
+-- 1-based index of the movement stick in the sticks of GetGamePadState()
+local function GetWheelStickIndex()
+    if not (C_GamePad and C_GamePad.StickIndexToConfigName) then return end
+    local state = C_GamePad.GetDeviceMappedState and C_GamePad.GetDeviceMappedState()
+    for i = 1, (state and state.stickCount or 8) do
+        if C_GamePad.StickIndexToConfigName(i - 1) == "Movement" then return i end
+    end
+end
+
+-- update interval of the secure state driver (the hold ticks), set by a secure snippet so the state driver isn't
+-- tainted
+local stateDriverTimeChanged = false
+local function SetStateDriverUpdateTime(time)
+    if not (nav and SecureStateDriverManager) then return end
+    SecureHandlerSetFrameRef(nav, "statedriver", SecureStateDriverManager)
+    nav:SetAttribute("statedrivertime", time)
+    SecureHandlerExecute(nav, [[
+        local manager = self:GetFrameRef("statedriver")
+        if manager then manager:SetAttribute("updatetime", self:GetAttribute("statedrivertime")) end
+    ]])
+    stateDriverTimeChanged = time ~= DEFAULT_STATE_DRIVER_UPDATE_TIME
+end
+
+local holdWrapped = {}
+local holdTicker
+
+local function GetHoldTicker()
+    if not holdTicker then
+        holdTicker = CreateFrame("Frame", "TotemTimers_GamePadHoldTicker", UIParent, "SecureFrameTemplate")
+        holdTicker:Hide()
+        holdTicker:SetAttribute("unit", "player")
+        SecureHandlerWrapScript(holdTicker, "OnShow", nav, HOLD_TICK_ONSHOW)
+        SecureHandlerSetFrameRef(nav, "holdticker", holdTicker)
+        nav:SetAttribute("holdticks", HOLD_TICKS)
+        nav.ShowWheel = ShowWheel
+        nav.ArmWheel = ArmWheel
+        nav.HideWheel = HideWheel
+        nav:SetAttribute("ReadWheelStick", WHEEL_STICK)
+        nav:SetAttribute("WheelSelection", WHEEL_SELECTION)
+        nav:SetAttribute("WheelAssign", WHEEL_ASSIGN)
+        nav.WheelAssigned = WheelAssigned
+    end
+    nav:SetAttribute("wheelstickindex", GetWheelStickIndex())
+    return holdTicker
+end
+
 -- actionType "spell" (value: spell) or "click" (value: button to click)
 local function OverrideSlot(bar, index, actionType, value)
     local slot = index and bar:GetActionButtonByIndex(index)
@@ -1138,6 +1540,7 @@ local function OverrideSlotWithSource(bar, index, source)
     local slot = OverrideSlot(bar, index, "spell", source:GetAttribute("*spell1"))
     if not slot then return end
     SecureHandlerSetFrameRef(source, "ttGamePadSlot", slot)
+    SecureHandlerSetFrameRef(slot, "ttGamePadSource", source)
     if not wrappedSources[source] then
         SecureHandlerWrapScript(source, "OnAttributeChanged", nav, SPELL_SOURCE_WRAP)
         wrappedSources[source] = true
@@ -1147,6 +1550,9 @@ end
 local function RestoreSlots()
     for slot in pairs(overriddenSlots) do
         slot:SetAttribute("ttGamePadOverride", nil)
+        slot:SetAttribute("ttHoldMenu", nil)
+        slot:SetAttribute("ttWheelOpen", nil)
+        slot:SetAttribute("useOnKeyDown", true)
         slot:SetAttribute("spell", nil)
         slot:SetAttribute("clickbutton", nil)
         slot:SetAttribute("type", "action")
@@ -1154,13 +1560,33 @@ local function RestoreSlots()
     end
     wipe(overriddenSlots)
     wipe(barModeSlots)
+    -- LB/RB of an open wheel (see WHEEL_ASSIGN)
+    if holdTicker then ClearOverrideBindings(holdTicker) end
+    HideWheel()
+    if stateDriverTimeChanged then SetStateDriverUpdateTime(DEFAULT_STATE_DRIVER_UPDATE_TIME) end
 end
 
 local function ApplyBarMode(bar)
     for i = 1, 4 do
         local timer = XiTimers.timers[i]
         if timer and timer.button:IsShown() then
-            OverrideSlotWithSource(bar, FaceButtonIndices[TimerKeys[timer.nr]], timer.button)
+            local index = FaceButtonIndices[TimerKeys[timer.nr]]
+            OverrideSlotWithSource(bar, index, timer.button)
+            -- totems are cast on the release, holding the key opens the timer's totem menu
+            local slot = bar:GetActionButtonByIndex(index)
+            local menu = menuIndices[timer.button]
+            if slot and overriddenSlots[slot] then
+                slot:SetAttribute("useOnKeyDown", false)
+                if menu then
+                    GetHoldTicker()
+                    if not stateDriverTimeChanged then SetStateDriverUpdateTime(HOLD_UPDATE_TIME) end
+                    slot:SetAttribute("ttHoldMenu", menu)
+                    if not holdWrapped[slot] then
+                        SecureHandlerWrapScript(slot, "OnClick", nav, HOLD_WRAP)
+                        holdWrapped[slot] = true
+                    end
+                end
+            end
         end
     end
     -- the click is handed on as a release, the navigation button takes the LeftButton click as "open"
