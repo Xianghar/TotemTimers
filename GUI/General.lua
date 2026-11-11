@@ -359,6 +359,18 @@ if TotemTimers.GamePad and C_InputInterfaceStyle then
             return TotemTimers.ActiveProfile.GamePadUpdateRanksOnLogin
         end,
     }
+    TotemTimers.options.args.general.args.gamepadtutorial = {
+        order = 153.7,
+        type = "execute",
+        name = L["GamePad Tutorial"],
+        desc = L["GamePad Tutorial Desc"],
+        disabled = function()
+            return not TotemTimers.GamePad.IsGamepadUI()
+        end,
+        func = function()
+            TotemTimers.GamePadTutorial.Start()
+        end,
+    }
 end
 
 local ACR =	LibStub("AceConfigRegistry-3.0")

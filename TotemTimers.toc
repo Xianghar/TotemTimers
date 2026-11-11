@@ -41,6 +41,7 @@ Shield.lua
 EarthShield.lua
 Weapon.lua
 GamePad.lua
+GamePadTutorial.lua
 #EnhanceCDs.lua
 #LongCooldowns.lua
 

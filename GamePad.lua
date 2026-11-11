@@ -54,6 +54,19 @@ function GamePad.IsBarModeKey(key)
     return key ~= nil and LayerKeyBars[key] ~= nil
 end
 
+-- layer key in use: the profile setting, or a temporary override (the tutorial uses LT + RT), not saved
+local layerKeyOverride
+function GamePad.GetLayerKey()
+    return layerKeyOverride or (TotemTimers.ActiveProfile and TotemTimers.ActiveProfile.GamePadLayerKey)
+end
+
+-- nil restores the profile setting; applied out of combat (GamePad.Apply defers it in combat)
+function GamePad.SetLayerKeyOverride(key)
+    if layerKeyOverride == key then return end
+    layerKeyOverride = key
+    GamePad.Apply()
+end
+
 -- button index of a face button on a Gamepad UI action bar (GAMEPAD_ACTION_BAR_BUTTON_INDICES)
 local FaceButtonIndices = {
     PAD3 = 5, -- left
@@ -61,12 +74,15 @@ local FaceButtonIndices = {
     PAD2 = 7, -- right
     PAD1 = 8, -- bottom
 }
+GamePad.FaceButtonIndices = FaceButtonIndices
 
 -- slots of the d-pad on a Gamepad UI action bar
 local DPAD_LEFT_INDEX = 1
 local OPEN_BUTTON_INDEX = 2 -- d-pad up (OPEN_KEY)
 local DPAD_RIGHT_INDEX = 3
 local DPAD_DOWN_INDEX = 4
+GamePad.OPEN_BUTTON_INDEX = OPEN_BUTTON_INDEX
+GamePad.DPAD_RIGHT_INDEX = DPAD_RIGHT_INDEX
 local OPEN_ICON = "Interface\\AddOns\\TotemTimers\\textures\\totemtimers"
 
 local nav, layer, keyOwner
@@ -219,9 +235,13 @@ local NEIGHBOR = [[
 
 -- clicks of the bindings: "open" (layer key + d-pad up), d-pad directions and "close"
 local NAV_ONCLICK = [[
-    -- LB/RB while the totem wheel is open (see WHEEL_ASSIGN)
+    -- Square/X and Circle/B while a wheel stays open after the release (see HOLD_WRAP)
     if button == "wheelassign" then
         if down then self:RunAttribute("WheelAssign") end
+        return
+    end
+    if button == "wheelclose" then
+        if down then self:RunAttribute("CloseWheel") end
         return
     end
     if not self:GetAttribute("enabled") then return end
@@ -324,6 +344,7 @@ local function GetPadIconMarkup(key)
     local suffix = style and LabelStyleSuffixes[style]
     return (suffix and _G["KEY_ABBR_" .. key .. suffix]) or _G["KEY_ABBR_" .. key] or GetBindingText(key)
 end
+GamePad.GetPadIconMarkup = GetPadIconMarkup
 
 -- left/rightclick in the tooltip lines are replaced by the icons of the pad buttons that click
 local function ReplaceClickTexts()
@@ -524,11 +545,12 @@ local barMode = false
 local barModeSlots = {}
 
 local function GetLayerKeyBar()
-    local barKey = LayerKeyBars[TotemTimers.ActiveProfile.GamePadLayerKey]
+    local barKey = LayerKeyBars[GamePad.GetLayerKey()]
     local pageUnit = GamepadMainActionBarFrame and GamepadMainActionBarFrame.PageUnit
     local bar = barKey and pageUnit and pageUnit.actionBars and pageUnit.actionBars[barKey]
     if bar and bar.GetActionButtonByIndex then return bar end
 end
+GamePad.GetLayerKeyBar = GetLayerKeyBar
 
 local function GetBarIcon(button, index)
     local slot = barIcons[button]
@@ -1148,9 +1170,13 @@ local wrappedSources = {}
 -- from the top; it casts the *spell1 of menu button i (snippet WheelSelection). Totem wheels (slot attribute
 -- ttTotemSlot: the totem slot of the timer's element) have one more segment at the top that destroys the totem of the
 -- element (secure action "destroytotem", like a rightclick on the timer button); the totems follow it.
--- While the wheel is open, LB and RB assign the selected totem to the timer button (like Square/X in the menus): the
--- ticker frame binds them to the navigation button ("wheelassign", snippet WheelAssign) when the wheel opens and
--- clears the bindings on the release, so the game's targeting modifiers keep LB/RB otherwise.
+-- Releasing the key with the sticks in the center leaves the wheel open (wheelSticky): the ticker frame then binds
+-- Cross/A to the hidden secure button TotemTimers_GamePadWheelCast (casts the selected totem and closes the wheel,
+-- nothing with the sticks in the center, WHEEL_CAST_WRAP), Square/X to the navigation button ("wheelassign", snippet
+-- WheelAssign: the selected totem becomes the timer button's totem, the wheel stays open) and Circle/B to it
+-- ("wheelclose", snippet CloseWheel). These keys are only bound after the release: bound while the key is held, they
+-- would take the release of a held face button. Pressing a wheel slot again closes a wheel left open first. The ticks
+-- go on while the wheel stays open (arming the sticks).
 local HOLD_TICKS = 4
 local HOLD_UPDATE_TIME = 0.1
 local DEFAULT_STATE_DRIVER_UPDATE_TIME = 0.2
@@ -1211,10 +1237,46 @@ local WHEEL_ASSIGN = [[
     end
 ]]
 
+-- CloseWheel: closes the open wheel (also one left open after the release) and ends the ticks
+local CLOSE_WHEEL = [[
+    local ticker = self:GetFrameRef("holdticker")
+    if ticker then
+        UnregisterUnitWatch(ticker)
+        ticker:Hide()
+        ticker:ClearBindings()
+    end
+    if wheelSlot then wheelSlot:SetAttribute("ttWheelOpen", nil) end
+    if wheelOpen then self:CallMethod("HideWheel") end
+    holdSlot, wheelSlot = nil, nil
+    wheelOpen, wheelSticky, wheelArmed1, wheelArmed2 = false, false, false, false
+]]
+
+-- Cross/A on a wheel left open: casts the selected totem (or destroys the element's totem) and closes the wheel,
+-- with the sticks in the center nothing happens (pre-click wrap of TotemTimers_GamePadWheelCast)
+local WHEEL_CAST_WRAP = [[
+    if not (down and wheelOpen and wheelSticky and wheelSlot) then return false end
+    local m = wheelSlot:GetAttribute("ttHoldMenu")
+    local totemSlot = wheelSlot:GetAttribute("ttTotemSlot")
+    local extra = totemSlot and 1 or 0
+    local i = m and control:RunAttribute("WheelSelection", m, extra)
+    if not i then return false end
+    if totemSlot and i == 1 then
+        self:SetAttribute("type", "destroytotem")
+        self:SetAttribute("totem-slot", totemSlot)
+    else
+        local b = control:GetFrameRef("m" .. m .. "b" .. (i - extra))
+        local spell = b and b:GetAttribute("*spell1")
+        if not spell then return false end
+        self:SetAttribute("type", "spell")
+        self:SetAttribute("spell", spell)
+    end
+    control:RunAttribute("CloseWheel")
+]]
+
 local HOLD_TICK_ONSHOW = [[
     holdTicks = (holdTicks or 0) + 1
     self:Hide()
-    if not holdSlot then return end
+    if not (holdSlot or wheelOpen) then return end
     if not wheelOpen then
         if holdTicks < (control:GetAttribute("holdticks") or 4) then return end
         local m = holdSlot:GetAttribute("ttHoldMenu")
@@ -1226,8 +1288,6 @@ local HOLD_TICK_ONSHOW = [[
         wheelSlot = holdSlot
         control:RunAttribute("ReadWheelSticks")
         holdSlot:SetAttribute("ttWheelOpen", true)
-        self:SetBindingClick(true, "PADLSHOULDER", control, "wheelassign")
-        self:SetBindingClick(true, "PADRSHOULDER", control, "wheelassign")
         control:CallMethod("ShowWheel", m, wheelArmed1, wheelArmed2)
     elseif not (wheelArmed1 and wheelArmed2) then
         local armed1, armed2 = wheelArmed1, wheelArmed2
@@ -1242,43 +1302,59 @@ local HOLD_WRAP = [[
     if self:GetAttribute("ttGamePadOverride") ~= "spell" or not self:GetAttribute("ttHoldMenu") then return end
     local ticker = control:GetFrameRef("holdticker")
     if down then
+        -- a wheel left open closes
+        if wheelOpen then control:RunAttribute("CloseWheel") end
         holdTicks = 0
         holdSlot = self
-        wheelOpen, wheelArmed1, wheelArmed2 = false, false, false
+        wheelOpen, wheelSticky, wheelArmed1, wheelArmed2 = false, false, false, false
         if ticker then RegisterUnitWatch(ticker) end
         return
     end
-    if holdSlot == self then
+    -- a release without its press (the key went down before the wheel was left open): ignored while it is open
+    local held = holdSlot == self
+    if held then
         holdSlot = nil
-        if ticker then
-            UnregisterUnitWatch(ticker)
-            ticker:Hide()
-        end
+    elseif wheelSticky then
+        return false
     end
     -- the slot's own totem (the wheel may have changed the spell)
     local source = self:GetFrameRef("ttGamePadSource")
     local spell = source and source:GetAttribute("*spell1")
     if self:GetAttribute("ttWheelOpen") then
-        self:SetAttribute("ttWheelOpen", nil)
-        if ticker then ticker:ClearBindings() end
-        control:CallMethod("HideWheel")
-        -- the totem the stick points at, nothing with the stick in the center
+        -- the totem the stick points at
         local m = self:GetAttribute("ttHoldMenu")
         local totemSlot = self:GetAttribute("ttTotemSlot")
         local i, n = control:RunAttribute("WheelSelection", m, totemSlot and 1 or 0)
-        wheelOpen, wheelArmed1, wheelArmed2, wheelSlot = false, false, false, nil
-        if i and totemSlot and i == 1 then
+        if not i then
+            -- the sticks in the center: the wheel stays open, Cross/A casts, Square/X assigns, Circle/B closes
+            wheelSticky = true
+            if ticker then
+                ticker:SetBindingClick(true, "PAD1", control:GetFrameRef("wheelcast"), "LeftButton")
+                ticker:SetBindingClick(true, "PAD3", control, "wheelassign")
+                ticker:SetBindingClick(true, "PAD2", control, "wheelclose")
+            end
+            control:CallMethod("SetWheelSticky")
+            return false
+        end
+        control:RunAttribute("CloseWheel")
+        if totemSlot and i == 1 then
             -- the destroy segment (at the top): destroys the totem of the timer's element (like a rightclick on the
             -- timer)
             self:SetAttribute("type", "destroytotem")
             self:SetAttribute("totem-slot", totemSlot)
             return
         end
-        local b = i and control:GetFrameRef("m" .. m .. "b" .. (i - (totemSlot and 1 or 0)))
+        local b = control:GetFrameRef("m" .. m .. "b" .. (i - (totemSlot and 1 or 0)))
         spell = b and b:GetAttribute("*spell1")
         if not spell then return false end
+    elseif held then
+        -- released before the wheel opened
+        if ticker then
+            UnregisterUnitWatch(ticker)
+            ticker:Hide()
+        end
+        wheelOpen, wheelSticky, wheelArmed1, wheelArmed2 = false, false, false, false
     end
-    wheelOpen, wheelArmed1, wheelArmed2 = false, false, false
     -- a former destroy segment changed the type
     self:SetAttribute("type", "spell")
     self:SetAttribute("spell", spell)
@@ -1434,10 +1510,12 @@ local function LayoutWheel(n)
     end
 end
 
+local FillWheel
+
 -- called by the hold tick (secure, CallMethod of the navigation button), also in combat
 local function ShowWheel(_, m, armed1, armed2)
     if not wheel then CreateWheel() end
-    -- help with the icons of the held face button (the key of the menu's timer) and of LB/RB
+    -- help with the icon of the held face button (the key of the menu's timer)
     local key
     for i = 1, 4 do
         local timer = XiTimers.timers[i]
@@ -1446,10 +1524,9 @@ local function ShowWheel(_, m, armed1, armed2)
     -- the multicast wheel holds spells, not totems
     local multiSpell = menuParents[m] and menuParents[m] == TotemTimers_MultiSpell
     if multiSpell then key = "PADDRIGHT" end
+    wheel.multiSpell = multiSpell
     wheel.help:SetText(format(L[multiSpell and "Spell Wheel Cast Help" or "Totem Wheel Cast Help"],
-            key and GetPadIconMarkup(key) or "")
-            .. "\n\n" .. format(L[multiSpell and "Spell Wheel Assign Help" or "Totem Wheel Assign Help"],
-            GetPadIconMarkup("PADLSHOULDER"), GetPadIconMarkup("PADRSHOULDER")))
+            key and GetPadIconMarkup(key) or ""))
     -- the usable buttons of the menu, like COUNT (at most 8, one per segment)
     local spells = {}
     for _, button in ipairs(menuButtons[m] or {}) do
@@ -1461,7 +1538,19 @@ local function ShowWheel(_, m, armed1, armed2)
         table.insert(spells, spell or false)
     end
     -- totem wheels: the first segment (at the top) destroys the element's totem (see HOLD_WRAP), the totems follow
-    local destroy = not multiSpell and #spells > 0
+    FillWheel(spells, not multiSpell and #spells > 0, menuParents[m] and menuParents[m]:GetAttribute("*spell1"))
+    wheel.armed[1], wheel.armed[2] = armed1, armed2
+    wheel.demo = nil
+    -- the tutorial's wheel may have moved it
+    wheel:ClearAllPoints()
+    wheel:SetPoint("CENTER")
+    wheel:EnableGamePadStick(true)
+    wheel:Show()
+end
+
+-- segments of the wheel: the spells (false: a button without spell), destroy: a destroy segment first,
+-- assigned: the spell of the timer button (marked)
+function FillWheel(spells, destroy, assigned)
     local extra = destroy and 1 or 0
     wheel.count = #spells + extra
     LayoutWheel(math.max(wheel.count, 1))
@@ -1478,7 +1567,6 @@ local function ShowWheel(_, m, armed1, armed2)
         segment.label:SetShown(i <= wheel.count)
     end
     -- the totem of the timer button
-    local assigned = menuParents[m] and menuParents[m]:GetAttribute("*spell1")
     wheel.assigned = nil
     for i, spell in ipairs(spells) do
         if spell and assigned and C_Spell.GetSpellName(spell) == C_Spell.GetSpellName(assigned) then
@@ -1486,14 +1574,58 @@ local function ShowWheel(_, m, armed1, armed2)
         end
     end
     wheel.selected = false
-    wheel.armed[1], wheel.armed[2] = armed1, armed2
+    wheel.armed[1], wheel.armed[2] = false, false
     for n = 1, 2 do wheel.sticks[n][1], wheel.sticks[n][2] = 0, 0 end
     SetWheelSelection(nil)
-    wheel:EnableGamePadStick(true)
+end
+
+-- the wheel of the tutorial: display only (no sticks, no secure state), spells: totems of the wheel with a destroy
+-- segment (multicast spells without it if multiSpell), key: the pad button named in the help, beside: a frame (the
+-- tutorial window), the wheel is moved right of it (at the height of the screen center, like the real wheel),
+-- sticky: the help of a wheel left open after the release
+local DEMO_WHEEL_GAP = 20
+function GamePad.ShowDemoWheel(spells, key, beside, sticky, multiSpell)
+    if not wheel then CreateWheel() end
+    -- a real wheel is open
+    if wheel:IsShown() and not wheel.demo then return end
+    wheel:ClearAllPoints()
+    local right = beside and beside:GetRight()
+    if right then
+        -- in UIParent units (the frames have the same scale)
+        local x = right + DEMO_WHEEL_GAP + WHEEL_SIZE / 2 - UIParent:GetWidth() / 2
+        wheel:SetPoint("CENTER", UIParent, "CENTER", math.max(x, 0), 0)
+    else
+        wheel:SetPoint("CENTER")
+    end
+    wheel:SetClampedToScreen(true)
+    wheel.multiSpell = multiSpell
+    if sticky then
+        wheel.help:SetText(format(L[multiSpell and "Spell Wheel Sticky Help" or "Totem Wheel Sticky Help"],
+                GetPadIconMarkup("PAD1"), GetPadIconMarkup("PAD3"), GetPadIconMarkup("PAD2")))
+    else
+        wheel.help:SetText(format(L[multiSpell and "Spell Wheel Cast Help" or "Totem Wheel Cast Help"],
+                GetPadIconMarkup(key)))
+    end
+    FillWheel(spells, not multiSpell)
+    wheel.demo = true
     wheel:Show()
 end
 
--- LB/RB assigned the totem of segment i to the timer button (WheelAssign)
+function GamePad.HideDemoWheel()
+    if wheel and wheel.demo then
+        wheel.demo = nil
+        wheel:Hide()
+    end
+end
+
+-- the key was released with the sticks in the center, the wheel stays open (secure, HOLD_WRAP)
+local function SetWheelSticky()
+    if not (wheel and wheel:IsShown()) then return end
+    wheel.help:SetText(format(L[wheel.multiSpell and "Spell Wheel Sticky Help" or "Totem Wheel Sticky Help"],
+            GetPadIconMarkup("PAD1"), GetPadIconMarkup("PAD3"), GetPadIconMarkup("PAD2")))
+end
+
+-- Square/X assigned the totem of segment i to the timer button (WheelAssign)
 local function WheelAssigned(_, i)
     if not wheel then return end
     wheel.assigned = i
@@ -1556,6 +1688,10 @@ local function HideWheel()
     if not (wheel and wheel:IsShown()) then return end
     wheel:EnableGamePadStick(false)
     wheel:Hide()
+    if wheel.demo then
+        wheel.demo = nil
+        return
+    end
     BlockSticksUntilCentered()
 end
 
@@ -1590,7 +1726,15 @@ local function GetHoldTicker()
         nav:SetAttribute("ReadWheelSticks", WHEEL_STICKS)
         nav:SetAttribute("WheelSelection", WHEEL_SELECTION)
         nav:SetAttribute("WheelAssign", WHEEL_ASSIGN)
+        nav:SetAttribute("CloseWheel", CLOSE_WHEEL)
         nav.WheelAssigned = WheelAssigned
+        nav.SetWheelSticky = SetWheelSticky
+        -- Cross/A of a wheel left open casts through this button (WHEEL_CAST_WRAP), on key down
+        local cast = CreateFrame("Button", "TotemTimers_GamePadWheelCast", UIParent, "SecureActionButtonTemplate")
+        cast:RegisterForClicks("AnyDown")
+        cast:SetAttribute("useOnKeyDown", true)
+        SecureHandlerWrapScript(cast, "OnClick", nav, WHEEL_CAST_WRAP)
+        SecureHandlerSetFrameRef(nav, "wheelcast", cast)
     end
     nav:SetAttribute("wheelstickindex1", GetStickIndex("Movement"))
     nav:SetAttribute("wheelstickindex2", GetStickIndex("Camera"))
@@ -1641,8 +1785,11 @@ local function RestoreSlots()
     end
     wipe(overriddenSlots)
     wipe(barModeSlots)
-    -- LB/RB of an open wheel (see WHEEL_ASSIGN)
-    if holdTicker then ClearOverrideBindings(holdTicker) end
+    -- a wheel left open (bindings of the ticker, state of the secure environment)
+    if holdTicker then
+        SecureHandlerExecute(nav, [[ self:RunAttribute("CloseWheel") ]])
+        ClearOverrideBindings(holdTicker)
+    end
     HideWheel()
     if stateDriverTimeChanged then SetStateDriverUpdateTime(DEFAULT_STATE_DRIVER_UPDATE_TIME) end
 end
@@ -2012,7 +2159,7 @@ local function AreLayerTriggersDown(triggers)
 end
 
 function GamePad.UpdateLegend()
-    local key = TotemTimers.ActiveProfile and TotemTimers.ActiveProfile.GamePadLayerKey
+    local key = GamePad.GetLayerKey()
     local triggers = barMode and LayerKeyTriggers[key]
     local show = triggers and nav and nav:GetAttribute("enabled") and AreLayerTriggersDown(triggers)
             and GetCVarBool("GamepadShowPersistentInputLegend") and BuildLegend() and true or false
@@ -2078,7 +2225,7 @@ function GamePad.Apply()
     HookTimers()
     GamePad.SetLayerExpanded(nil, false)
 
-    local key = TotemTimers.ActiveProfile.GamePadLayerKey
+    local key = GamePad.GetLayerKey()
     if active and key and LayerKeyBars[key] then
         local bar = GetLayerKeyBar()
         if bar then
@@ -2131,7 +2278,7 @@ end
 
 function GamePad.Debug()
     local profile = TotemTimers.ActiveProfile
-    local key = profile and profile.GamePadLayerKey
+    local key = GamePad.GetLayerKey()
     local lines = {}
     table.insert(lines, Line("UI:", IsGamepadUI(), "option:", profile and profile.GamePad, "key:", key,
             "enabled:", nav and nav:GetAttribute("enabled"), "pending:", pending))
