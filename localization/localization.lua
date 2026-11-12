@@ -29,14 +29,14 @@ L["GamePad Tutorial Bar"] = "While you hold the trigger button {PADLTRIGGER} + {
 L["GamePad Tutorial Totem Buttons"] = "The face buttons cast your totems:\n\n{PAD1}  Cast earth totem\n{PAD3}  Cast fire totem\n{PAD4}  Cast water totem\n{PAD2}  Cast air totem\n\nThe buttons show your totems and their remaining time."
 L["GamePad Tutorial Totem Wheel"] = "Hold a totem button to open a radial menu with all totems of its element.\n\nChoose a totem with a stick and release the button to cast it."
 L["GamePad Tutorial Sticky Wheel"] = "If you release the button without choosing a totem, the radial menu stays open:\n\n{PAD1}  Cast the selected totem\n{PAD3}  Set the selected totem as the totem of the button, the menu stays open\n{PAD2}  Close the menu\n\nWhile the menu is open, the sticks choose a totem and don't move your character or the camera."
+L["GamePad Tutorial Weapon Wheel"] = "Hold {PADDUP} to open a radial menu with your weapon enchants. Choose an enchant with a stick and release {PADDUP} to put it on your main hand weapon.\n\nLike the totem menus, it stays open if you release the button without choosing an enchant. {PAD3} then sets the selected enchant as the enchant of {PADDUP}."
 L["GamePad Tutorial Multicast Wheel"] = "Hold {PADDRIGHT} to open a radial menu with your multicast spells. Choose a spell with a stick and release {PADDRIGHT} to cast it.\n\nLike the totem menus, it stays open if you release the button without choosing a spell. {PAD3} then sets the selected spell as the spell of {PADDRIGHT}."
-L["GamePad Tutorial DPad Buttons"] = "The d-pad buttons:\n\n{PADDUP}  Open the totem menus\n{PADDRIGHT}  Cast the selected multicast spell\n{PADDDOWN}  {spell:TotemicRecall}\n{PADDLEFT}  {spell:TotemicCall}"
+L["GamePad Tutorial DPad Buttons"] = "The d-pad buttons:\n\n{PADDUP}  Cast the selected weapon enchant\n{PADDRIGHT}  Cast the selected multicast spell\n{PADDDOWN}  {spell:TotemicRecall}\n{PADDLEFT}  {spell:TotemicCall}"
 L["GamePad Tutorial Intro"] = "This tutorial shows how TotemTimers integrates into the gamepad UI.\n\nDuring the tutorial, the trigger button is set to {PADLTRIGGER} + {PADRTRIGGER}. Your setting is restored when the tutorial ends."
 L["GamePad Tutorial Prompt"] = "You have the gamepad UI enabled.\nDo you want to watch a tutorial on how TotemTimers integrates into the gamepad UI?\n\n You can always start the tutorial later from the addon options."
 -- the words for left/rightclick in the tooltips, replaced by gamepad button icons while navigating the menus by gamepad
 L["Leftclick"] = true
 L["Rightclick"] = true
-L["Totem Menus"] = true
 -- help in the totem wheel of the Gamepad UI: %s are the icons of the held face button, LB and RB
 L["Totem Wheel Cast Help"] = "Release %s to cast selected totem."
 L["Spell Wheel Cast Help"] = "Release %s to cast selected spell."

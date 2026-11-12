@@ -46,10 +46,24 @@ local STEPS = {
     { text = "GamePad Tutorial Sticky Wheel", anchor = "bar",
       OnEnter = function() GamePadTutorial.ShowEarthWheel(true) end,
       OnLeave = function() TotemTimers.GamePad.HideDemoWheel() end },
+    { text = "GamePad Tutorial Weapon Wheel", anchor = "bar", arrow = "dpad",
+      OnEnter = function() GamePadTutorial.ShowWeaponWheel() end,
+      OnLeave = function() TotemTimers.GamePad.HideDemoWheel() end },
     { text = "GamePad Tutorial Multicast Wheel", anchor = "bar", arrow = "dpadright",
       OnEnter = function() GamePadTutorial.ShowMulticastWheel() end,
       OnLeave = function() TotemTimers.GamePad.HideDemoWheel() end },
 }
+
+-- the radial menu of d-pad up: the four weapon enchants (also if the player doesn't know them yet)
+local WEAPON_WHEEL_SPELLS = { "RockbiterWeapon", "FlametongueWeapon", "FrostbrandWeapon", "WindfuryWeapon" }
+
+function GamePadTutorial.ShowWeaponWheel()
+    local spells = {}
+    for _, key in ipairs(WEAPON_WHEEL_SPELLS) do
+        table.insert(spells, TotemTimers.SpellIDs[key] or false)
+    end
+    TotemTimers.GamePad.ShowDemoWheel(spells, "PADDUP", _G.TotemTimers_GamePadTutorial, false, true)
+end
 
 -- the radial menu of d-pad right: the three multicast spells (also if the player doesn't know them yet)
 local MULTICAST_WHEEL_SPELLS = { "CallOfElements", "CallOfAncestors", "CallOfSpirits" }
@@ -391,9 +405,12 @@ function GamePadTutorial.ShowPrompt()
     if not GamePadTutorial.prompt then CreatePrompt() end
     GamePadTutorial.prompt:Hide()
     GamePadTutorial.prompt:Show()
+    -- offered once per account, later only from the options
+    TotemTimers_GlobalSettings.GamePadTutorialPrompted = true
 end
 
 local function ShowPromptIfGamepadUI()
+    if TotemTimers_GlobalSettings.GamePadTutorialPrompted then return end
     if TotemTimers.GamePad and TotemTimers.GamePad.IsGamepadUI() then
         GamePadTutorial.ShowPrompt()
     end

@@ -215,6 +215,8 @@ end
 function TotemTimers.WeaponEnchantChanged()
     if TotemTimers.GamePad and TotemTimers.GamePad.UpdateActionButtons then
         TotemTimers.GamePad.UpdateActionButtons()
+        -- the remaining time on the d-pad up slot (bar mode)
+        TotemTimers.GamePad.UpdateBarDurations()
     end
 end
 

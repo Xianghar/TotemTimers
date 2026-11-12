@@ -83,7 +83,6 @@ local DPAD_RIGHT_INDEX = 3
 local DPAD_DOWN_INDEX = 4
 GamePad.OPEN_BUTTON_INDEX = OPEN_BUTTON_INDEX
 GamePad.DPAD_RIGHT_INDEX = DPAD_RIGHT_INDEX
-local OPEN_ICON = "Interface\\AddOns\\TotemTimers\\textures\\totemtimers"
 
 local nav, layer, keyOwner
 local wrapped = {}
@@ -432,6 +431,18 @@ local menuIndices = {}
 local menuButtons = {}
 local menuParents = {}
 
+-- the weapon tracker's button (bar mode: d-pad up casts its enchant, holding it opens the wheel of its menu)
+local function GetWeaponButton()
+    local weapon = TotemTimers.WeaponTracker
+    return weapon and weapon.button
+end
+
+-- attribute with the spell a source button casts: the weapon tracker uses spell1 (leftclick, main hand),
+-- the totem timers and the multicast button *spell1
+local function GetSpellAttribute(source)
+    return source == GetWeaponButton() and "spell1" or "*spell1"
+end
+
 local function UpdateMenus()
     local menus = {}
     local multiMenu, earthMenu
@@ -445,6 +456,10 @@ local function UpdateMenus()
             table.insert(menus, { parent = timer.button, bar = timer.actionBar })
             if timer.nr == EARTH_TOTEM_SLOT then earthMenu = #menus end
         end
+    end
+    local weapon = TotemTimers.WeaponTracker
+    if weapon and weapon.actionBar then
+        table.insert(menus, { parent = weapon.button, bar = weapon.actionBar })
     end
 
     for m, menu in ipairs(menus) do
@@ -730,7 +745,8 @@ local function UpdateSlotDuration(slot)
     else
         slot.cooldown:Clear()
     end
-    slot.active:SetShown(showActiveTotems and slot.timer and durObj and IsOtherTotemActive(slot.timer) or false)
+    slot.active:SetShown(showActiveTotems and slot.timer and not slot.notTotem and durObj
+            and IsOtherTotemActive(slot.timer) or false)
     if slot.timeBinding then
         if durObj then
             slot.timeBinding:SetDuration(durObj)
@@ -743,8 +759,9 @@ local function UpdateSlotDuration(slot)
 end
 
 -- shows a slot with the texture, timer: totem timer whose duration is shown, cooldownSpell: spell whose cooldown
--- is shown (slots without timer)
-local function ShowSlot(bar, index, texture, timer, cooldownSpell)
+-- is shown (slots without timer), notTotem: the timer isn't a totem timer (weapon tracker: its first timer is shown,
+-- no active totem icon, no range dots)
+local function ShowSlot(bar, index, texture, timer, cooldownSpell, notTotem)
     if barMode and not barModeSlots[index] then return end
     local button = texture and index and bar:GetActionButtonByIndex(index)
     if not (button and button.icon) then return end
@@ -754,8 +771,9 @@ local function ShowSlot(bar, index, texture, timer, cooldownSpell)
     UpdateSlotLayout(slot, bar)
     slot.icon:SetTexture(texture)
     slot.timer = timer
+    slot.notTotem = notTotem
     slot.cooldownSpell = not timer and cooldownSpell or nil
-    if timer then
+    if timer and not notTotem then
         -- the timer button's icon shows the active totem while the timer runs, its texture is handed on without
         -- being read (it might be secret)
         local sourceIcon = timer.button.icons[1]
@@ -820,11 +838,13 @@ function GamePad.UpdateBarIcons()
         end
     end
 
-    -- d-pad: up opens the totem menus, right casts the selected multicast spell,
-    -- down Totemic Recall, left Totemic Call
+    -- d-pad: up casts the weapon tracker's enchant (with the remaining time of the main hand's enchant), right the
+    -- selected multicast spell, down Totemic Recall, left Totemic Call
     local multiSpell = TotemTimers_MultiSpell
     local multiSpellID = multiSpell and multiSpell:GetAttribute("active") and multiSpell:GetAttribute("*spell1")
-    ShowSlot(bar, OPEN_BUTTON_INDEX, OPEN_ICON)
+    local weapon = TotemTimers.WeaponTracker
+    local weaponSpell = weapon and weapon.button:GetAttribute("spell1")
+    ShowSlot(bar, OPEN_BUTTON_INDEX, weaponSpell and C_Spell.GetSpellTexture(weaponSpell), weapon, nil, true)
     ShowSlot(bar, DPAD_RIGHT_INDEX, multiSpellID and C_Spell.GetSpellTexture(multiSpellID))
     ShowSlot(bar, DPAD_DOWN_INDEX,
             GetAvailableSpellName(SpellIDs.TotemicRecall) and C_Spell.GetSpellTexture(SpellIDs.TotemicRecall))
@@ -1117,6 +1137,12 @@ local function HookTimers()
         hooksecurefunc(TotemTimers, "MultiSpellActivate", function() GamePad.Apply() end)
         hookedTimers[multiSpell] = true
     end
+    -- the weapon tracker's enchant changed (SaveLastEnchant runs on each change of its spells)
+    local weapon = TotemTimers.WeaponTracker
+    if weapon and weapon.button.SaveLastEnchant and not hookedTimers[weapon] then
+        hooksecurefunc(weapon.button, "SaveLastEnchant", GamePad.UpdateBarIcons)
+        hookedTimers[weapon] = true
+    end
 end
 
 -- learned spells (Totemic Recall, Totemic Call, multicast spells), runs out of combat
@@ -1138,7 +1164,7 @@ local overriddenSlots = {}
 -- a source button (totem timer, multicast button) sets the spell of its bar slot when its spell changes,
 -- also in combat
 local SPELL_SOURCE_WRAP = [[
-    if name == "*spell1" then
+    if name == (self:GetAttribute("ttspellattr") or "*spell1") then
         local slot = self:GetFrameRef("ttGamePadSlot")
         if slot and slot:GetAttribute("ttGamePadOverride") == "spell" then
             slot:SetAttribute("spell", value)
@@ -1231,8 +1257,16 @@ local WHEEL_ASSIGN = [[
     local spell = b and b:GetAttribute("*spell1")
     local source = wheelSlot:GetFrameRef("ttGamePadSource")
     if spell and source then
-        source:SetAttribute("*type1", "spell")
-        source:SetAttribute("*spell1", spell)
+        if source:GetAttribute("ttspellattr") == "spell1" then
+            -- weapon tracker: the leftclick (main hand), like its menu without modifier
+            source:SetAttribute("doublespell1", nil)
+            source:SetAttribute("doublespell2", nil)
+            source:SetAttribute("type1", "spell")
+            source:SetAttribute("spell1", spell)
+        else
+            source:SetAttribute("*type1", "spell")
+            source:SetAttribute("*spell1", spell)
+        end
         self:CallMethod("WheelAssigned", i)
     end
 ]]
@@ -1319,7 +1353,7 @@ local HOLD_WRAP = [[
     end
     -- the slot's own totem (the wheel may have changed the spell)
     local source = self:GetFrameRef("ttGamePadSource")
-    local spell = source and source:GetAttribute("*spell1")
+    local spell = source and source:GetAttribute(source:GetAttribute("ttspellattr") or "*spell1")
     if self:GetAttribute("ttWheelOpen") then
         -- the totem the stick points at
         local m = self:GetAttribute("ttHoldMenu")
@@ -1521,9 +1555,14 @@ local function ShowWheel(_, m, armed1, armed2)
         local timer = XiTimers.timers[i]
         if timer and timer.button == menuParents[m] then key = TimerKeys[timer.nr] end
     end
-    -- the multicast wheel holds spells, not totems
-    local multiSpell = menuParents[m] and menuParents[m] == TotemTimers_MultiSpell
-    if multiSpell then key = "PADDRIGHT" end
+    -- the multicast and the weapon wheel hold spells, not totems
+    local parent = menuParents[m]
+    local multiSpell = parent and (parent == TotemTimers_MultiSpell or parent == GetWeaponButton())
+    if parent and parent == TotemTimers_MultiSpell then
+        key = "PADDRIGHT"
+    elseif parent and parent == GetWeaponButton() then
+        key = "PADDUP"
+    end
     wheel.multiSpell = multiSpell
     wheel.help:SetText(format(L[multiSpell and "Spell Wheel Cast Help" or "Totem Wheel Cast Help"],
             key and GetPadIconMarkup(key) or ""))
@@ -1538,7 +1577,7 @@ local function ShowWheel(_, m, armed1, armed2)
         table.insert(spells, spell or false)
     end
     -- totem wheels: the first segment (at the top) destroys the element's totem (see HOLD_WRAP), the totems follow
-    FillWheel(spells, not multiSpell and #spells > 0, menuParents[m] and menuParents[m]:GetAttribute("*spell1"))
+    FillWheel(spells, not multiSpell and #spells > 0, parent and parent:GetAttribute(GetSpellAttribute(parent)))
     wheel.armed[1], wheel.armed[2] = armed1, armed2
     wheel.demo = nil
     -- the tutorial's wheel may have moved it
@@ -1760,8 +1799,11 @@ end
 
 -- the slot casts the *spell1 of the source button and follows its changes
 local function OverrideSlotWithSource(bar, index, source)
-    local slot = OverrideSlot(bar, index, "spell", source:GetAttribute("*spell1"))
+    local attr = GetSpellAttribute(source)
+    local slot = OverrideSlot(bar, index, "spell", source:GetAttribute(attr))
     if not slot then return end
+    -- the attribute the wraps follow and assign (SPELL_SOURCE_WRAP, HOLD_WRAP, WHEEL_ASSIGN)
+    source:SetAttribute("ttspellattr", attr)
     SecureHandlerSetFrameRef(source, "ttGamePadSlot", slot)
     SecureHandlerSetFrameRef(slot, "ttGamePadSource", source)
     if not wrappedSources[source] then
@@ -1822,8 +1864,12 @@ local function ApplyBarMode(bar)
             SetupHoldWheel(bar, index, timer.button, timer.nr)
         end
     end
-    -- the click is handed on as a release, the navigation button takes the LeftButton click as "open"
-    OverrideSlot(bar, OPEN_BUTTON_INDEX, "click", nav)
+    -- d-pad up casts the weapon tracker's enchant (main hand), holding it opens the wheel of its menu
+    local weaponButton = GetWeaponButton()
+    if weaponButton and TotemTimers.ActiveProfile.WeaponTracker then
+        OverrideSlotWithSource(bar, OPEN_BUTTON_INDEX, weaponButton)
+        SetupHoldWheel(bar, OPEN_BUTTON_INDEX, weaponButton)
+    end
     -- a click on the multicast button would be handed on as a release, which it ignores (it casts on key down),
     -- so the slot casts its spell itself
     local multiSpell = TotemTimers_MultiSpell
@@ -2035,6 +2081,11 @@ local function SetMenusAtBar(bar)
         local slot = bar and bar:GetActionButtonByIndex(DPAD_RIGHT_INDEX)
         SetMenuAtBar(multiSpell, multiSpell.actionBar, slot)
     end
+    local weapon = TotemTimers.WeaponTracker
+    if weapon then
+        local slot = bar and bar:GetActionButtonByIndex(OPEN_BUTTON_INDEX)
+        SetMenuAtBar(weapon.button, weapon.actionBar, slot)
+    end
 end
 
 -- Input legend (bar mode): while the triggers of the layer key are held, a legend of TotemTimers' slots is shown in
@@ -2128,7 +2179,9 @@ local function GetLegendText(info)
     end
     if not barModeSlots[info.slot] then return nil end
     if info.slot == OPEN_BUTTON_INDEX then
-        return L["Totem Menus"]
+        local weaponButton = GetWeaponButton()
+        local spell = weaponButton and weaponButton:GetAttribute("spell1")
+        return spell and C_Spell.GetSpellName(spell)
     elseif info.slot == DPAD_RIGHT_INDEX then
         local spell = TotemTimers_MultiSpell and TotemTimers_MultiSpell:GetAttribute("*spell1")
         return spell and C_Spell.GetSpellName(spell)

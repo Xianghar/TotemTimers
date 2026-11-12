@@ -1,5 +1,9 @@
 # TotemTimers
 
+## 20.8
+- Added tutorial for gamepad mode
+- Added weapon enchant menu to gamepad mode
+
 ## 20.7
 - Added radial menus when holding a totem or multispell button in the gamepad UI.
 
