@@ -516,6 +516,10 @@ SettingsFunctions = {
         end
     end,
 
+    MouseoverAlpha = function(value, Timers)
+        XiTimers.SetMouseoverAlpha(value)
+    end,
+
 
     TimersOnButtons = function(value, Timers)
         for i = 1, 8 do

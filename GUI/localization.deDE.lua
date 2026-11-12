@@ -184,6 +184,8 @@ L["Long Cooldowns"] = "Lange Abklingzeiten"
 L["Maelstrom Bar Height"] = "Mahlstromleistenhöhe"
 L["OOC Opacity"] = "OOC-Transparenz"
 L["OOC Opacity Desc"] = "Steuert die Transparenz der Knöpfe außerhalb des Kampfs, 0 = transparent, 1 = undurchsichtig"
+L["Mouseover Opacity"] = "Mouseover-Transparenz"
+L["Mouseover Opacity Desc"] = "Transparenz aller Knöpfe, solange die Maus über keinem von ihnen ist (im und außerhalb des Kampfs). Fährt die Maus über einen Knopf, werden alle vollständig angezeigt. 1 = aus"
 L["Show OmniCC counters"] = "OmniCC-Timer"
 L["Spells"] = "Zauber"
 

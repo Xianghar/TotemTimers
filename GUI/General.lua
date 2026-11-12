@@ -211,6 +211,19 @@ TotemTimers.options = {
                           end,
                     get = function(info) return TotemTimers.ActiveProfile.OOCAlpha end,
                 },
+                MouseoverAlpha = {
+                    order = 140,
+                    type="range",
+                    min = 0,
+                    max = 1,
+                    step = 0.1,
+                    name = L["Mouseover Opacity"],
+                    desc = L["Mouseover Opacity Desc"],
+                    set = function(info, val)
+                                TotemTimers.ActiveProfile.MouseoverAlpha = val  TotemTimers.ProcessSetting("MouseoverAlpha")
+                          end,
+                    get = function(info) return TotemTimers.ActiveProfile.MouseoverAlpha end,
+                },
                 h2 = {
                     order = -10,
                     type = "header",

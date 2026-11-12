@@ -312,6 +312,7 @@ TotemTimers.DefaultProfile = {
         EnhanceCDsMaelstromHeight = 14,
         ShowOmniCCOnEnhanceCDs = true,
         OOCAlpha = 1,
+        MouseoverAlpha = 1,
         EnhanceCDsOOCAlpha = 0.4,
         CDTimersOnButtons = true,
         FlameShockDurationOnTop = false,
@@ -606,7 +607,7 @@ local GeneralList = {
     "TimerBarColor", "ShowKeybinds", "HideInVehicle",
     "TimersOnButtons", "LavaSurgeAura",
     "LavaSurgeGlow", "FulminationAura", "FulminationGlow",
-    "StopPulse", "TrackerStopPulse", "CooldownAlpha", "OOCAlpha",
+    "StopPulse", "TrackerStopPulse", "CooldownAlpha", "OOCAlpha", "MouseoverAlpha",
 }
 
 function TotemTimers.CopyGeneralSettings(p1,p2)

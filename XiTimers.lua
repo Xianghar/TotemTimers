@@ -1042,6 +1042,71 @@ end
         XiTimers.OOCFaderEvent(nil, (InCombatLockdown() and "PLAYER_REGEN_DISABLED") or "PLAYER_REGEN_ENABLED")
     end
 
+    -- Mouseover opacity: while the cursor is over none of the buttons (timer buttons, multicast button and
+    -- their menu buttons), all buttons are faded to XiTimers.MouseoverAlpha (if lower than the out-of-combat
+    -- alpha), hovering any of them shows all at full opacity. 1 = off.
+    XiTimers.MouseoverAlpha = 1
+    local mouseOver = false
+
+    -- alpha of a button: out-of-combat alpha (1 in combat), lowered to the mouseover alpha while not hovered
+    local function FadedAlpha(oocAlpha)
+        if mouseOver then return 1 end
+        local alpha = incombat and 1 or (oocAlpha or 1)
+        return math.min(alpha, XiTimers.MouseoverAlpha)
+    end
+
+    function XiTimers.UpdateFade()
+        for _,timer in pairs(XiTimers.timers) do
+            local alpha = FadedAlpha(timer.OOCAlpha)
+            timer.button:SetAlpha(alpha)
+            if timer.ChainOOCAlpha then timer.ChainOOCAlpha:SetAlpha(alpha) end
+        end
+        if TotemTimers_MultiSpell then
+            TotemTimers_MultiSpell:SetAlpha(FadedAlpha(TotemTimers_MultiSpell.OOCAlpha))
+        end
+    end
+
+    local function Hovered(frame)
+        return frame and frame:IsVisible() and frame:IsMouseOver()
+    end
+
+    local function IsMouseOverAnyButton()
+        for _,timer in pairs(XiTimers.timers) do
+            if Hovered(timer.button) then return true end
+        end
+        if Hovered(TotemTimers_MultiSpell) then return true end
+        if TTActionBars then
+            for _,bar in pairs(TTActionBars.bars) do
+                for _,button in pairs(bar.buttons) do
+                    if Hovered(button) then return true end
+                end
+            end
+        end
+        return false
+    end
+
+    -- polls the cursor while a mouseover alpha is set (the menu buttons come and go, so no OnEnter/OnLeave hooks)
+    local mouseoverFrame = CreateFrame("Frame")
+    mouseoverFrame:Hide()
+    local mouseoverElapsed = 0
+    mouseoverFrame:SetScript("OnUpdate", function(self, elapsed)
+        mouseoverElapsed = mouseoverElapsed + elapsed
+        if mouseoverElapsed < 0.1 then return end
+        mouseoverElapsed = 0
+        local over = IsMouseOverAnyButton()
+        if over ~= mouseOver then
+            mouseOver = over
+            XiTimers.UpdateFade()
+        end
+    end)
+
+    function XiTimers.SetMouseoverAlpha(alpha)
+        XiTimers.MouseoverAlpha = alpha or 1
+        mouseOver = false
+        mouseoverFrame:SetShown(XiTimers.MouseoverAlpha < 1)
+        XiTimers.UpdateFade()
+    end
+
     XiTimers.OOCFaderEvent = function(self, event, arg1, arg2)
         if event == "PLAYER_REGEN_ENABLED" then
             incombat = false
@@ -1049,11 +1114,6 @@ end
                 if timer.active and timer.unclickable and timer.HideOOC then
                     timer:Hide()
                 end
-                timer.button:SetAlpha(timer.OOCAlpha)
-                if timer.ChainOOCAlpha then timer.ChainOOCAlpha:SetAlpha(timer.OOCAlpha) end
-            end
-            if TotemTimers_MultiSpell then
-                TotemTimers_MultiSpell:SetAlpha(TotemTimers_MultiSpell.OOCAlpha or 1)
             end
         elseif event == "PLAYER_REGEN_DISABLED" then
             incombat = true
@@ -1061,13 +1121,9 @@ end
                 if timer.active and timer.unclickable and timer.HideOOC and not timer.ActiveWhileHidden and not timer.hideInactive then
                     timer:Show()
                 end
-                timer.button:SetAlpha(1)
-                if timer.ChainOOCAlpha then timer.ChainOOCAlpha:SetAlpha(1) end
-            end
-            if TotemTimers_MultiSpell then
-                TotemTimers_MultiSpell:SetAlpha(1)
             end
         end
+        XiTimers.UpdateFade()
     end
     oocframe:SetScript("OnEvent", XiTimers.OOCFaderEvent)
 

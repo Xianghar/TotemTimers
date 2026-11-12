@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.11
+- Added option for mouseover opacity. If set to lower than 1, timers fade out when not hovering over them.
+
 ## 20.10
 - Added options to hide totems from the menus again
 
