@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.9
+- Fixed duplicate TT macros after login, existing duplicates are deleted
+
 ## 20.8
 - Added tutorial for gamepad mode
 - Added weapon enchant menu to gamepad mode

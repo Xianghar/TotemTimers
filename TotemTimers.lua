@@ -33,6 +33,10 @@ TotemTimers.ElementColors = {
 
 local updateAfterCombat = false
 local macroNeedsUpdate = false
+-- character macros arrive from the server after PLAYER_ENTERING_WORLD, until then
+-- GetMacroIndexByName/GetNumMacros don't know them
+local macrosLoaded = false
+local duplicateMacroCheckNeeded = false
 local lastSpellsChanged = 0
 
 local runes = {}
@@ -40,12 +44,29 @@ local runes = {}
 local function TotemTimers_OnEvent(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
         TotemTimersFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
+        local _, isReloadingUi = ...
+        -- after a UI reload the macros are already there, UPDATE_MACROS doesn't come again
+        if isReloadingUi then
+            macrosLoaded = true
+            TotemTimers.DeleteDuplicateMacros()
+        end
         TotemTimers.SetupGlobals()
+    elseif event == "UPDATE_MACROS" then
+        -- stays registered: the character macros can arrive in a later UPDATE_MACROS than
+        -- the account macros; the duplicate check is cheap and finds nothing on later calls
+        macrosLoaded = true
+        TotemTimers.DeleteDuplicateMacros()
+        if macroNeedsUpdate and TotemTimers_IsSetUp then
+            TotemTimers.UpdateMacro()
+        end
     elseif event == "PLAYER_REGEN_ENABLED" then
         --TotemTimers_ProcessQueue()
         if updateAfterCombat then
             TotemTimers.ChangedTalents(true)
             updateAfterCombat = false
+        end
+        if duplicateMacroCheckNeeded then
+            TotemTimers.DeleteDuplicateMacros()
         end
         if macroNeedsUpdate then
             TotemTimers.UpdateMacro()
@@ -107,6 +128,7 @@ local function TotemTimers_OnEvent(self, event, ...)
 end
 
 TotemTimersFrame:SetScript("OnEvent", TotemTimers_OnEvent)
+TotemTimersFrame:RegisterEvent("UPDATE_MACROS")
 
 function TotemTimers.SetupGlobals()
 	if TotemTimers_IsSetUp then
@@ -526,9 +548,56 @@ local ElementNames = {
     [AIR_TOTEM_SLOT] = "Air",
 }
 
+local MaxCharacterMacros = Constants.MacroConsts and Constants.MacroConsts.MAX_CHARACTER_MACROS
+        or MAX_CHARACTER_MACROS or 18
+local MaxAccountMacros = Constants.MacroConsts and Constants.MacroConsts.MAX_ACCOUNT_MACROS
+        or MAX_ACCOUNT_MACROS or 120
+-- question mark icon (INV_Misc_QuestionMark): the macro shows the icon of the spell it casts
+local DynamicMacroIcon = 134400
+
+-- Removes duplicates of TotemTimers' own character macros (created by earlier versions
+-- that ran before the character macros were loaded). Keeps the one with the lowest index,
+-- the one GetMacroIndexByName returns and UpdateMacro edits.
+function TotemTimers.DeleteDuplicateMacros()
+    if not macrosLoaded then return end
+    if InCombatLockdown() then
+        duplicateMacroCheckNeeded = true
+        return
+    end
+    duplicateMacroCheckNeeded = false
+
+    local ownNames = { ["TT Cast"] = true }
+    for _, element in pairs(ElementNames) do
+        ownNames["TT " .. element] = true
+    end
+
+    local _, numCharacterMacros = GetNumMacros()
+    local first = MaxAccountMacros + 1
+    local last = MaxAccountMacros + numCharacterMacros
+
+    local seen, duplicates = {}, {}
+    for index = first, last do
+        local name = GetMacroInfo(index)
+        if name and ownNames[name] then
+            if seen[name] then
+                table.insert(duplicates, index)
+            else
+                seen[name] = true
+            end
+        end
+    end
+
+    -- delete from the highest index down, deleting shifts the following macros
+    for i = #duplicates, 1, -1 do
+        DeleteMacro(duplicates[i])
+    end
+end
+
 function TotemTimers.UpdateMacro()
     --if TotemTimers.Settings.Style == "buff" then return end
-    if not InCombatLockdown() then
+    if not macrosLoaded then
+        macroNeedsUpdate = true
+    elseif not InCombatLockdown() then
         macroNeedsUpdate = false
         local _, used = GetNumMacros()
         local macroIndex = GetMacroIndexByName("TT Cast")
@@ -559,11 +628,11 @@ function TotemTimers.UpdateMacro()
                 local macroName = "TT "..ElementNames[timer.nr]
                 local index = GetMacroIndexByName(macroName)
 
-                if used < 18 or index ~= 0 then
+                if used < MaxCharacterMacros or index ~= 0 then
                     if index == 0 then
-                        CreateMacro(macroName, "INV_MISC_QUESTIONMARK", elementMacro, true)
+                        CreateMacro(macroName, DynamicMacroIcon, elementMacro, true)
                     else
-                        EditMacro(index, macroName, nil, elementMacro)
+                        EditMacro(index, macroName, DynamicMacroIcon, elementMacro)
                     end
                 end
             end
@@ -573,9 +642,9 @@ function TotemTimers.UpdateMacro()
 
         local nr = GetMacroIndexByName("TT Cast")
         if nr == 0 then
-            CreateMacro("TT Cast", "INV_MISC_QUESTIONMARK", sequence, true)
+            CreateMacro("TT Cast", DynamicMacroIcon, sequence, true)
         else
-            EditMacro(nr, "TT Cast", nil, sequence)
+            EditMacro(nr, "TT Cast", DynamicMacroIcon, sequence)
         end
     else
         macroNeedsUpdate = true
