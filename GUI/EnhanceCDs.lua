@@ -39,6 +39,7 @@ for i = 1, 3 do
 end
 
 TotemTimers.options.args.enhancecds = {
+    order = 3,
     type = "group",
     name = "Combat Cooldowns",
     childGroups = "tab",

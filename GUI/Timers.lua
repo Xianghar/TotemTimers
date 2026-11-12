@@ -30,6 +30,7 @@ local SpellIDs = TotemTimers.SpellIDs
 local SpellNames = TotemTimers.SpellNames
 
 TotemTimers.options.args.timers = {
+    order = 1,
     type = "group",
     name = "Timers",
     args = {

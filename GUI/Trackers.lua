@@ -10,8 +10,12 @@ local SpellIDs = TotemTimers.SpellIDs
 local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers_GUI", true)
 
 TotemTimers.options.args.trackers = {
+    order = 2,
     type = "group",
     name = "Trackers",
+    -- tab: in the /tt window the tracker groups are a tree inside the page (in a "Trackers" tab)
+    -- instead of being added to the window's left column
+    childGroups = "tab",
     args = {
         clickthrough = {
             order = 1,

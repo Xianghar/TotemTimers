@@ -4,6 +4,7 @@ local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers_GUI", true)
 
 
 TotemTimers.options.args.sets = {
+    order = 6,
     type = "group",
     name = "Sets",
     args = {},

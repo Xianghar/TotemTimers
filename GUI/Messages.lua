@@ -17,8 +17,12 @@ local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers_GUI", true)
 local SpellIDs = TotemTimers.SpellIDs
 
 TotemTimers.options.args.messages = {
+    order = 4,
     type = "group",
     name = "Warnings",
+    -- tab: in the /tt window the warning groups are a tree inside the page (in a "Warnings" tab)
+    -- instead of being added to the window's left column
+    childGroups = "tab",
     args = {
         ActivateHiddenTimers = {
             order = 0,

@@ -18,8 +18,12 @@ local function CreateProfileList()
 end
 
 TotemTimers.options.args.profiles = {
+    order = 7,
     type = "group",
     name = "Profiles",
+    -- tab: "Select Profiles" and "Manage Profiles" are tabs inside the page instead of entries
+    -- in the /tt window's left column
+    childGroups = "tab",
     args = {
         ["select"] = {
             order = 1,

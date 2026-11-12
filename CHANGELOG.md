@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.10
+- Added options to hide totems from the menus again
+
 ## 20.9
 - Fixed duplicate TT macros after login, existing duplicates are deleted
 

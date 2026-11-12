@@ -34,9 +34,7 @@ TotemTimers.SpellIDs = {
     Sentry = 6495, --
     Windwall = 15107, --
     GraceOfAir = 8835, --
-    TranquilAir = 25908, --
-	
-    
+
     Ankh = 20608,
     LightningShield = 324,
 
@@ -65,7 +63,6 @@ TotemTimers.SpellIDs = {
     WaterShield = 408510,
     EarthShield = 408514,
     DualWield = 674,
-    DecoyTotem = 425874,
     LavaBurst = 408490,
     SpiritAlpha = 408696,
     ShamanisticRage = 425336,
@@ -182,9 +179,6 @@ TotemData = {
 		element = FIRE_TOTEM_SLOT,
         warningPoint = 5,
 	},
-    [TotemTimers.SpellIDs.FireNova] = {
-        element = FIRE_TOTEM_SLOT,
-    },
 	[TotemTimers.SpellIDs.Magma] = {
 		element = FIRE_TOTEM_SLOT,
 	},
@@ -248,14 +242,6 @@ TotemData = {
     [TotemTimers.SpellIDs.GraceOfAir] = {
         element = AIR_TOTEM_SLOT,
         buff = 8836,
-    },
-    [TotemTimers.SpellIDs.TranquilAir] = {
-        element = AIR_TOTEM_SLOT,
-        buff = 25909,
-    },
-    [TotemTimers.SpellIDs.DecoyTotem] = {
-        element = EARTH_TOTEM_SLOT,
-        buff = 436391,
     },
 }
 
@@ -394,7 +380,6 @@ TotemTimers.TotemBuffAuraSpells = {
     [15108] = { 15108, 15109, 15110 }, -- Windwall
     [8836] = { 8836, 10626, 25360 }, -- Grace of Air
     [25909] = { 25909 }, -- Tranquil Air
-    [436391] = { 436391 }, -- Decoy Totem
 }
 
 TotemTimers.CombatCooldownSpells = {
