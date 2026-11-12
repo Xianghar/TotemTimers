@@ -18,7 +18,6 @@ function TotemTimers.CreateAnkhTracker()
     ankh.showCooldown = true
     ankh.dontAlpha = true
     ankh.button.icons[1]:SetAlpha(1)
-    ankh.timeStyle = "blizz"
     ankh.Activate = function(self)
         XiTimers.Activate(self)
         TotemTimers.AnkhEvent(ankh.button, "SPELL_UPDATE_COOLDOWN")

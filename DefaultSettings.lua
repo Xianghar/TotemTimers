@@ -4,10 +4,10 @@ local _, TotemTimers = ...
 
 local SpellIDs = TotemTimers.SpellIDs
 local SpellNames = TotemTimers.SpellNames
-local Version = 11.5
+local Version = 11.6
 
 TotemTimers.DefaultGlobalSettings = {
-	Version = 11.5,
+	Version = 11.6,
     Profiles = {},
     Sink = {
         sink20OutputSink="Default",
@@ -55,7 +55,7 @@ TotemTimers.DefaultProfile = {
         Show = true,
         Order = {1,2,3,4,},
         Arrange = "horizontal",
-        TimeStyle = "mm:ss",
+        TimeStyle = "blizz",
         TimerTimePos = "BOTTOM",   
         CastBarDirection = "auto",
         TimerSize = 32,
@@ -443,13 +443,13 @@ function TotemTimers.ExecuteProfile()
 end
 
 local SettingsConverters = {
-    [11.0] = function() TotemTimers_GlobalSettings.Version = Version end,
-    [11.1] = function() TotemTimers_GlobalSettings.Version = Version end,
+    [11.0] = function() TotemTimers_GlobalSettings.Version = 11.1 end,
+    [11.1] = function() TotemTimers_GlobalSettings.Version = 11.2 end,
     [11.2] = function()
         for k,profile in pairs(TotemTimers_Profiles) do
             if profile.OOCAlpha == 0.4 then profile.OOCAlpha = 1 end
         end
-        TotemTimers_GlobalSettings.Version = Version
+        TotemTimers_GlobalSettings.Version = 11.3
     end,
     -- TrackerTimeHeight and EnhanceCDsTimeHeight were merged into TimerTimeHeight
     [11.3] = function()
@@ -457,7 +457,7 @@ local SettingsConverters = {
             profile.TrackerTimeHeight = nil
             profile.EnhanceCDsTimeHeight = nil
         end
-        TotemTimers_GlobalSettings.Version = Version
+        TotemTimers_GlobalSettings.Version = 11.4
     end,
     -- the twisting timer and the Windfury Totem downrank option were removed
     [11.4] = function()
@@ -465,6 +465,13 @@ local SettingsConverters = {
             profile.TwistingTimer = nil
             profile.WindfuryDownrank = nil
             profile.EnhanceCDsTotemTwisting = nil
+        end
+        TotemTimers_GlobalSettings.Version = 11.5
+    end,
+    -- the default of TimeStyle was "mm:ss" by mistake, while the timers were shown in Blizzard style
+    [11.5] = function()
+        for k,profile in pairs(TotemTimers_Profiles) do
+            profile.TimeStyle = "blizz"
         end
         TotemTimers_GlobalSettings.Version = Version
     end,

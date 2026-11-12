@@ -114,7 +114,7 @@ end
 -- configuration the slot buttons are built with
 function AuraDisplay:GetConfig()
     local timer = self.timer
-    local config = { timeShown = self.timeShown }
+    local config = { timeShown = self.timeShown, timeStyle = self.timeShown and XiTimers.TimeStyle or nil }
     if self.dot then
         config.dotColor = { unpack(self.dotColor) }
     end
@@ -136,7 +136,7 @@ function AuraDisplay:GetConfig()
     return config
 end
 
-local configKeys = { "timeShown", "showBar", "showSwirl", "texture", "barColor", "backgroundColor", "font", "textColor",
+local configKeys = { "timeShown", "timeStyle", "showBar", "showSwirl", "texture", "barColor", "backgroundColor", "font", "textColor",
     "dotColor" }
 
 local function ConfigSignature(config)
@@ -334,7 +334,8 @@ function AuraDisplay:InitSlotButton(button, frameLevel, regions)
 
     local count
     if config.timeShown then
-        button:SetDurationText(time, nil)
+        local timeFormatter = XiTimers.GetTimeFormatter(true)
+        button:SetDurationText(time, timeFormatter and { textFormatter = timeFormatter } or nil)
         regions.time = time
         count = texts:CreateFontString(nil, "OVERLAY")
         count:SetFontObject(parent.count and parent.count:GetFontObject() or "NumberFontNormal")

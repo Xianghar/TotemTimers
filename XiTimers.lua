@@ -50,6 +50,83 @@ end
 XiTimers.CanBindDurationText = CanBindDurationText
 XiTimers.GetSecondsFormatter = GetSecondsFormatter
 
+-- breakpoints of the rule formatted time styles, times are rounded up to whole seconds (minutes rounded up, too)
+-- tests: input -> expected output, the style falls back to "blizz" if the game formats differently
+local function TimeStyleRules(rounding)
+    local mmss = { step = 1, rounding = rounding.Up, format = "%d:%02d", components = {
+        { div = 60, step = 1, rounding = rounding.Down },
+        { mod = 60, step = 1, rounding = rounding.Down },
+    } }
+    return {
+        -- minutes:seconds
+        ["mm:ss"] = {
+            breakpoints = { CreateFromMixins(mmss, { threshold = 0 }) },
+            tests = { [125] = "2:05", [44.2] = "0:45" },
+        },
+        -- minutes from 10 minutes, minutes:seconds above 60 seconds, seconds without suffix up to 60 seconds
+        ["m-mm:ss-s"] = {
+            breakpoints = {
+                { threshold = 0, step = 1, rounding = rounding.Up, format = "%d" },
+                CreateFromMixins(mmss, { threshold = 60.001 }),
+                { threshold = 599.001, step = 1, rounding = rounding.Up, format = "%dm", components = {
+                    { div = 60, step = 1, rounding = rounding.Up },
+                } },
+            },
+            tests = { [44.2] = "45", [60] = "60", [60.5] = "1:01", [125] = "2:05", [599] = "9:59", [600] = "10m",
+                [630] = "11m" },
+        },
+    }
+end
+
+-- formatters of the rule formatted time styles, false if not available
+local timeStyleFormatters = {}
+local function GetTimeStyleFormatter(style)
+    if timeStyleFormatters[style] == nil then
+        local ok, formatter = pcall(function()
+            local rule = TimeStyleRules(Enum.NumericRuleFormatRounding)[style]
+            if not rule then return end
+            local f = C_StringUtil.CreateNumericRuleFormatter()
+            f:SetBreakpoints(rule.breakpoints)
+            for input, expected in pairs(rule.tests) do
+                if f:FormatNumber(input) ~= expected then return end
+            end
+            return f
+        end)
+        timeStyleFormatters[style] = ok and formatter or false
+    end
+    return timeStyleFormatters[style] or nil
+end
+
+-- time style of all duration texts (setting TimeStyle): "blizz" (game style, 5m / 45), "mm:ss" or "m-mm:ss-s"
+XiTimers.TimeStyle = "blizz"
+local timeBindings = setmetatable({}, { __mode = "k" })
+
+-- formatter of the current time style; nil for "blizz" if the game's default formatting is wanted (aura containers)
+function XiTimers.GetTimeFormatter(noDefault)
+    local formatter = XiTimers.TimeStyle ~= "blizz" and GetTimeStyleFormatter(XiTimers.TimeStyle)
+    if formatter then return formatter end
+    return not noDefault and GetSecondsFormatter() or nil
+end
+
+-- duration text binding that follows the time style
+function XiTimers.CreateDurationTextBinding()
+    local binding = C_DurationUtil.CreateDurationTextBinding()
+    binding:SetFormatter(XiTimers.GetTimeFormatter())
+    binding:SetExpiredText("")
+    binding:SetZeroDurationText("")
+    timeBindings[binding] = true
+    return binding
+end
+
+function XiTimers.SetTimeStyle(style)
+    XiTimers.TimeStyle = style or "blizz"
+    if not CanBindDurationText then return end
+    local formatter = XiTimers.GetTimeFormatter()
+    for binding in pairs(timeBindings) do
+        binding:SetFormatter(formatter)
+    end
+end
+
 -- curves evaluated on remaining time: "below" up to point seconds, "above" after that
 local thresholdCurves = {}
 local function GetThresholdCurve(point, below, above)
@@ -236,7 +313,6 @@ function XiTimers:new(nroftimers, unclickable)
 	self.timerBarPos = "BOTTOM"
 	self.timeSpacing = 0
 	self.spacing = 5
-	self.timeStyle = "mm:ss"
     self.OOCAlpha = 1
 	self.maxAlpha = 1
 	self.warningMsgs = {}
@@ -517,10 +593,7 @@ function XiTimers:BindDurationText(timer)
         return
     end
     if not binding then
-        binding = C_DurationUtil.CreateDurationTextBinding()
-        binding:SetFormatter(GetSecondsFormatter())
-        binding:SetExpiredText("")
-        binding:SetZeroDurationText("")
+        binding = XiTimers.CreateDurationTextBinding()
         self.textBindings[timer] = binding
     end
     binding:SetFontString(fontString)

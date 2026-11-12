@@ -73,7 +73,6 @@ function TotemTimers.CreateEnhanceCDs()
         cds[i] = XiTimers:new(1)
         cds[i].events = {"SPELL_UPDATE_COOLDOWN"}
         cds[i].dontFlash = true
-        cds[i].timeStyle = "sec"
         cds[i].button.anchorframe = TotemTimers_EnhanceCDsFrame
         cds[i].button:SetAttribute("*type*", "spell")
         cds[i].reverseAlpha = true
@@ -93,7 +92,6 @@ function TotemTimers.CreateEnhanceCDs()
     FlameShockDuration.button.anchorframe = TotemTimers_EnhanceCDsFrame
     FlameShockDuration.dontAlpha = true
     FlameShockDuration.dontFlash = true
-    FlameShockDuration.timeStyle = "sec"
     FlameShockDuration.button:SetAttribute("*type1", "spell")
     FlameShockDuration.button:SetAttribute("spell1", SpellNames[SpellIDs.FlameShock])
     FlameShockDuration.button.icons[1]:SetAlpha(1)
@@ -137,7 +135,6 @@ function TotemTimers.CreateEnhanceCDs()
         Maelstrom.button.anchorframe = TotemTimers_EnhanceCDsFrame
         Maelstrom.dontAlpha = true
         Maelstrom.dontFlash = true
-        Maelstrom.timeStyle = "sec"
         Maelstrom.button:SetAttribute("*type*", "spell")
         Maelstrom.button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
         Maelstrom.button:SetAttribute("spell1", SpellIDs.LightningBolt)

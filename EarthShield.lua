@@ -47,7 +47,6 @@ function TotemTimers.CreateEarthShieldTracker()
     earthshieldTimer.events[6] = "PLAYER_ENTERING_WORLD"
     earthshieldTimer.playerEvents[1] = "UNIT_SPELLCAST_SUCCEEDED"
     earthshieldTimer.events[7] = "UNIT_SPELLCAST_SENT"
-    earthshieldTimer.timeStyle = "blizz"
     earthshieldTimer.button:SetAttribute("*type*", "spell")
     earthshieldTimer.Activate = function(self)
         XiTimers.Activate(self)
@@ -342,11 +341,9 @@ function TotemTimers.SetEarthShieldUpdate()
     if TotemTimers.ActiveProfile.ESChargesOnly then
         earthshieldTimer.Update = EmptyESUpdate
         earthshieldTimer.prohibitCooldown = true
-        earthshieldTimer.timeStyle = "sec"
     else
         earthshieldTimer.Update = nil
         earthshieldTimer.prohibitCooldown = false
-        earthshieldTimer.timeStyle = "blizz"
     end
     if earthShieldTarget then
         TotemTimers.EarthShieldEvent(earthshieldTimer.button, "UNIT_AURA", earthShieldTarget)

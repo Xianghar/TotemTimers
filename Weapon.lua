@@ -24,7 +24,6 @@ function TotemTimers.CreateWeaponTracker()
     weapon.button.icons[2]:SetTexture(SpellTextures[SpellIDs.RockbiterWeapon])
 
     weapon.button.anchorframe = TotemTimers_TrackerFrame
-    weapon.timeStyle = "blizz"
     weapon.button:SetAttribute("*type*", "spell")
     weapon.button:SetAttribute("ctrl-spell1", ATTRIBUTE_NOOP)
     weapon.Update = TotemTimers.WeaponUpdate

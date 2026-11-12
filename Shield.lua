@@ -44,7 +44,6 @@ function TotemTimers.CreateShieldTracker()
     shield.button.anchorframe = TotemTimers_TrackerFrame
     shield.button:SetScript("OnEvent", TotemTimers.ShieldEvent)
     shield.events[1] = "UNIT_SPELLCAST_SUCCEEDED"
-    shield.timeStyle = "blizz"
     shield.Activate = function(self)
         XiTimers.Activate(self)
         TotemTimers.ShieldEvent(self.button, "UNIT_AURA", "player")
