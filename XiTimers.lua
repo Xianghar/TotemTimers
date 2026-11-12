@@ -1044,15 +1044,14 @@ end
 
     -- Mouseover opacity: while the cursor is over none of the buttons (timer buttons, multicast button and
     -- their menu buttons), all buttons are faded to XiTimers.MouseoverAlpha (if lower than the out-of-combat
-    -- alpha), hovering any of them shows all at full opacity. 1 = off.
+    -- alpha), hovering any of them shows all at full opacity. Not applied in combat. 1 = off.
     XiTimers.MouseoverAlpha = 1
     local mouseOver = false
 
     -- alpha of a button: out-of-combat alpha (1 in combat), lowered to the mouseover alpha while not hovered
     local function FadedAlpha(oocAlpha)
-        if mouseOver then return 1 end
-        local alpha = incombat and 1 or (oocAlpha or 1)
-        return math.min(alpha, XiTimers.MouseoverAlpha)
+        if incombat or mouseOver then return 1 end
+        return math.min(oocAlpha or 1, XiTimers.MouseoverAlpha)
     end
 
     function XiTimers.UpdateFade()

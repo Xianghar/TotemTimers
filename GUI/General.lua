@@ -113,7 +113,7 @@ TotemTimers.options = {
                     type = "header",
                     name = "",
                 },
-                --[[time = {
+                time = {
                     order = 121,
                     type = "select",
                     name = L["Time Style"],
@@ -122,14 +122,9 @@ TotemTimers.options = {
                     set = function(info, val)
                         TotemTimers.ActiveProfile.TimeStyle = val
                         TotemTimers.ProcessSetting("TimeStyle")
-                        -- SetShieldUpdate sets the correct time style for shield button
-                        TotemTimers.SetShieldUpdate()
-                        if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_CLASSIC then
-                            TotemTimers.SetEarthShieldUpdate()
-                        end
                     end,
                     get = function(info) return TotemTimers.ActiveProfile.TimeStyle end,
-                },]]
+                },
                 TimerBarTexture = {
                     order = 135,
                     type = "select",

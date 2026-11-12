@@ -201,7 +201,7 @@ L["Maelstrom Bar Height"] = true
 L["OOC Opacity"] = true
 L["OOC Opacity Desc"] = "Controls the opacity of the buttons out of combat, 0 = transparent, 1 = opaque"
 L["Mouseover Opacity"] = true
-L["Mouseover Opacity Desc"] = "Opacity of all buttons while the mouse is over none of them (in and out of combat). Hovering any button shows all of them fully opaque. 1 = off"
+L["Mouseover Opacity Desc"] = "Opacity of all buttons while the mouse is over none of them (out of combat only). Hovering any button shows all of them fully opaque. 1 = off"
 L["Show OmniCC counters"] = true
 L["Spells"] = true
 L["MaelstromNumberOnlyDesc"] = "Show number instead of lightning bolts"
