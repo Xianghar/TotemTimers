@@ -602,7 +602,11 @@ function TotemTimers.UpdateMacro()
         local _, used = GetNumMacros()
         local macroIndex = GetMacroIndexByName("TT Cast")
         --if used == 18 and macroIndex == 0 then return end
-        local sequence = "#showtooltips\n/castsequence reset=combat/"..TotemTimers.ActiveProfile.MacroReset.." ";
+        local reset = TotemTimers.ActiveProfile.MacroReset
+        if TotemTimers.ActiveProfile.MacroResetCombat ~= false then
+            reset = "combat/" .. reset
+        end
+        local sequence = "#showtooltips\n/castsequence reset="..reset.." ";
         local timers = XiTimers.timers
 
         for i=1,4 do

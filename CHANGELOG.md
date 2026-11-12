@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.12
+- Added option to remove combat reset from castsequence and changed the lower end of the reset timer to 5 seconds
+
 ## 20.11
 - Added option for mouseover opacity. If set to lower than 1, timers fade out when not hovering over them.
 
