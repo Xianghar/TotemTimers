@@ -188,6 +188,7 @@ TotemData = {
     },
     [TotemTimers.SpellIDs.Flametongue] = {
         element = FIRE_TOTEM_SLOT,
+        buff = 8230,
     },
     [TotemTimers.SpellIDs.HealingStream] = {
 		element = WATER_TOTEM_SLOT,
@@ -231,6 +232,7 @@ TotemData = {
     },
     [TotemTimers.SpellIDs.Windfury] = {
         element = AIR_TOTEM_SLOT,
+        buff = 8515,
     },
     [TotemTimers.SpellIDs.Sentry] = {
         element = AIR_TOTEM_SLOT,
@@ -380,6 +382,9 @@ TotemTimers.TotemBuffAuraSpells = {
     [15108] = { 15108, 15109, 15110 }, -- Windwall
     [8836] = { 8836, 10626, 25360 }, -- Grace of Air
     [25909] = { 25909 }, -- Tranquil Air
+    -- WoW Forever: the weapon totems give auras instead of weapon enchants
+    [8230] = { 8230, 8250, 10521, 15036 }, -- Flametongue
+    [8515] = { 8515, 10609, 10612 }, -- Windfury
 }
 
 TotemTimers.CombatCooldownSpells = {
