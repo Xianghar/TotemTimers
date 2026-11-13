@@ -614,7 +614,18 @@ function XiTimers:StartDurationFlash(timer)
         flash:Show()
     else
         local icon = self.button.icons[timer]
-        self.flashIconAlpha = icon:GetAlpha()
+        -- the alpha Start just set; the icon's own alpha isn't read back: after a flash of a secret duration it
+        -- stays secret (the curve result), and it is used as a table key for the curve cache
+        local alpha
+        if self.reverseAlpha then
+            alpha = self.alpha or 0.4
+        elseif not self.dontAlpha then
+            alpha = self.maxAlpha
+        else
+            alpha = icon:GetAlpha()
+            if issecretvalue and issecretvalue(alpha) then alpha = 1 end
+        end
+        self.flashIconAlpha = alpha
         icon:SetAlpha(GetFlashAlpha(self.timers[timer], self.warningPoint, self.flashIconAlpha))
     end
 end
