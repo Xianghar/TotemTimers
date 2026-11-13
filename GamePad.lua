@@ -647,6 +647,12 @@ local function GetBarIcon(button, index)
             slot.cooldown:SetHideCountdownNumbers(false)
         end
 
+        -- glow of the weapon tracker on its slot (d-pad up in bar mode, see UpdateWeaponSlotGlow), on a frame of
+        -- its own above everything
+        slot.glow = CreateFrame("Frame", nil, slot)
+        slot.glow:SetAllPoints(slot)
+        slot.glow:SetFrameLevel(texts:GetFrameLevel() + 1)
+
         -- anchors of the range dots (see ShowSlot), hidden: the dots are drawn by aura containers over them;
         -- a row along the top edge, the player's dot first (option PlayerRangeStyle "dot", otherwise the party dots
         -- move to its place and the player's buff tints the icon, see UpdateRangeDotLayout)
@@ -848,6 +854,7 @@ function GamePad.UpdateBarIcons()
     ShowSlot(bar, DPAD_LEFT_INDEX,
             GetAvailableSpellName(SpellIDs.TotemicCall) and C_Spell.GetSpellTexture(SpellIDs.TotemicCall), nil,
             SpellIDs.TotemicCall)
+    GamePad.UpdateWeaponSlotGlow()
     -- the buttons covered by the overlays changed
     GamePad.UpdateActionButtons()
 end
@@ -1033,6 +1040,21 @@ local function UpdateWeaponGlow(overlay)
     end
 end
 
+-- the bar slot of the weapon tracker (d-pad up in bar mode) glows like the weapon tracker: while an enchant is
+-- missing or about to expire (with option GamePadTimers); the game's button below it is covered, so its enchant
+-- overlay isn't used
+function GamePad.UpdateWeaponSlotGlow()
+    local weapon = TotemTimers.WeaponTracker
+    local glow = timersShown and (weaponGlowAll or next(weaponGlowNames) ~= nil) or false
+    for _, slot in pairs(barIcons) do
+        local shown = glow and weapon ~= nil and slot.timer == weapon
+        if shown ~= slot.glowing then
+            slot.glowing = shown
+            SetGlow(slot.glow, shown)
+        end
+    end
+end
+
 -- called by the weapon tracker on every update, names: set of enchant names, kept by the caller
 function GamePad.SetWeaponGlow(all, names)
     weaponGlowAll = all and true or false
@@ -1040,6 +1062,7 @@ function GamePad.SetWeaponGlow(all, names)
     for _, overlay in pairs(weaponOverlays) do
         UpdateWeaponGlow(overlay)
     end
+    GamePad.UpdateWeaponSlotGlow()
 end
 
 -- DurationObject of the weapon tracker's timer of the enchant, nil if that enchant isn't on a weapon
