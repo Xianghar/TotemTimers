@@ -2,6 +2,7 @@
 
 ## 20.13
 - Fixed an error when dropping a totem while the timer of the previous totem is still running
+- Show GCD on buttons
 
 ## 20.12
 - Added option to remove combat reset from castsequence and changed the lower end of the reset timer to 5 seconds

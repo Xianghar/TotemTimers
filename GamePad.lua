@@ -736,15 +736,31 @@ end
 -- and the icon of the active totem while the timer runs and it isn't the assigned totem; on slots of a spell with
 -- a cooldown (slot.cooldownSpell) its cooldown instead (without the global cooldown, shown without option
 -- GamePadTimers too, like the cooldown of the game's own button)
+-- DurationObject of the global cooldown of the spell, nil while it isn't on the GCD (only the never secret isActive and
+-- isOnGCD flags are read)
+local function GetGCDDuration(spell)
+    if not spell or spell == 0 then return end
+    local info = C_Spell.GetSpellCooldown(spell)
+    if info and info.isActive and info.isOnGCD then
+        return C_Spell.GetSpellCooldownDuration(spell)
+    end
+end
+
+-- without a duration the slot shows the global cooldown of its spell (slot.spell) like the game's buttons, swipe
+-- only (no time)
 local function UpdateSlotDuration(slot)
     local durObj
     if slot.timer then
         durObj = timersShown and slot.timer.timers[1]
     elseif slot.cooldownSpell then
-        durObj = C_Spell.GetSpellCooldownDuration(slot.cooldownSpell, true)
+        local info = C_Spell.GetSpellCooldown(slot.cooldownSpell)
+        if not (info and info.isOnGCD) then
+            durObj = C_Spell.GetSpellCooldownDuration(slot.cooldownSpell, true)
+        end
     end
-    if durObj then
-        slot.cooldown:SetCooldownFromDurationObject(durObj)
+    local swipe = durObj or GetGCDDuration(slot.spell)
+    if swipe then
+        slot.cooldown:SetCooldownFromDurationObject(swipe)
     else
         slot.cooldown:Clear()
     end
@@ -763,8 +779,8 @@ end
 
 -- shows a slot with the texture, timer: totem timer whose duration is shown, cooldownSpell: spell whose cooldown
 -- is shown (slots without timer), notTotem: the timer isn't a totem timer (weapon tracker: its first timer is shown,
--- no active totem icon, no range dots)
-local function ShowSlot(bar, index, texture, timer, cooldownSpell, notTotem)
+-- no active totem icon, no range dots), spell: the slot's spell, whose global cooldown is shown without a duration
+local function ShowSlot(bar, index, texture, timer, cooldownSpell, notTotem, spell)
     if barMode and not barModeSlots[index] then return end
     local button = texture and index and bar:GetActionButtonByIndex(index)
     if not (button and button.icon) then return end
@@ -776,6 +792,7 @@ local function ShowSlot(bar, index, texture, timer, cooldownSpell, notTotem)
     slot.timer = timer
     slot.notTotem = notTotem
     slot.cooldownSpell = not timer and cooldownSpell or nil
+    slot.spell = spell or cooldownSpell
     if timer and not notTotem then
         -- the timer button's icon shows the active totem while the timer runs, its texture is handed on without
         -- being read (it might be secret)
@@ -837,7 +854,7 @@ function GamePad.UpdateBarIcons()
         if timer and timer.button:IsShown() then
             local spell = timer.button:GetAttribute("*spell1")
             local texture = spell and spell ~= 0 and C_Spell.GetSpellTexture(spell)
-            ShowSlot(bar, FaceButtonIndices[TimerKeys[timer.nr]], texture, timer)
+            ShowSlot(bar, FaceButtonIndices[TimerKeys[timer.nr]], texture, timer, nil, nil, spell)
         end
     end
 
@@ -847,10 +864,13 @@ function GamePad.UpdateBarIcons()
     local multiSpellID = multiSpell and multiSpell:GetAttribute("active") and multiSpell:GetAttribute("*spell1")
     local weapon = TotemTimers.WeaponTracker
     local weaponSpell = weapon and weapon.button:GetAttribute("spell1")
-    ShowSlot(bar, OPEN_BUTTON_INDEX, weaponSpell and C_Spell.GetSpellTexture(weaponSpell), weapon, nil, true)
-    ShowSlot(bar, DPAD_RIGHT_INDEX, multiSpellID and C_Spell.GetSpellTexture(multiSpellID))
+    ShowSlot(bar, OPEN_BUTTON_INDEX, weaponSpell and C_Spell.GetSpellTexture(weaponSpell), weapon, nil, true,
+            weaponSpell)
+    ShowSlot(bar, DPAD_RIGHT_INDEX, multiSpellID and C_Spell.GetSpellTexture(multiSpellID), nil, nil, nil,
+            multiSpellID)
     ShowSlot(bar, DPAD_DOWN_INDEX,
-            GetAvailableSpellName(SpellIDs.TotemicRecall) and C_Spell.GetSpellTexture(SpellIDs.TotemicRecall))
+            GetAvailableSpellName(SpellIDs.TotemicRecall) and C_Spell.GetSpellTexture(SpellIDs.TotemicRecall),
+            nil, nil, nil, SpellIDs.TotemicRecall)
     ShowSlot(bar, DPAD_LEFT_INDEX,
             GetAvailableSpellName(SpellIDs.TotemicCall) and C_Spell.GetSpellTexture(SpellIDs.TotemicCall), nil,
             SpellIDs.TotemicCall)
@@ -882,7 +902,7 @@ end
 -- cooldowns of the slots of spells with a cooldown (Totemic Call)
 local function UpdateSlotCooldowns()
     for _, slot in pairs(barIcons) do
-        if slot.cooldownSpell and slot:IsShown() then UpdateSlotDuration(slot) end
+        if (slot.cooldownSpell or slot.spell) and slot:IsShown() then UpdateSlotDuration(slot) end
     end
 end
 

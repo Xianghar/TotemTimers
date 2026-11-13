@@ -516,7 +516,9 @@ function XiTimers:Stop(timer)
     if timer == 1 then
         self.button.time:Hide()
         self.button.cooldown:Hide()
-    end 
+        -- stopped during a global cooldown (e.g. Totemic Recall): the GCD swipe of the inactive timer
+        self:UpdateGCD()
+    end
     if not self.dontAlpha then self:SetIconAlpha(self.button.icons[timer], self.alpha or 0.4) end
     if self.reverseAlpha then self:SetIconAlpha(self.button.icons[timer],self.maxAlpha) end
     if self.procFlash and timer == 1 then self:StopBarTimer() end
@@ -525,6 +527,37 @@ function XiTimers:Stop(timer)
         self.button:Hide()
     end
     -- self:SetOutOfRange(false)
+end
+
+-- global cooldown swipe on inactive timers (timer 1 not running), like on action buttons: the GCD of the spell the
+-- button casts with a leftclick. Only the never secret isActive and isOnGCD flags are read, the swipe comes from the
+-- DurationObject. The spell's own cooldown isn't shown here (timers of cooldowns run their own timer for it); a
+-- timer starting replaces the swipe.
+function XiTimers:UpdateGCD()
+    if not self.active or self.timers[1] or self.noGCD then return end
+    local button = self.button
+    local spell = button:GetAttribute("spell1") or button:GetAttribute("*spell1")
+    if not spell or spell == 0 then return end
+    local info = C_Spell.GetSpellCooldown(spell)
+    if info and info.isActive and info.isOnGCD then
+        local durObj = C_Spell.GetSpellCooldownDuration(spell)
+        if durObj then
+            button.cooldown:SetCooldownFromDurationObject(durObj)
+            button.cooldown:Show()
+        end
+    end
+end
+
+function XiTimers.UpdateAllGCDs()
+    for _, timer in ipairs(Timers) do
+        timer:UpdateGCD()
+    end
+end
+
+do
+    local gcdFrame = CreateFrame("Frame")
+    gcdFrame:RegisterEvent("SPELL_UPDATE_COOLDOWN")
+    gcdFrame:SetScript("OnEvent", XiTimers.UpdateAllGCDs)
 end
 
 function XiTimers:ShowTimer()
