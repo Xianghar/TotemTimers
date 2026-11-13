@@ -551,20 +551,15 @@ SettingsFunctions = {
     CheckRaidRange = function(value, Timers)
         TotemTimers.UpdateRangeDots()
         if value then
-            C_ChatInfo.RegisterAddonMessagePrefix("WF_STATUS")
             for i = 1, 4 do
                 if Timers[i].active then
                     Timers[i].button:RegisterEvent("GROUP_ROSTER_UPDATE")
-                    if i == AIR_TOTEM_SLOT or i == FIRE_TOTEM_SLOT then
-                        Timers[i].button:RegisterEvent("CHAT_MSG_ADDON")
-                    end
                 end
             end
             TotemTimers.UpdateParty()
         else
             for i = 1, 4 do
                 Timers[i].button:UnregisterEvent("GROUP_ROSTER_UPDATE")
-                Timers[i].button:UnregisterEvent("CHAT_MSG_ADDON")
                 for j = 1, 4 do
                     Timers[i].button.partyRange[j]:Hide()
                 end

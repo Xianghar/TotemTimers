@@ -25,15 +25,11 @@ local AvailableTalents = TotemTimers.AvailableTalents
 
 local Cooldowns = TotemTimers.TotemCooldowns
 
-local UpdatePartyRange
-
-
 -- Range dots: the buff of the active totem can be secret, so aura containers in dot mode (see AuraDisplay.lua)
 -- show a dot while a party member has it; while the player has it the icon is tinted green or a green dot is
 -- shown (option PlayerRangeStyle). The addon never reads the buff. Each display has one slot per totem of the
 -- element with a buff, only the slot of the active totem is enabled.
 -- A timer can have several sets of dots (timer.rangeDotSets): on its button and on Gamepad UI bar slots.
--- (Windfury has no buff, its party dots come from addon messages, see UpdatePartyRange.)
 -- r, g, b, alpha; added to the icon's colors (additive blending), the alpha scales the color
 local PlayerTintColor = { 0, 1, 0, 0.3 }
 local PlayerDotColor = { 0.1, 0.85, 0.1 }
@@ -267,9 +263,6 @@ end
 
             if activeProfile.CheckRaidRange then
                 self.button:RegisterEvent("GROUP_ROSTER_UPDATE")
-                if self.nr == AIR_TOTEM_SLOT or self.nr == FIRE_TOTEM_SLOT then
-                    self.button:RegisterEvent("CHAT_MSG_ADDON")
-                end
             end
             UpdateRangeDots(self)
 
@@ -537,9 +530,6 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
         self.timer:Start(1, 24, 24)]]
     elseif event == "GROUP_ROSTER_UPDATE" then
         TotemTimers.UpdateParty()
-    elseif event == "CHAT_MSG_ADDON" and self.timer.timers[1] and arg1 == "WF_STATUS" then
-        local guid, enchantID = strsplit(':', arg2)
-        UpdatePartyRange(self.timer, guid, tonumber(enchantID))
     end
 end
 
@@ -754,29 +744,11 @@ local function SanitizeActiveTotems()
 end
 table.insert(TotemTimers.SpellUpdaters, SanitizeActiveTotems)
 
-local partyGUIDs = {}
-
-local TotemWeaponEnchants = TotemTimers.TotemWeaponEnchants
-
--- party dots of totems with a weapon enchant instead of a buff (Windfury): party members report their enchant
--- by addon message (WF_STATUS). Totems with a buff use the aura containers of UpdateRangeDots.
-UpdatePartyRange = function(timer, unitGUID, enchantID)
-    local unit = unitGUID and partyGUIDs[unitGUID]
-    if not unit then return end
-    local rangeDot = timer.button.partyRange[tonumber(strsub(unit, -1))]
-    if enchantID and TotemWeaponEnchants[enchantID] == timer.activeTotem then
-        rangeDot:Show()
-    else
-        rangeDot:Hide()
-    end
-end
-
+-- party changed: class colors of the party dots
 TotemTimers.UpdateParty = function()
-    wipe(partyGUIDs)
     for i = 1,4 do
         local unit = "party"..i
         if UnitExists(unit) then
-            partyGUIDs[UnitGUID(unit)] = unit
             local class = select(2, UnitClass(unit))
             if class and RAID_CLASS_COLORS[class] then
                 local color = RAID_CLASS_COLORS[class]

@@ -318,34 +318,9 @@ TotemTimers.WeaponEnchants = {
     [3783] = SpellIDs.FrostbrandWeapon,
     [3784] = SpellIDs.FrostbrandWeapon,
     [7566] = SpellIDs.FrostbrandWeapon,
-    [563] = SpellIDs.Windfury,
-    [564] = SpellIDs.Windfury,
-    [1783] = SpellIDs.Windfury,
-    [2638] = SpellIDs.Windfury,
-    [2639] = SpellIDs.Windfury,
-    [3014] = SpellIDs.Windfury,
-    [124] = SpellIDs.Flametongue,
-    [285] = SpellIDs.Flametongue,
-    [543] = SpellIDs.Flametongue,
-    [1683] = SpellIDs.Flametongue,
-    [2637] = SpellIDs.Flametongue,
 }
 
 for i = 3018, 3044 do TotemTimers.WeaponEnchants[i] = SpellIDs.RockbiterWeapon end
-
-TotemTimers.TotemWeaponEnchants = {
-    [563] = SpellIDs.Windfury,
-    [564] = SpellIDs.Windfury,
-    [1783] = SpellIDs.Windfury,
-    [2638] = SpellIDs.Windfury,
-    [2639] = SpellIDs.Windfury,
-    [3014] = SpellIDs.Windfury,
-    [124] = SpellIDs.Flametongue,
-    [285] = SpellIDs.Flametongue,
-    [543] = SpellIDs.Flametongue,
-    [1683] = SpellIDs.Flametongue,
-    [2637] = SpellIDs.Flametongue,
-}
 
 
 TotemTimers.ShieldButtons = {
