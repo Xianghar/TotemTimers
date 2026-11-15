@@ -142,6 +142,42 @@ end
 
 table.insert(TotemTimers.Modules, TotemTimers.CreateMultiCastButtons)
 
+-- The game's totem bar shows itself again through TotemActionBarMixin:UpdateShownState
+-- (edit mode layout, main action bar state changes), also after the hide on login.
+-- Hide it after each of these updates while the multicast button is enabled; the bar
+-- holds secure buttons, so in combat the hide waits for PLAYER_REGEN_ENABLED.
+-- Only Hide() is called on the bar: anything that re-lays out the bottom bars taints them.
+local hideBlizzBar = false
+local blizzBarHooked = false
+local regenFrame
+
+local function EnforceBlizzBarHidden()
+    if not hideBlizzBar or not MultiCastActionBarFrame:IsShown() then return end
+    if InCombatLockdown() then
+        if not regenFrame then
+            regenFrame = CreateFrame("Frame")
+            regenFrame:SetScript("OnEvent", function(self)
+                self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+                EnforceBlizzBarHidden()
+            end)
+        end
+        regenFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+        return
+    end
+    -- no EditModeManager.UpdateBottomActionBarPositions from here: run by addon code it
+    -- taints the positions of the main action bar stack, which then breaks in combat
+    MultiCastActionBarFrame:Hide()
+end
+
+local function SetBlizzBarHidden(hide)
+    hideBlizzBar = hide
+    if hide and not blizzBarHooked and MultiCastActionBarFrame.UpdateShownState then
+        blizzBarHooked = true
+        hooksecurefunc(MultiCastActionBarFrame, "UpdateShownState", EnforceBlizzBarHidden)
+    end
+    EnforceBlizzBarHidden()
+end
+
 function TotemTimers.MultiSpellActivate()
     if TotemTimers.ActiveProfile.MultiCast then
         if AvailableSpells[SpellIDs.CallOfElements] then
@@ -156,8 +192,9 @@ function TotemTimers.MultiSpellActivate()
 
         MultiCastActionBarFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
         MultiCastActionBarFrame:UnregisterEvent("UPDATE_MULTI_CAST_ACTIONBAR")
-        MultiCastActionBarFrame:Hide()
+        SetBlizzBarHidden(true)
     else
+        SetBlizzBarHidden(false)
         if mb.active then
             MultiCastActionBarFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
             MultiCastActionBarFrame:RegisterEvent("UPDATE_MULTI_CAST_ACTIONBAR")

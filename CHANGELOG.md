@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.14
+- Fix default totem bar not hiding permanently
+
 ## 20.13
 - Fixed an error when dropping a totem while the timer of the previous totem is still running
 - Show GCD on buttons
