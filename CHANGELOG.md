@@ -1,5 +1,9 @@
 # TotemTimers
 
+## 20.15
+- Fix gamepad UI not assigning totems to multicast spells
+- Added icon tint on low mana back
+
 ## 20.14
 - Fix default totem bar not hiding permanently
 

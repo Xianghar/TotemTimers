@@ -56,7 +56,7 @@ function TotemTimers.CreateEarthShieldTracker()
         end
     end
     earthshieldTimer.button:RegisterForClicks("LeftButtonDown", "RightButtonDown", "MiddleButtonDown", "Button4Down")
-    earthshieldTimer.manaCheck = SpellNames[SpellIDs.EarthShield]
+    earthshieldTimer:SetManaCheck(SpellNames[SpellIDs.EarthShield])
     earthshieldTimer.name = earthshieldTimer.button:CreateFontString("TotemTimers_EarthShieldName")
     earthshieldTimer.name:SetPoint("TOP", earthshieldTimer.button, 0, 2)
     earthshieldTimer.name:SetFont("Fonts\\FRIZQT__.TTF", 11, "OUTLINE")

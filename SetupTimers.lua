@@ -195,7 +195,7 @@ end
                     self.icons[1]:SetTexture(texture)
                 end
                 TotemTimers.TotemEvent(self, "SPELL_UPDATE_COOLDOWN", self.timer.nr)
-                self.timer.manaCheck = spell
+                self.timer:SetManaCheck(spell)
                 TotemTimers.ActiveProfile.LastTotems[self.timer.nr] = spell
             end
             TotemTimers.UpdateMacro()

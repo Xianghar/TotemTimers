@@ -691,7 +691,7 @@ SettingsFunctions.GamePadTimers = SettingsFunctions.GamePad
     SettingsFunctions.ShieldLeftButton = function(value, Timers)
         value = TotemTimers.UpdateSpellRank(value)
         Timers[6].button:SetAttribute("*spell1", value)
-        Timers[6].manaCheck = value
+        Timers[6]:SetManaCheck(value)
     end
 
     SettingsFunctions.ShieldRightButton = function(value, Timers)

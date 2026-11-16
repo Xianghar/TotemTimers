@@ -346,8 +346,6 @@ function XiTimers:new(nroftimers, unclickable)
     self.button.cooldown.noCooldownCount = true
     self.button.cooldown.noOCC = true
     self.button:SetAttribute("num", self.nr)
-    self.rangeCheckCount = 0
-    self.manaCheckCount = 0
 	self.warningPoint = 10
 
     self:HideNormalTexture()
@@ -416,7 +414,7 @@ function XiTimers:Activate()
     end	
 	self.button:SetAttribute("active", true)
 	if self.ActiveWhileHidden then self.button:Hide() self.button:SetAttribute("active", false) end
-	 if self.rangeCheck or self.manaCheck then
+	if self.rangeCheck or self.manaCheck then
 		self:AddRangeCheck()
 	end
 end
@@ -427,6 +425,18 @@ function XiTimers:Deactivate()
 	self.button:Hide()
     self.button:SetAttribute("active", false)
 	self:RemoveRangeCheck()
+end
+
+-- spell (ID or name) whose missing mana tints the button blue (nil: no check); registers the timer for the check
+-- if it is active (manaCheck may be set after Activate, e.g. the totem timers when their totem changes)
+function XiTimers:SetManaCheck(spell)
+    self.manaCheck = spell
+    if not self.active then return end
+    if self.rangeCheck or spell then
+        self:AddRangeCheck()
+    else
+        self:RemoveRangeCheck()
+    end
 end
 
 function XiTimers:Start(timer, durObj)
@@ -718,23 +728,23 @@ function XiTimers:StopBarTimer()
 end
 
 
-function XiTimers:SetOutOfRange(outOfRange)
-    self.outOfRange = outOfRange
-    self:UpdateButtonColor()
-end
-
-function XiTimers:SetOutOfMane(outOfMana)
-    self.outOfMana = outOfMana
-    self:UpdateButtonColor()
-end
-
+-- out of range: red icon; out of mana: blue icon, or blue mini icon for timers with manaCheckMini
+-- (self.outOfRange/outOfMana are set by the range and mana check, rangeManaUpdate)
 function XiTimers:UpdateButtonColor()
+    local miniIcon = self.manaCheckMini and self.button.miniIcon
+    if miniIcon then
+        if self.outOfMana then
+            miniIcon:SetVertexColor(0.5, 0.5, 1)
+        else
+            miniIcon:SetVertexColor(1, 1, 1)
+        end
+    end
     if self.outOfRange then
-        self.button.icons[1]:SetVertexColor(1,0,0)
-    elseif self.outOfMana then
-        self.button.icons[1]:SetVertexColor(0.5,0.5,2)
+        self.button.icons[1]:SetVertexColor(1, 0, 0)
+    elseif self.outOfMana and not miniIcon then
+        self.button.icons[1]:SetVertexColor(0.5, 0.5, 1)
     else
-        self.button.icons[1]:SetVertexColor(1,1,1)
+        self.button.icons[1]:SetVertexColor(1, 1, 1)
     end
 end
 
@@ -1243,72 +1253,57 @@ end
     end
     oocframe:SetScript("OnEvent", XiTimers.OOCFaderEvent)
 
+    -- Tints a timer's button while its spell can't be used: red while the target is out of range of timer.rangeCheck
+    -- (spell ID or name; no target or a spell without range: no tint), blue while the player lacks the power (mana) for
+    -- timer.manaCheck (timers with manaCheckMini, the totem timers, tint their mini icon, the selected totem). Only
+    -- the timers registered by AddRangeCheck are checked (Activate with rangeCheck or manaCheck, SetManaCheck). The
+    -- returns of C_Spell.IsSpellInRange and C_Spell.IsSpellUsable aren't secret.
     local rangeManaFrame = CreateFrame("Frame")
-    local lastRangeUpdate = 0
     local rangeManaCheckFrames = {}
-
+    local RANGE_MANA_CHECK_INTERVAL = 0.2
+    local nextRangeManaCheck = 0
 
     local function rangeManaUpdate(self, elapsed)
-      --lastRangeUpdate = lastRangeUpdate + 1
-      --  if lastRangeUpdate > #rangeManaCheckFrames then lastRangeUpdate = 1 end
-      --  local timer = rangeManaCheckFrames[lastRangeUpdate]
-      --  if not timer then return end
-      --  --[[  if timer.rangeCheck then
-      --       --self.rangeCheckCount = self.rangeCheckCount + 1
-      --       --if self.rangeCheckCount > 8 then
-      --          -- self.rangeCheckCount = 0
-      --           timer.outofrange = IsSpellInRange(timer.rangeCheck, "target") == 0
-      --           if timer.outofrange then
-      --               timer.button.icons[1]:SetVertexColor(1,0,0)
-      --           else
-      --               timer.button.icons[1]:SetVertexColor(1,1,1)
-      --           end
-      --      -- end
-      --   end ]]
-      --
-      --  if timer.manaCheck then
-      --      --self.manaCheckCount = self.manaCheckCount + 1
-      --      --if self.manaCheckCount > 8 then
-      --      --self.manaCheckCount = 0
-      --      local _,nomana = IsUsableSpell(timer.manaCheck)
-      --      if nomana then
-      --          if timer.manaCheckMini then
-      --              timer.button.miniIcon:SetVertexColor(0.5,0.5,1)
-      --          else
-      --              timer.button.icons[1]:SetVertexColor(0.5,0.5,1)
-      --          end
-      --      else
-      --          if timer.manaCheckMini then
-      --              timer.button.miniIcon:SetVertexColor(1,1,1)
-      --          else
-      --              --[[ if timer.outofrange then
-      --                    timer.button.icons[1]:SetVertexColor(1,0,0)
-      --                else ]]
-      --              timer.button.icons[1]:SetVertexColor(1,1,1)
-      --              -- end
-      --          end
-      --      end
-      --      --end
-      --  end
+        nextRangeManaCheck = nextRangeManaCheck - elapsed
+        if nextRangeManaCheck > 0 then return end
+        nextRangeManaCheck = RANGE_MANA_CHECK_INTERVAL
+        for _, timer in ipairs(rangeManaCheckFrames) do
+            local outOfRange, outOfMana = false, false
+            if timer.rangeCheck then
+                outOfRange = C_Spell.IsSpellInRange(timer.rangeCheck, "target") == false
+            end
+            if timer.manaCheck then
+                local _, noMana = C_Spell.IsSpellUsable(timer.manaCheck)
+                outOfMana = noMana and true or false
+            end
+            if (timer.outOfRange or false) ~= outOfRange or (timer.outOfMana or false) ~= outOfMana then
+                timer.outOfRange = outOfRange
+                timer.outOfMana = outOfMana
+                timer:UpdateButtonColor()
+            end
+        end
     end
 
     rangeManaFrame:SetScript("OnUpdate", rangeManaUpdate)
     rangeManaFrame:Show()
 
     function XiTimers.AddRangeCheck(self)
-        local isIn = false
-        for i=1,#rangeManaCheckFrames do
-            if rangeManaCheckFrames[i] == self then isIn = true end
+        for i = 1, #rangeManaCheckFrames do
+            if rangeManaCheckFrames[i] == self then return end
         end
-        if not isIn then table.insert(rangeManaCheckFrames, self) end
+        table.insert(rangeManaCheckFrames, self)
     end
 
+    -- also takes the tint off
     function XiTimers.RemoveRangeCheck(self)
-        for i=1,#rangeManaCheckFrames do
-            if rangeManaCheckFrames[i] and rangeManaCheckFrames[i] == self then
-                table.remove(rangeManaCheckFrames,i)
-                i = i - 1
+        for i = #rangeManaCheckFrames, 1, -1 do
+            if rangeManaCheckFrames[i] == self then
+                table.remove(rangeManaCheckFrames, i)
             end
+        end
+        if self.outOfRange or self.outOfMana then
+            self.outOfRange, self.outOfMana = false, false
+            self:UpdateButtonColor()
         end
     end
 
