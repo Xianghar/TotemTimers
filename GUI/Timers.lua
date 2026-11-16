@@ -572,7 +572,6 @@ if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC then
         name = L["Multicast"],
         desc = L["Enables button and functionality for Call of Elements etc."],
         set = function(info, val)
-            print("TotemTimers: You might need to relog for the default totem bar to show/hide correctly")
             TotemTimers.ActiveProfile.MultiCast = val
             TotemTimers.ProcessSetting("MultiCast")
         end,

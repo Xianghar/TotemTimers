@@ -52,6 +52,7 @@ L["Long Cooldown"] = true
 L["Maelstrom Notifier"] = "Maelstrom ready!"
 L["Middleclick to cast %s"] = true
 L["Next leftclick casts %s"] = true
+L["Reload for default totem bar"] = "TotemTimers: Reload the UI (/reload) to fully restore the default totem bar."
 L["Reset"] = "TotemTimers has been reset!"
 L["Rightclick to assign both %s and %s to leftclick"] = true
 L["Rightclick to assign spell to leftclick"] = true

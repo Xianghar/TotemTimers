@@ -3,6 +3,7 @@ if select(2, UnitClass("player")) ~= "SHAMAN" then
 end
 
 local _, TotemTimers = ...
+local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers", true)
 
 local mb  -- abrev for MulticastButton
 
@@ -147,8 +148,15 @@ table.insert(TotemTimers.Modules, TotemTimers.CreateMultiCastButtons)
 -- Hide it after each of these updates while the multicast button is enabled; the bar
 -- holds secure buttons, so in combat the hide waits for PLAYER_REGEN_ENABLED.
 -- Only Hide() is called on the bar: anything that re-lays out the bottom bars taints them.
+-- The bar's own events (PLAYER_ENTERING_WORLD, UPDATE_MULTI_CAST_ACTIONBAR) are unregistered and its
+-- EventRegistry callback "ActionBarController.MainActionBarStateOverridden" (vehicle, override and possess
+-- bars) is removed, so it isn't shown in combat, where it can't be hidden. Edit mode can't be entered in
+-- combat. The callback can't be registered again by TotemTimers: run from addon code, it would show and hide
+-- the protected bar tainted (blocked in combat); after the option is turned off it is back with /reload.
 local hideBlizzBar = false
 local blizzBarHooked = false
+local blizzCallbackRemoved = false
+local reloadMessageShown = false
 local regenFrame
 
 local function EnforceBlizzBarHidden()
@@ -170,10 +178,22 @@ local function EnforceBlizzBarHidden()
 end
 
 local function SetBlizzBarHidden(hide)
+    -- the bar is given back with its callback removed (option turned off, profile without multicast button):
+    -- it only follows vehicle and override bars again after a reload (once per session)
+    if hideBlizzBar and not hide and blizzCallbackRemoved and not reloadMessageShown then
+        reloadMessageShown = true
+        print(L["Reload for default totem bar"])
+    end
     hideBlizzBar = hide
     if hide and not blizzBarHooked and MultiCastActionBarFrame.UpdateShownState then
         blizzBarHooked = true
         hooksecurefunc(MultiCastActionBarFrame, "UpdateShownState", EnforceBlizzBarHidden)
+    end
+    -- the dispatch of EventRegistry calls each callback with securecallfunction, removing this one leaves the
+    -- others untouched
+    if hide and not blizzCallbackRemoved and EventRegistry and EventRegistry.UnregisterCallback then
+        blizzCallbackRemoved = true
+        EventRegistry:UnregisterCallback("ActionBarController.MainActionBarStateOverridden", MultiCastActionBarFrame)
     end
     EnforceBlizzBarHidden()
 end
