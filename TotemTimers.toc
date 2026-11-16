@@ -40,8 +40,14 @@ Ankh.lua
 Shield.lua
 EarthShield.lua
 Weapon.lua
-GamePad.lua
-GamePadTutorial.lua
+GamePad\GamePad.lua
+GamePad\GamePadSlots.lua
+GamePad\GamePadActionButtons.lua
+GamePad\GamePadWheel.lua
+GamePad\GamePadBarMode.lua
+GamePad\GamePadRanks.lua
+GamePad\GamePadLegend.lua
+GamePad\GamePadTutorial.lua
 #EnhanceCDs.lua
 #LongCooldowns.lua
 
