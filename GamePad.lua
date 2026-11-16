@@ -234,11 +234,7 @@ local NEIGHBOR = [[
 
 -- clicks of the bindings: "open" (layer key + d-pad up), d-pad directions and "close"
 local NAV_ONCLICK = [[
-    -- Square/X and Circle/B while a wheel stays open after the release (see HOLD_WRAP)
-    if button == "wheelassign" then
-        if down then self:RunAttribute("WheelAssign") end
-        return
-    end
+    -- Circle/B while a wheel stays open after the release (see HOLD_WRAP)
     if button == "wheelclose" then
         if down then self:RunAttribute("CloseWheel") end
         return
@@ -1235,10 +1231,11 @@ local wrappedSources = {}
 -- element (secure action "destroytotem", like a rightclick on the timer button); the totems follow it.
 -- Releasing the key with the sticks in the center leaves the wheel open (wheelSticky): the ticker frame then binds
 -- Cross/A to the hidden secure button TotemTimers_GamePadWheelCast (casts the selected totem and closes the wheel,
--- nothing with the sticks in the center, WHEEL_CAST_WRAP), Square/X to the navigation button ("wheelassign", snippet
--- WheelAssign: the selected totem becomes the timer button's totem, the wheel stays open) and Circle/B to it
--- ("wheelclose", snippet CloseWheel). These keys are only bound after the release: bound while the key is held, they
--- would take the release of a held face button. Pressing a wheel slot again closes a wheel left open first. The ticks
+-- nothing with the sticks in the center, WHEEL_CAST_WRAP), Square/X to the hidden secure button
+-- TotemTimers_GamePadWheelAssign (WHEEL_ASSIGN_WRAP, snippet WheelAssign: does what a rightclick on the menu button
+-- does, the selected totem becomes the timer button's totem and goes into the multicast slot, the wheel stays open)
+-- and Circle/B to the navigation button ("wheelclose", snippet CloseWheel). These keys are only bound after the
+-- release: bound while the key is held, they would take the release of a held face button. Pressing a wheel slot again closes a wheel left open first. The ticks
 -- go on while the wheel stays open (arming the sticks).
 local HOLD_TICKS = 4
 local HOLD_UPDATE_TIME = 0.1
@@ -1281,7 +1278,10 @@ local WHEEL_SELECTION = [[
     return i, n
 ]]
 
--- WheelAssign: the selected totem becomes the totem of the timer button of the open wheel
+-- WheelAssign: the selected totem becomes the totem of the timer button of the open wheel, like a rightclick on the
+-- menu button (the parent's wrap in TTActionBars.lua); returns the menu and the number of the menu button (frame ref
+-- "m<m>b<j>"; RunAttribute scrubs frame handles from its returns), its own secure action (multicast slot, "*type2"
+-- "multispell") is run by WHEEL_ASSIGN_WRAP
 local WHEEL_ASSIGN = [[
     if not (wheelOpen and wheelSlot) then return end
     local m = wheelSlot:GetAttribute("ttHoldMenu")
@@ -1291,20 +1291,49 @@ local WHEEL_ASSIGN = [[
     -- the destroy segment (the first one) can't be assigned
     if not i or i <= extra then return end
     local b = self:GetFrameRef("m" .. m .. "b" .. (i - extra))
-    local spell = b and b:GetAttribute("*spell1")
     local source = wheelSlot:GetFrameRef("ttGamePadSource")
-    if spell and source then
-        if source:GetAttribute("ttspellattr") == "spell1" then
-            -- weapon tracker: the leftclick (main hand), like its menu without modifier
+    if not (b and source) then return end
+    local spell = b:GetAttribute("*spell1")
+    if source:GetAttribute("ttspellattr") == "spell1" then
+        -- weapon tracker: the leftclick (main hand), like its menu without modifier
+        if spell then
             source:SetAttribute("doublespell1", nil)
             source:SetAttribute("doublespell2", nil)
             source:SetAttribute("type1", "spell")
             source:SetAttribute("spell1", spell)
+        elseif b:GetAttribute("doublespell1") then
+            source:SetAttribute("doublespell1", b:GetAttribute("doublespell1"))
+            source:SetAttribute("doublespell2", b:GetAttribute("doublespell2"))
+            source:SetAttribute("type1", "macro")
+            source:SetAttribute("ds", 1)
         else
-            source:SetAttribute("*type1", "spell")
-            source:SetAttribute("*spell1", spell)
+            return
         end
-        self:CallMethod("WheelAssigned", i)
+    elseif spell then
+        source:SetAttribute("*type1", "spell")
+        source:SetAttribute("*spell1", spell)
+    else
+        return
+    end
+    self:CallMethod("WheelAssigned", i)
+    return m, i - extra
+]]
+
+-- Square/X on a wheel left open: assigns the selection (WheelAssign) and runs the rightclick action of its menu button
+-- (totem menus: puts the totem into the multicast slot of the active multicast spell unless that is disabled for the
+-- timer), pre-click wrap of TotemTimers_GamePadWheelAssign
+local WHEEL_ASSIGN_WRAP = [[
+    if not down then return false end
+    local m, j = control:RunAttribute("WheelAssign")
+    local b = m and j and control:GetFrameRef("m" .. m .. "b" .. j)
+    local spell = b and b:GetAttribute("*spell1")
+    local action = b and b:GetAttribute("*action*")
+    if spell and action and b:GetAttribute("*type2") == "multispell" then
+        self:SetAttribute("type", "multispell")
+        self:SetAttribute("action", action)
+        self:SetAttribute("spell", spell)
+    else
+        return false
     end
 ]]
 
@@ -1401,7 +1430,7 @@ local HOLD_WRAP = [[
             wheelSticky = true
             if ticker then
                 ticker:SetBindingClick(true, "PAD1", control:GetFrameRef("wheelcast"), "LeftButton")
-                ticker:SetBindingClick(true, "PAD3", control, "wheelassign")
+                ticker:SetBindingClick(true, "PAD3", control:GetFrameRef("wheelassignbutton"), "LeftButton")
                 ticker:SetBindingClick(true, "PAD2", control, "wheelclose")
             end
             control:CallMethod("SetWheelSticky")
@@ -1811,6 +1840,12 @@ local function GetHoldTicker()
         cast:SetAttribute("useOnKeyDown", true)
         SecureHandlerWrapScript(cast, "OnClick", nav, WHEEL_CAST_WRAP)
         SecureHandlerSetFrameRef(nav, "wheelcast", cast)
+        -- Square/X of a wheel left open assigns through this button (WHEEL_ASSIGN_WRAP), on key down
+        local assign = CreateFrame("Button", "TotemTimers_GamePadWheelAssign", UIParent, "SecureActionButtonTemplate")
+        assign:RegisterForClicks("AnyDown")
+        assign:SetAttribute("useOnKeyDown", true)
+        SecureHandlerWrapScript(assign, "OnClick", nav, WHEEL_ASSIGN_WRAP)
+        SecureHandlerSetFrameRef(nav, "wheelassignbutton", assign)
     end
     nav:SetAttribute("wheelstickindex1", GetStickIndex("Movement"))
     nav:SetAttribute("wheelstickindex2", GetStickIndex("Camera"))
