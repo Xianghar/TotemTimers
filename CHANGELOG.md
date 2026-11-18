@@ -1,7 +1,9 @@
 # TotemTimers
 
 ## 20.16
+- Added timer for Totemic Call
 - Possible fixes for multicast button
+- Fix weapon tracker warning on zoning
 - Totems, that are excluded from multicast spells have an icon on the totem button instead of the multicast button
 - Added buttons to make exclusion of totem from multicast spells easier
 
