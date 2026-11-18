@@ -467,6 +467,10 @@ local function UpdateMenus()
         menuButtons[m] = buttons
         menuParents[m] = menu.parent
         GamePad.nav:SetAttribute("nbuttons" .. m, #buttons)
+        -- the multicast exclusion toggle of totem menus (the menu's extra button), the last segment of their wheels
+        if menu.bar.extraButton then
+            SecureHandlerSetFrameRef(GamePad.nav, "m" .. m .. "x", menu.bar.extraButton)
+        end
         for i, button in ipairs(buttons) do
             SecureHandlerSetFrameRef(GamePad.nav, "m" .. m .. "b" .. i, button)
             button:SetAttribute("ttGamePadMenu", m)

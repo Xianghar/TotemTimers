@@ -26,6 +26,7 @@ L["Delete Set"] = "Delete Totem Set %s?"
 L["Earth Button"] = true
 L["Element excluded from %s"] = true
 L["Element included in %s"] = true
+L["Exclude for %s"] = true
 L["Fire Button"] = true
 L["GamePad Tutorial Title"] = "TotemTimers GamePad Tutorial"
 -- tutorial texts: {PAD...} is replaced by the icon of that gamepad button, {spell:...} by the name of a spell of TotemTimers.SpellIDs
@@ -39,6 +40,7 @@ L["GamePad Tutorial DPad Buttons"] = "The d-pad buttons:\n\n{PADDUP}  Cast the s
 L["GamePad Tutorial Intro"] = "This tutorial shows how TotemTimers integrates into the gamepad UI.\n\nDuring the tutorial, the trigger button is set to {PADLTRIGGER} + {PADRTRIGGER}. Your setting is restored when the tutorial ends."
 L["GamePad Tutorial Prompt"] = "You have the gamepad UI enabled.\nDo you want to watch a tutorial on how TotemTimers integrates into the gamepad UI?\n\n You can always start the tutorial later from the addon options."
 -- the words for left/rightclick in the tooltips, replaced by gamepad button icons while navigating the menus by gamepad
+L["Include for %s"] = true
 L["Leftclick"] = true
 L["Rightclick"] = true
 -- help in the totem wheel of the Gamepad UI: %s are the icons of the held face button, LB and RB

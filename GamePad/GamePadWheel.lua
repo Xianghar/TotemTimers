@@ -69,20 +69,43 @@ local WHEEL_STICKS = [[
     return best ~= nil
 ]]
 
--- WheelSelection(m, extra): the selected segment of the wheel of menu m with extra segments before the menu's (at
--- most 8) buttons (segment i shows menu button i - extra), and the number of the menu's buttons on the wheel; nil: no
--- armed stick is pushed
+-- WheelSelection(m, extra, tail): the selected segment of the wheel of menu m with extra segments before the menu's
+-- (at most 8) buttons (segment i shows menu button i - extra) and tail segments after them, and the number of the
+-- menu's buttons on the wheel; nil: no armed stick is pushed
 local WHEEL_SELECTION = [[
-    local m, extra = ...
+    local m, extra, tail = ...
     local n = m and self:RunAttribute("Count", m) or 0
     if n == 0 or not self:RunAttribute("ReadWheelSticks") then return end
     if n > 8 then n = 8 end
-    local total = n + (extra or 0)
+    local total = n + (extra or 0) + (tail or 0)
     local segment = 2 * math.pi / total
     local angle = (math.atan2(wheelX, wheelY) + segment / 2) % (2 * math.pi)
     local i = math.floor(angle / segment) + 1
     if i > total then i = total end
     return i, n
+]]
+
+-- WheelTail(m): 1 if the wheel of menu m ends with the segment of the multicast exclusion toggle (the menu's extra
+-- button, nav frame ref "m<m>x", totem menus while the multicast button is active), else 0
+local WHEEL_TAIL = [[
+    local m = ...
+    local toggle = m and self:GetFrameRef("m" .. m .. "x")
+    if toggle and not toggle:GetAttribute("inactive") then return 1 end
+    return 0
+]]
+
+-- WheelExclude: the exclusion toggle segment: toggles the exclusion of the open wheel's element from the active
+-- multicast spell like the toggle button (SetupExcludeToggle), out of combat only (emptying the multicast slot isn't
+-- a secure action)
+local WHEEL_EXCLUDE = [[
+    local source = wheelSlot and wheelSlot:GetFrameRef("ttGamePadSource")
+    if not source or PlayerInCombat() then return end
+    local mspell = source:GetAttribute("mspell")
+    if not mspell then return end
+    local disabled = not source:GetAttribute("mspelldisabled" .. mspell)
+    source:SetAttribute("mspelldisabled" .. mspell, disabled)
+    source:CallMethod("DisableMultiSpell", mspell, disabled)
+    self:CallMethod("WheelExcludeChanged")
 ]]
 
 -- WheelAssign: the selected totem becomes the totem of the timer button of the open wheel, like a rightclick on the
@@ -92,11 +115,17 @@ local WHEEL_SELECTION = [[
 local WHEEL_ASSIGN = [[
     if not (wheelOpen and wheelSlot) then return end
     local m = wheelSlot:GetAttribute("ttHoldMenu")
-    local i, n
-    if m then i, n = self:RunAttribute("WheelSelection", m, wheelSlot:GetAttribute("ttTotemSlot") and 1 or 0) end
     local extra = wheelSlot:GetAttribute("ttTotemSlot") and 1 or 0
+    local tail = m and self:RunAttribute("WheelTail", m) or 0
+    local i, n
+    if m then i, n = self:RunAttribute("WheelSelection", m, extra, tail) end
     -- the destroy segment (the first one) can't be assigned
     if not i or i <= extra then return end
+    -- the exclusion toggle (the last segment) toggles, the wheel stays open
+    if tail == 1 and i == n + extra + 1 then
+        self:RunAttribute("WheelExclude")
+        return
+    end
     local b = self:GetFrameRef("m" .. m .. "b" .. (i - extra))
     local source = wheelSlot:GetFrameRef("ttGamePadSource")
     if not (b and source) then return end
@@ -165,8 +194,15 @@ local WHEEL_CAST_WRAP = [[
     local m = wheelSlot:GetAttribute("ttHoldMenu")
     local totemSlot = wheelSlot:GetAttribute("ttTotemSlot")
     local extra = totemSlot and 1 or 0
-    local i = m and control:RunAttribute("WheelSelection", m, extra)
+    local tail = m and control:RunAttribute("WheelTail", m) or 0
+    local i, n
+    if m then i, n = control:RunAttribute("WheelSelection", m, extra, tail) end
     if not i then return false end
+    if tail == 1 and i == n + extra + 1 then
+        -- the exclusion toggle, the wheel stays open
+        control:RunAttribute("WheelExclude")
+        return false
+    end
     if totemSlot and i == 1 then
         self:SetAttribute("type", "destroytotem")
         self:SetAttribute("totem-slot", totemSlot)
@@ -231,8 +267,12 @@ local HOLD_WRAP = [[
         -- the totem the stick points at
         local m = self:GetAttribute("ttHoldMenu")
         local totemSlot = self:GetAttribute("ttTotemSlot")
-        local i, n = control:RunAttribute("WheelSelection", m, totemSlot and 1 or 0)
-        if not i then
+        local tail = control:RunAttribute("WheelTail", m)
+        local i, n = control:RunAttribute("WheelSelection", m, totemSlot and 1 or 0, tail)
+        -- the exclusion toggle (the last segment) toggles, the wheel stays open like with the sticks in the center
+        local exclude = i and tail == 1 and i == n + (totemSlot and 1 or 0) + 1
+        if exclude then control:RunAttribute("WheelExclude") end
+        if not i or exclude then
             -- the sticks in the center: the wheel stays open, Cross/A casts, Square/X assigns, Circle/B closes
             wheelSticky = true
             if ticker then
@@ -277,12 +317,16 @@ local HOLD_WRAP = [[
 local WHEEL_TEXTURES = "Interface\\AddOns\\TotemTimers\\textures\\wheel_"
 local WHEEL_SIZE = 400 -- displayed size of the wheel textures (UI units, see tools/wheel_textures.py)
 local WHEEL_MAX_TOTEMS = 8 -- menu buttons on the wheel
-local WHEEL_MAX_SEGMENTS = 9 -- totems and the destroy segment
+local WHEEL_MAX_SEGMENTS = 10 -- totems, the destroy segment and the exclusion toggle
 local WHEEL_DESTROY_ICON = "Interface\\Buttons\\UI-GroupLoot-Pass-Up"
 local WHEEL_INNER_RIM = 66 -- segment area between the rims, like the textures
 local WHEEL_OUTER_RIM = 188
 local WHEEL_ICON_DISTANCE = 134 -- icon center, the label beside it stays between the rims in every direction
 local WHEEL_LABEL_OFFSET = 34 -- vertical distance of the label center from the icon center, toward the center
+local WHEEL_LABEL_WIDTH = 84
+local WHEEL_LABEL_HEIGHT = 30 -- two lines
+local WHEEL_LABEL_HEIGHT_TALL = 44 -- three lines (the exclusion toggle names the multicast spell)
+local WHEEL_LABEL_OFFSET_TALL = WHEEL_LABEL_OFFSET + (WHEEL_LABEL_HEIGHT_TALL - WHEEL_LABEL_HEIGHT) / 2
 local WHEEL_ICON_SHIFT = 12 -- icons of the upper half are moved up by this, icons of the lower half down
 local WHEEL_DEADZONE_SQ = 0.25
 local WHEEL_HELP_WIDTH = 100 -- help text in the inner circle (diameter 116)
@@ -372,8 +416,14 @@ local function CreateWheel()
         segment.check:SetSize(24, 24)
         segment.check:SetPoint("CENTER", segment.icon, "TOPRIGHT", -2, -2)
         segment.check:Hide()
+        -- the prohibition sign of the exclusion toggle segment (the last one of totem wheels), 90 % of the icon
+        segment.sign = wheel:CreateTexture(nil, "OVERLAY", nil, 1)
+        segment.sign:SetTexture("Interface\\AddOns\\TotemTimers\\textures\\excluded")
+        segment.sign:SetSize(34, 34)
+        segment.sign:SetPoint("CENTER", segment.icon, "CENTER")
+        segment.sign:Hide()
         segment.label = wheel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
-        segment.label:SetSize(84, 30)
+        segment.label:SetSize(WHEEL_LABEL_WIDTH, WHEEL_LABEL_HEIGHT)
         segment.label:SetWordWrap(true)
         segment.label:SetJustifyH("CENTER")
         segment.label:SetJustifyV("MIDDLE")
@@ -409,6 +459,7 @@ local function LayoutWheel(n)
         local segment = wheel.segments[i]
         -- upper half (segments exactly at the side count as upper half)
         local upper = math.cos(center) >= -0.01
+        segment.upper = upper
         segment.icon:ClearAllPoints()
         segment.icon:SetPoint("CENTER", wheel, "CENTER", WHEEL_ICON_DISTANCE * math.sin(center),
                 WHEEL_ICON_DISTANCE * math.cos(center) + (upper and WHEEL_ICON_SHIFT or -WHEEL_ICON_SHIFT))
@@ -449,8 +500,12 @@ local function ShowWheel(_, m, armed1, armed2)
         end
         table.insert(spells, spell or false)
     end
-    -- totem wheels: the first segment (at the top) destroys the element's totem (see HOLD_WRAP), the totems follow
-    FillWheel(spells, not multiSpell and #spells > 0, parent and parent:GetAttribute(GetSpellAttribute(parent)))
+    -- totem wheels: the first segment (at the top) destroys the element's totem (see HOLD_WRAP), the totems follow;
+    -- while the multicast button is active the multicast exclusion toggle is the last segment (like WheelTail)
+    local toggle = not multiSpell and parent and parent.excludeToggle
+    local excludeSource = toggle and not toggle:GetAttribute("inactive") and parent or nil
+    FillWheel(spells, not multiSpell and #spells > 0, parent and parent:GetAttribute(GetSpellAttribute(parent)),
+            excludeSource)
     wheel.armed[1], wheel.armed[2] = armed1, armed2
     wheel.demo = nil
     -- the tutorial's wheel may have moved it
@@ -460,15 +515,43 @@ local function ShowWheel(_, m, armed1, armed2)
     wheel:Show()
 end
 
+-- the exclusion toggle segment: the active multicast spell's icon under the sign (red while included, green while
+-- excluded) and what selecting it does
+local function UpdateExcludeSegment()
+    local source, index = wheel.excludeSource, wheel.excludeIndex
+    if not (source and index) then return end
+    local segment = wheel.segments[index]
+    local mspell = source:GetAttribute("mspell")
+    local excluded = mspell and source:GetAttribute("mspelldisabled" .. mspell)
+    segment.icon:SetTexture(mspell and (C_Spell.GetSpellTexture(mspell)) or 134400)
+    segment.sign:SetVertexColor(TotemTimers.GetExcludeToggleColor(excluded))
+    segment.sign:Show()
+    segment.label:SetText(format(L[excluded and "Include for %s" or "Exclude for %s"],
+            mspell and C_Spell.GetSpellName(mspell) or ""))
+end
+
 -- segments of the wheel: the spells (false: a button without spell), destroy: a destroy segment first,
--- assigned: the spell of the timer button (marked)
-function FillWheel(spells, destroy, assigned)
+-- assigned: the spell of the timer button (marked), excludeSource: the timer button whose multicast exclusion toggle
+-- is the last segment
+function FillWheel(spells, destroy, assigned, excludeSource)
     local extra = destroy and 1 or 0
-    wheel.count = #spells + extra
+    local tail = excludeSource and #spells > 0 and 1 or 0
+    wheel.count = #spells + extra + tail
+    wheel.excludeSource = tail == 1 and excludeSource or nil
+    wheel.excludeIndex = tail == 1 and wheel.count or nil
     LayoutWheel(math.max(wheel.count, 1))
     for i, segment in ipairs(wheel.segments) do
         local spell = spells[i - extra] or nil
-        if destroy and i == 1 then
+        segment.sign:Hide()
+        -- the exclusion toggle's label has three lines, moved away from the icon by the extra line
+        local tall = i == wheel.excludeIndex
+        segment.label:SetSize(WHEEL_LABEL_WIDTH, tall and WHEEL_LABEL_HEIGHT_TALL or WHEEL_LABEL_HEIGHT)
+        segment.label:ClearAllPoints()
+        local offset = tall and WHEEL_LABEL_OFFSET_TALL or WHEEL_LABEL_OFFSET
+        segment.label:SetPoint("CENTER", segment.icon, "CENTER", 0, segment.upper and -offset or offset)
+        if i == wheel.excludeIndex then
+            UpdateExcludeSegment()
+        elseif destroy and i == 1 then
             segment.icon:SetTexture(WHEEL_DESTROY_ICON)
             segment.label:SetText(L["Destroy Totem"])
         else
@@ -542,6 +625,13 @@ local function WheelAssigned(_, i)
     if not wheel then return end
     wheel.assigned = i
     UpdateWheelLabelColors()
+    if SOUNDKIT and SOUNDKIT.U_CHAT_SCROLL_BUTTON then PlaySound(SOUNDKIT.U_CHAT_SCROLL_BUTTON) end
+end
+
+-- the exclusion toggle segment toggled (WheelExclude)
+local function WheelExcludeChanged()
+    if not (wheel and wheel:IsShown()) then return end
+    UpdateExcludeSegment()
     if SOUNDKIT and SOUNDKIT.U_CHAT_SCROLL_BUTTON then PlaySound(SOUNDKIT.U_CHAT_SCROLL_BUTTON) end
 end
 
@@ -637,9 +727,12 @@ local function GetHoldTicker()
         GamePad.nav.HideWheel = HideWheel
         GamePad.nav:SetAttribute("ReadWheelSticks", WHEEL_STICKS)
         GamePad.nav:SetAttribute("WheelSelection", WHEEL_SELECTION)
+        GamePad.nav:SetAttribute("WheelTail", WHEEL_TAIL)
+        GamePad.nav:SetAttribute("WheelExclude", WHEEL_EXCLUDE)
         GamePad.nav:SetAttribute("WheelAssign", WHEEL_ASSIGN)
         GamePad.nav:SetAttribute("CloseWheel", CLOSE_WHEEL)
         GamePad.nav.WheelAssigned = WheelAssigned
+        GamePad.nav.WheelExcludeChanged = WheelExcludeChanged
         GamePad.nav.SetWheelSticky = SetWheelSticky
         -- Cross/A of a wheel left open casts through this button (WHEEL_CAST_WRAP), on key down
         local cast = CreateFrame("Button", "TotemTimers_GamePadWheelCast", UIParent, "SecureActionButtonTemplate")
