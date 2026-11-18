@@ -223,3 +223,7 @@ L["Select Profiles"] = "Profile auswählen"
 L["Solo"] = true
 L["You cannot delete the default profile."] = "Das Standardprofil kann nicht gelöscht werden."
 L["You need to enter a profile name first."] = "Du musst zuerst einen Profilnamen eingeben."
+L["Totemic Call Button"] = "Totemischer Ruf-Knopf"
+L["Totemic Call Button desc"] = "Zeigt einen Knopf neben dem Multicast-Knopf (ohne ihn an seiner Stelle): Linksklick wirkt Totemischer Ruf, Rechtsklick Totemischer Rückruf. Sein Timer zeigt die Abklingzeit von Totemischer Ruf."
+L["Swap Multicast and Totemic Call"] = "Multicast und Totemischen Ruf tauschen"
+L["Swap Multicast and Totemic Call desc"] = "Setzt den Totemischer Ruf-Knopf an die Stelle des Multicast-Knopfs und den Multicast-Knopf an die Stelle des Totemischer Ruf-Knopfs"

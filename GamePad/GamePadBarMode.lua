@@ -152,6 +152,10 @@ local function GetHideableButtons()
     for _, tracker in ipairs({ TotemTimers.ShieldTracker, TotemTimers.WeaponTracker }) do
         if tracker then table.insert(list, { button = tracker.button }) end
     end
+    -- the Totemic Call button, Totemic Call and Totemic Recall are on d-pad left and down of the bar
+    if TotemTimers.TotemicCallTimer then
+        table.insert(list, { button = TotemTimers.TotemicCallTimer.button })
+    end
     return list
 end
 

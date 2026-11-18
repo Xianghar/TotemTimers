@@ -230,3 +230,19 @@ function WeaponBarTooltip:SetText()
         GameTooltip:AddLine(L["Rightclick to assign to weapon button leftclick"],r,g,b,1)
     end
 end
+
+-- Totemic Call button (TotemicCall.lua): the spell of the leftclick, the rightclick casts Totemic Recall
+local TotemicCallTooltip = XiTimersTooltip:new()
+TotemTimers.Tooltips.TotemicCall = TotemicCallTooltip
+
+function TotemicCallTooltip:SetText()
+    local spell = self.button:GetAttribute("*spell1")
+    if not spell then return end
+    self:SetSpell(spell)
+    local recall = self.button:GetAttribute("*spell2")
+    local recallName = recall and TotemTimers.AvailableSpells[TotemTimers.SpellIDs.TotemicRecall] and C_Spell.GetSpellName(recall)
+    if recallName then
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(format(L["Rightclick to cast %s"], recallName), r, g, b, 1)
+    end
+end

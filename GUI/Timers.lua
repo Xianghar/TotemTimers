@@ -594,6 +594,35 @@ if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC then
         end,
     }
 
+    TotemTimers.options.args.timers.args.totemiccall = {
+        order = 7.5,
+        type = "toggle",
+        name = L["Totemic Call Button"],
+        desc = L["Totemic Call Button desc"],
+        set = function(info, val)
+            TotemTimers.ActiveProfile.TotemicCallButton = val
+            TotemTimers.ProcessSetting("TotemicCallButton")
+        end,
+        get = function(info)
+            return TotemTimers.ActiveProfile.TotemicCallButton
+        end,
+    }
+
+    TotemTimers.options.args.timers.args.swapmulticastcall = {
+        order = 7.6,
+        type = "toggle",
+        name = L["Swap Multicast and Totemic Call"],
+        desc = L["Swap Multicast and Totemic Call desc"],
+        disabled = function() return not TotemTimers.ActiveProfile.TotemicCallButton end,
+        set = function(info, val)
+            TotemTimers.ActiveProfile.SwapMultiCastCall = val
+            TotemTimers.ProcessSetting("SwapMultiCastCall")
+        end,
+        get = function(info)
+            return TotemTimers.ActiveProfile.SwapMultiCastCall
+        end,
+    }
+
 
 end
 

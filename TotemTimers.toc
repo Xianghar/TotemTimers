@@ -40,6 +40,7 @@ Ankh.lua
 Shield.lua
 EarthShield.lua
 Weapon.lua
+TotemicCall.lua
 GamePad\GamePad.lua
 GamePad\GamePadSlots.lua
 GamePad\GamePadActionButtons.lua

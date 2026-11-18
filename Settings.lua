@@ -88,6 +88,9 @@ SettingsFunctions = {
         if TotemTimers_MultiSpell then
             TotemTimers_MultiSpell:SetScale(v / 36)
         end
+        if TotemTimers.TotemicCallTimer then
+            TotemTimers.TotemicCallTimer:SetScale(v / 36)
+        end
     end,
 
     TrackerSize = function(value, Timers)
@@ -101,6 +104,9 @@ SettingsFunctions = {
     TimerTimeHeight = function(value, Timers)
         for e = 1, TRACKER_END do
             Timers[e]:SetTimeHeight(value)
+        end
+        if TotemTimers.TotemicCallTimer then
+            TotemTimers.TotemicCallTimer:SetTimeHeight(value)
         end
         for _, t in pairs({ TotemTimers.EnhanceCDs or {}, TotemTimers.LongCooldowns or {} }) do
             for _, timer in pairs(t) do
@@ -129,6 +135,11 @@ SettingsFunctions = {
         for e = 1, 4 do
             Timers[e]:SetTimeSpacing(value)
         end
+        if TotemTimers.TotemicCallTimer then
+            TotemTimers.TotemicCallTimer:SetTimeSpacing(value)
+            -- the totem timers keep their distance to its timer bar
+            if TotemTimers_IsSetUp then TotemTimers.OrderTimers() end
+        end
     end,
 
     TrackerTimeSpacing = function(value, Timers)
@@ -143,6 +154,10 @@ SettingsFunctions = {
     TimerTimePos = function(value, Timers)
         for e = 1, 4 do
             Timers[e]:SetTimerBarPos(value)
+        end
+        if TotemTimers.TotemicCallTimer then
+            TotemTimers.TotemicCallTimer:SetTimerBarPos(value)
+            if TotemTimers_IsSetUp then TotemTimers.OrderTimers() end
         end
     end,
 
@@ -340,6 +355,16 @@ SettingsFunctions = {
             end
             --TotemTimersFrame:Hide()
         end
+        -- the Totemic Call button is shown with the totem timers
+        TotemTimers.UpdateTotemicCallButton()
+    end,
+
+    TotemicCallButton = function(value, Timers)
+        TotemTimers.UpdateTotemicCallButton()
+    end,
+
+    SwapMultiCastCall = function(value, Timers)
+        if TotemTimers_IsSetUp then TotemTimers.OrderTimers() end
     end,
 
     ProcFlash = function(value, Timers)
@@ -445,6 +470,10 @@ SettingsFunctions = {
                 Timers[i].timerBars[j]:SetWidth(value)
             end
         end
+        if TotemTimers.TotemicCallTimer then
+            TotemTimers.TotemicCallTimer.timerBars[1]:SetWidth(value)
+            if TotemTimers_IsSetUp then TotemTimers.OrderTimers() end
+        end
     end,
 
     TrackerTimerBarWidth = function(value, Timers)
@@ -502,6 +531,9 @@ SettingsFunctions = {
         for i = 1, 8 do
             Timers[i].OOCAlpha = value
         end
+        if TotemTimers.TotemicCallTimer then
+            TotemTimers.TotemicCallTimer.OOCAlpha = value
+        end
         XiTimers.invokeOOCFader()
         if TotemTimers_MultiSpell then
             TotemTimers_MultiSpell.OOCAlpha = value
@@ -514,8 +546,11 @@ SettingsFunctions = {
 
 
     TimersOnButtons = function(value, Timers)
-        for i = 1, 8 do
-            local timer = Timers[i]
+        local timers = {}
+        for i = 1, 8 do timers[i] = Timers[i] end
+        -- the Totemic Call button, too
+        table.insert(timers, TotemTimers.TotemicCallTimer)
+        for _, timer in ipairs(timers) do
             timer.timerOnButton = value
             if timer.timers[1] then
                 timer:ShowTimer()
@@ -524,6 +559,8 @@ SettingsFunctions = {
                 timer:Start(2, timer.timers[2])
             end
         end
+        -- the totem timers keep their distance to the Totemic Call button's timer bar
+        if TotemTimers_IsSetUp then TotemTimers.OrderTimers() end
     end,
 
 
@@ -621,6 +658,9 @@ SettingsFunctions = {
     Timer_Clickthrough = function(value, Timers)
         for i = 1, 4 do
             Timers[i].button:EnableMouse(not value)
+        end
+        if TotemTimers.TotemicCallTimer then
+            TotemTimers.TotemicCallTimer.button:EnableMouse(not value)
         end
     end,
 

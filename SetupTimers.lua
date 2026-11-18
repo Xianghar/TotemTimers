@@ -618,6 +618,11 @@ local MultiCastButtonPositions = {
     ["horizontal"] = { { "LEFT", 1, "RIGHT" }, { "LEFT", 1, "RIGHT" }, { "LEFT", 1, "RIGHT" }, { "LEFT", 1, "RIGHT" } },
     ["vertical"] = { { "TOP", 1, "BOTTOM" }, { "TOP", 1, "BOTTOM" }, { "TOP", 1, "BOTTOM" }, { "TOP", 1, "BOTTOM" } }
 }
+-- box arrangement with two buttons stacked in the center (multicast and Totemic Call): the upper row of the timers
+-- starts right of the upper button, so the lower row is right of the lower one
+local StackedBoxPositions = {
+    ["box"] = { { "LEFT", 0, "RIGHT" }, { "LEFT", 1, "RIGHT" }, { "TOP", 2, "BOTTOM" }, { "LEFT", 1, "RIGHT" } },
+}
 
 function TotemTimers.OrderTimers()
     if InCombatLockdown() then
@@ -634,14 +639,61 @@ function TotemTimers.OrderTimers()
 
     local parentAnchor = TotemTimersFrame
     local buttonPositions = ButtonPositions
-
-    if TotemTimers_MultiSpell and Settings.MultiCast then
-        parentAnchor = TotemTimers_MultiSpell
-        buttonPositions = MultiCastButtonPositions
-        TotemTimers_MultiSpell:SetPoint("CENTER", TotemTimersFrame, "CENTER")
-    end
-
     local arrange = Settings.Arrange
+
+    -- the multicast button (if shown) sits in the center of the totem timers, the Totemic Call button
+    -- (TotemicCall.lua) next to it: left of it on horizontal arrangement, on top of it otherwise (switched with option
+    -- SwapMultiCastCall); with only one of them that one takes the center; the timers are arranged around the center
+    -- button
+    local multiCast = TotemTimers_MultiSpell
+    local multiCastShown = multiCast and Settings.MultiCast and multiCast.active and not Settings.HideMultiCast
+    local call = TotemTimers.TotemicCallTimer
+    local callShown = call and call.active
+    if multiCastShown or callShown then
+        -- the center and the other button: the multicast button (a frame) or the Totemic Call timer (an XiTimers
+        -- timer, used itself as anchor so the timers keep their distance to its timer bar: XiTimers:SetPoint adds the
+        -- border of a timer it is anchored to); option SwapMultiCastCall puts the Totemic Call button in the center
+        local centerObj, otherObj
+        if multiCastShown and callShown then
+            if Settings.SwapMultiCastCall then
+                centerObj, otherObj = call, multiCast
+            else
+                centerObj, otherObj = multiCast, call
+            end
+        else
+            centerObj = multiCastShown and multiCast or call
+        end
+        local function FrameOf(obj) return obj == call and call.button or obj end
+        -- space taken by the timer bar of the Totemic Call button (time not on the button) on a side
+        local function Border(obj, side) return obj == call and call:GetBorder(side) or 0 end
+
+        local centerFrame = FrameOf(centerObj)
+        centerFrame:ClearAllPoints()
+        centerFrame:SetPoint("CENTER", TotemTimersFrame, "CENTER")
+        parentAnchor = centerObj
+        buttonPositions = MultiCastButtonPositions
+        if otherObj then
+            local otherFrame = FrameOf(otherObj)
+            local spacing = Settings.TimerSpacing or 0
+            otherFrame:ClearAllPoints()
+            if arrange == "horizontal" then
+                local gap = spacing + Border(otherObj, "RIGHT") + Border(centerObj, "LEFT")
+                otherFrame:SetPoint("RIGHT", centerFrame, "LEFT", -gap, 0)
+            else
+                local gap = spacing + Border(otherObj, "BOTTOM") + Border(centerObj, "TOP")
+                otherFrame:SetPoint("BOTTOM", centerFrame, "TOP", 0, gap)
+                if arrange == "box" then
+                    -- the two buttons line up with the two rows of the timers: the center button moves down by half
+                    -- of the stack, the timers start right of the upper button (the rows stay where they are around
+                    -- the center)
+                    centerFrame:ClearAllPoints()
+                    centerFrame:SetPoint("CENTER", TotemTimersFrame, "CENTER", 0, -(centerFrame:GetHeight() + gap) / 2)
+                    parentAnchor = otherObj
+                    buttonPositions = StackedBoxPositions
+                end
+            end
+        end
+    end
 
     for e = 1, 4 do
         if Timers[e].active then
