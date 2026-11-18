@@ -107,17 +107,8 @@ function TotemTimers.SetButton_OnClick(self, button)
     elseif button == "LeftButton" then
         for i=1,4 do
             local spell = TotemTimers.UpdateSpellRank(set[XiTimers.timers[i].nr])
+            -- the timer button puts it into the multicast slot (SyncMultiCastSlot)
             XiTimers.timers[i].button:SetAttribute("*spell1", spell)
-
-            if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE and LE_EXPANSION_LEVEL_CURRENT < LE_EXPANSION_MISTS_OF_PANDARIA then
-                if TotemTimers_MultiSpell.active then
-                    local mspell = XiTimers.timers[i].button:GetAttribute("mspell")
-                    local disabled = XiTimers.timers[i].button:GetAttribute("mspelldisabled"..mspell)
-                    if not disabled then
-                        SetMultiCastSpell(XiTimers.timers[i].button:GetAttribute("action"..mspell), spell)
-                    end
-                end
-            end
         end
 	end
 end

@@ -267,7 +267,12 @@ function TotemTimers.SetMultiCastConfig()
                 SetMultiCastSpell(action, nil)
             else
                 _, spellID = GetActionInfo(action)
-                sanitizedSpellID = TotemTimers.SanitizeTotem(spellID, timer)
+                -- an empty slot is only filled with the first totem of the menu on login; later (zoning, spell and
+                -- talent updates) the multicast actions can read empty for a moment, the slot and the timer's
+                -- totem are kept then
+                if spellID or not TotemTimers_IsSetUp then
+                    sanitizedSpellID = TotemTimers.SanitizeTotem(spellID, timer)
+                end
                 if sanitizedSpellID then
                     XiTimers.timers[i].button:SetAttribute("mspell" .. mspell, sanitizedSpellID)
                     SetMultiCastSpell(action, sanitizedSpellID)

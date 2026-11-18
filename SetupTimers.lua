@@ -197,6 +197,7 @@ end
                 TotemTimers.TotemEvent(self, "SPELL_UPDATE_COOLDOWN", self.timer.nr)
                 self.timer:SetManaCheck(spell)
                 TotemTimers.ActiveProfile.LastTotems[self.timer.nr] = spell
+                self:SyncMultiCastSlot(spell)
             end
             TotemTimers.UpdateMacro()
         end
@@ -250,7 +251,8 @@ end
                                                       end ]])
 		
 		--declare empty function here for classic and tbc
-		tt.button.DisableMultiSpell = function(self, multispell, disable) end		
+		tt.button.DisableMultiSpell = function(self, multispell, disable) end
+        tt.button.SyncMultiCastSlot = function(self, spell) end
 
         tt.Activate = function(self)
             if self.active then return end
@@ -340,6 +342,21 @@ end
                 SetMultiCastSpell(action, not disable and self:GetAttribute("*spell1") or nil)
                 TotemTimers.ActiveProfile.DisabledMultiSpells[TotemTimers.Specialization..multispell..self.timer.nr] = disable
                 TotemTimers_MultiSpell:UpdateTexture()
+            end
+
+            -- puts the timer's totem into the multicast slot of the active multicast spell (unless disabled for the
+            -- timer), whatever changed the totem (totem sets, gamepad, ...); out of combat only, in combat only the
+            -- secure "multispell" action of the menu buttons (rightclick, gamepad wheel assign) can do it
+            tt.button.SyncMultiCastSlot = function(self, spell)
+                if InCombatLockdown() or not (TotemTimers_MultiSpell and TotemTimers_MultiSpell.active) then return end
+                local mspell = self:GetAttribute("mspell")
+                if not mspell or self:GetAttribute("mspelldisabled" .. mspell) then return end
+                local action = self:GetAttribute("action" .. mspell)
+                if not action then return end
+                local _, current = GetActionInfo(action)
+                if current ~= spell then
+                    SetMultiCastSpell(action, spell)
+                end
             end
         end
 
@@ -727,7 +744,8 @@ local function SanitizeTotem(spellID, timer)
             TotemTimers.AddDebug("Replace "..(spellID or "").." - "..(baseSpellID or "") .. " - "..(timer.actionBar.buttons[1]:GetAttribute("*spell1") or ""))
             return timer.actionBar.buttons[1]:GetAttribute("*spell1")
         end
-        return TotemTimers.UpdateSpellRank(spellID)
+        -- spell data not ready (e.g. during a loading screen): keep the totem instead of removing it
+        return TotemTimers.UpdateSpellRank(spellID) or spellID
     end
 end
 TotemTimers.SanitizeTotem = SanitizeTotem
