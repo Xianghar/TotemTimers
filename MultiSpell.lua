@@ -46,18 +46,6 @@ function TotemTimers.CreateMultiCastButtons()
         mb:SetFrameRef("t" .. e, XiTimers.timers[e].button)
     end
 
-    local textures = { SpellTextures[SpellIDs.Searing], SpellTextures[SpellIDs.StrengthOfEarth], SpellTextures[SpellIDs.ManaSpring], SpellTextures[SpellIDs.Windfury] }
-
-    mb.totemIcons = {}
-    for e = 1, 4 do
-        mb.totemIcons[e] = mb:CreateTexture(nil, "OVERLAY", nil, 7)
-        mb.totemIcons[e]:SetTexture(textures[e])
-        mb.totemIcons[e]:SetSize(18, 18)
-        mb.totemIcons[e]:SetPoint("TOPLEFT", mb, "TOPLEFT", (1 - e % 2) * 18, -floor((e - 1) / 2) * 18)
-        mb.totemIcons[e]:SetAlpha(0.4)
-        mb.totemIcons[e]:Hide()
-    end
-
     mb:SetAttribute("*type*", "spell")
 
     mb.UpdateTexture = function(self)
@@ -68,14 +56,7 @@ function TotemTimers.CreateMultiCastButtons()
                 self.icon:SetTexture(texture)
             end
             TotemTimers.ActiveProfile.LastMultiCastSpell = spell
-
-            for i = 1, 4 do
-                if TotemTimers.ActiveProfile.DisabledMultiSpells[TotemTimers.Specialization .. spell .. i] then
-                    self.totemIcons[i]:Show()
-                else
-                    self.totemIcons[i]:Hide()
-                end
-            end
+            -- excluded elements are marked on their timer buttons (UpdateMultiSpellExcluded)
         end
     end
 

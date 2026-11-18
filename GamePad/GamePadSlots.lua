@@ -133,11 +133,17 @@ local function GetBarIcon(button, index)
         -- slot's width/height),
         -- following the slot's size (the bar expands)
         local active = CreateFrame("Frame", nil, slot)
+        -- the element is excluded from the active multicast spell: the icon of the timer buttons
+        -- (TotemTimers.CreateExcludedIcon) in the bottom left corner like there, 0.4 of the slot's size
+        slot.excluded = TotemTimers.CreateExcludedIcon(slot)
         local function UpdateActiveSize()
             local width, height = slot:GetSize()
             active:SetSize(width * ACTIVE_SIZE, height * ACTIVE_SIZE)
             active:ClearAllPoints()
             active:SetPoint("BOTTOMRIGHT", slot, "BOTTOMRIGHT", width * ACTIVE_OFFSET_X, -height * ACTIVE_OFFSET_Y)
+            slot.excluded:SetSize(width * 0.4, height * 0.4)
+            slot.excluded:ClearAllPoints()
+            slot.excluded:SetPoint("BOTTOMLEFT", slot, "BOTTOMLEFT", MASK_INSET, MASK_INSET)
         end
         UpdateActiveSize()
         slot:SetScript("OnSizeChanged", UpdateActiveSize)
@@ -176,6 +182,7 @@ local function GetBarIcon(button, index)
         slot.glow = CreateFrame("Frame", nil, slot)
         slot.glow:SetAllPoints(slot)
         slot.glow:SetFrameLevel(texts:GetFrameLevel() + 1)
+        slot.excluded:SetFrameLevel(texts:GetFrameLevel() + 1)
 
         -- anchors of the range dots (see ShowSlot), hidden: the dots are drawn by aura containers over them;
         -- a row along the top edge, the player's dot first (option PlayerRangeStyle "dot", otherwise the party dots
@@ -335,6 +342,7 @@ local function ShowSlot(bar, index, texture, timer, cooldownSpell, notTotem, spe
     slot.notTotem = notTotem
     slot.cooldownSpell = not timer and cooldownSpell or nil
     slot.spell = spell or cooldownSpell
+    TotemTimers.SetExcludedIcon(slot.excluded, timer and not notTotem and TotemTimers.GetExcludedMultiSpell(timer))
     if timer and not notTotem then
         -- the timer button's icon shows the active totem while the timer runs, its texture is handed on without
         -- being read (it might be secret)
@@ -482,6 +490,8 @@ local function HookTimers()
         local timer = XiTimers.timers[i]
         if timer and not hookedTimers[timer] and timer.button.UpdateMiniIconAndProfile then
             hooksecurefunc(timer.button, "UpdateMiniIconAndProfile", GamePad.UpdateBarIcons)
+            -- the element was excluded from / included in the active multicast spell
+            hooksecurefunc(timer.button, "UpdateMultiSpellExcluded", GamePad.UpdateBarIcons)
             hooksecurefunc(timer, "Start", TimerChanged)
             hooksecurefunc(timer, "Stop", TimerChanged)
             hookedTimers[timer] = true
