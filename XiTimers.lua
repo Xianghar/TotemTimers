@@ -497,7 +497,11 @@ function XiTimers:Start(timer, durObj)
 end
 
 function XiTimers:Stop(timer)
-	if not self.timers[timer] then return end
+	if not self.timers[timer] then
+        -- stopQuiet only applies to this call, also if nothing was running
+        self.stopQuiet = false
+        return
+    end
 	self.running = self.running - 1
 	if self.running < 0 then self.running = 0 end
 	self.timers[timer] = nil

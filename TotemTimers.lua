@@ -41,6 +41,25 @@ local lastSpellsChanged = 0
 
 local runes = {}
 
+-- zone changes: from the loading screen until a moment after it, the game's data can read empty (weapon enchants,
+-- totems), timers stopped then play no warnings (TotemTimers.IsZoning)
+local ZONING_GRACE = 3
+local loadingScreen = false
+local loadingScreenEnd = -ZONING_GRACE
+local loadingFrame = CreateFrame("Frame")
+loadingFrame:RegisterEvent("LOADING_SCREEN_ENABLED")
+loadingFrame:RegisterEvent("LOADING_SCREEN_DISABLED")
+loadingFrame:SetScript("OnEvent", function(self, event)
+    loadingScreen = event == "LOADING_SCREEN_ENABLED"
+    if not loadingScreen then
+        loadingScreenEnd = GetTime()
+    end
+end)
+
+function TotemTimers.IsZoning()
+    return loadingScreen or GetTime() - loadingScreenEnd < ZONING_GRACE
+end
+
 local function TotemTimers_OnEvent(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
         TotemTimersFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")

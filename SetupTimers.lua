@@ -477,6 +477,8 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
             local active, totem, icon = GetActiveTotem(self.timer, arg1)
             if not active or not StartTotem(self, totem, icon) then
                 if self.timer.timers[1] then
+                    -- totems removed by a zone change (before PLAYER_ENTERING_WORLD stops them) give no warning
+                    self.timer.stopQuiet = TotemTimers.IsZoning()
                     self.timer:Stop(1)
                 end
                 self.timer.activeTotem = nil

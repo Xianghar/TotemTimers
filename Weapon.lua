@@ -264,7 +264,9 @@ function TotemTimers.WeaponUpdate(self, elapsed)
                 TotemTimers.WeaponEnchantChanged()
             end
             expirations[hand] = expiration
-        elseif self.timers[hand] then
+        elseif self.timers[hand] and not TotemTimers.IsZoning() then
+            -- around a loading screen the enchant can read missing for a moment: the timer keeps running, if the
+            -- enchant is still missing after it, it is stopped (with the warning) then
             self:Stop(hand)
         end
         -- in combat the button glows while an enchant is missing (timeLeft 0) or about to expire
