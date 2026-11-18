@@ -10,7 +10,9 @@ TTActionBars.__index = TTActionBars
 local _G = getfenv()
 
 
-function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bartype)
+-- withExtra: one more button after the last active one, not part of the menu's spells (self.extraButton, see
+-- SetExtraButtonAnchor); its click does nothing by itself (no type), its owner sets it up
+function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bartype, withExtra)
 	local self = {}
 	setmetatable(self, TTActionBars)
 	TTActionBars.numbars = TTActionBars.numbars + 1
@@ -25,7 +27,7 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
 
     
 	self.buttons = {}
-	for i=1,numbuttons do	
+	for i=1,numbuttons + (withExtra and 1 or 0) do	
 		local b = CreateFrame("Button", "TT_ActionButton"..TTActionBars.numbars..i, parent, "TTActionBarButtonTemplate")
         table.insert(self.buttons,b)
 		b.icon = _G["TT_ActionButton"..TTActionBars.numbars..i.."Icon"]
@@ -196,6 +198,12 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
         end
             
 	end
+	if withExtra then
+        local extra = table.remove(self.buttons)
+        extra:SetAttribute("*type1", nil)
+        extra:SetAttribute("*type2", nil)
+        self.extraButton = extra
+    end
 	table.insert(TTActionBars.bars, self)
 	return self
 end
@@ -256,6 +264,7 @@ function TTActionBars:SetSpells(spells, asnames)
         self:SetInactive(i)
     end
     self.numspells = #spells
+    self:SetExtraButtonAnchor()
 end
 
 
@@ -278,6 +287,7 @@ function TTActionBars:SetAlwaysVisible(av)
     for i=1,self.numbuttons do
         self.buttons[i]:SetAttribute("alwaysshow", av)
     end
+    if self.extraButton then self.extraButton:SetAttribute("alwaysshow", av) end
     if self.direction and self.parentdirection then self:SetDirection(self.direction, self.parentdirection) end
 end
 
@@ -285,6 +295,7 @@ function TTActionBars:SetTooltip(tt)
     for i=1,self.numbuttons do
         self.buttons[i]:SetAttribute("tooltip", tt)
     end
+    if self.extraButton then self.extraButton:SetAttribute("tooltip", tt) end
 end
 
 
@@ -411,6 +422,26 @@ function TTActionBars:SetDirection(dir, parentdir, freenotself)
         else
             button:SetFrameStrata("HIGH")
         end
+    end
+    self.layout = { positions = CastButtonPositions[parentdir][self.order][dir], anchor = anchor, x = x, y = y }
+    if self.extraButton then
+        self.extraButton:SetFrameStrata(self.alwaysvisible and not self.menuAnchor and "MEDIUM" or "HIGH")
+    end
+    self:SetExtraButtonAnchor()
+end
+
+-- the extra button follows the last active button (in place of the first one without active buttons);
+-- out of combat only, like SetDirection
+function TTActionBars:SetExtraButtonAnchor()
+    local button, layout = self.extraButton, self.layout
+    if not button or not layout or InCombatLockdown() then return end
+    local positions = layout.positions
+    local last = self.numspells and self.numspells > 0 and self.buttons[self.numspells]
+    button:ClearAllPoints()
+    if last then
+        button:SetPoint(positions[3], last, positions[4], layout.x, layout.y)
+    else
+        button:SetPoint(positions[1], layout.anchor, positions[2])
     end
 end
 

@@ -111,6 +111,24 @@ function TotemTooltip:SetText()
 end
 
 
+-- toggle at the end of a totem menu: excludes the element from the active multicast spell (SetupExcludeToggle)
+local MultiSpellExcludeTooltip = XiTimersTooltip:new()
+TotemTimers.Tooltips.MultiSpellExclude = MultiSpellExcludeTooltip
+
+function MultiSpellExcludeTooltip:SetText()
+    local timerButton = self.button:GetParent()
+    local mspell = timerButton and timerButton:GetAttribute("mspell")
+    if not mspell then return end
+    local name = C_Spell.GetSpellName(mspell) or ""
+    local excluded = timerButton:GetAttribute("mspelldisabled" .. mspell)
+    GameTooltip:SetText(name)
+    GameTooltip:AddLine(format(L[excluded and "Element excluded from %s" or "Element included in %s"], name), 1, 1, 1, 1)
+    GameTooltip:AddLine(" ")
+    GameTooltip:AddLine(format(L[excluded and "Click to include element in %s" or "Click to exclude element from %s"],
+            name), r, g, b, 1)
+end
+
+
 
 local SetAnchorTooltip = XiTimersTooltip:new()
 TotemTimers.Tooltips.SetAnchor = SetAnchorTooltip

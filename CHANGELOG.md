@@ -1,5 +1,10 @@
 # TotemTimers
 
+## 20.16
+- Possible fixes for multicast button
+- Totems, that are excluded from multicast spells have an icon on the totem button instead of the multicast button
+- Added buttons to make exclusion of totem from multicast spells easier
+
 ## 20.15
 - Fix gamepad UI not assigning totems to multicast spells
 - Added icon tint on low mana back

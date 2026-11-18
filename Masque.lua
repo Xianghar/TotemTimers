@@ -117,6 +117,7 @@ function TotemTimers.InitMasque()
                 for j = 1,#TTActionBars.bars[i].buttons do
                     group:AddButton(TTActionBars.bars[i].buttons[j])
                 end
+                if TTActionBars.bars[i].extraButton then group:AddButton(TTActionBars.bars[i].extraButton) end
             end
         end
         if TotemTimers_MultiSpell then group:AddButton(TotemTimers_MultiSpell) end

@@ -17,10 +17,14 @@ local L = LibStub("AceLocale-3.0"):NewLocale("TotemTimers", "deDE")
 if not L then return end
 
 L["Air Button"] = "Luftbutton"
+L["Click to exclude element from %s"] = "Klicken, um das Element von %s auszuschließen"
+L["Click to include element in %s"] = "Klicken, um das Element in %s aufzunehmen"
 L["Cooldown"] = "Abklingzeit"
 L["Ctrl-Leftclick to remove weapon buffs"] = "Strg-Linksklick um Waffenbuffs zu entfernen"
 L["Delete Set"] = "Totemset %s löschen?"
 L["Earth Button"] = "Erdbutton"
+L["Element excluded from %s"] = "Element von %s ausgeschlossen"
+L["Element included in %s"] = "Element in %s enthalten"
 L["Fire Button"] = "Feuerbutton"
 L["Leftclick to cast %s"] = "Linksklick um %s zu zaubern"
 L["Leftclick to cast spell"] = "Linksklick um Spruch zu zaubern"

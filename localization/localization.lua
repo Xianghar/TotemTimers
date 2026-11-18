@@ -18,10 +18,14 @@ local L = LibStub("AceLocale-3.0"):NewLocale("TotemTimers", "enUS", true, true)
 if not L then return end
 
 L["Air Button"] = true
+L["Click to exclude element from %s"] = true
+L["Click to include element in %s"] = true
 L["Cooldown"] = true
 L["Ctrl-Leftclick to remove weapon buffs"] = true
 L["Delete Set"] = "Delete Totem Set %s?"
 L["Earth Button"] = true
+L["Element excluded from %s"] = true
+L["Element included in %s"] = true
 L["Fire Button"] = true
 L["GamePad Tutorial Title"] = "TotemTimers GamePad Tutorial"
 -- tutorial texts: {PAD...} is replaced by the icon of that gamepad button, {spell:...} by the name of a spell of TotemTimers.SpellIDs

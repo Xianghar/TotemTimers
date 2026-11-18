@@ -171,6 +171,7 @@ local function SetTimersHidden(hide)
                 for _, menuButton in ipairs(entry.menu.buttons) do
                     menuButton:SetIgnoreParentAlpha(hide)
                 end
+                if entry.menu.extraButton then entry.menu.extraButton:SetIgnoreParentAlpha(hide) end
             end
             if hide then
                 button:SetAlpha(0)

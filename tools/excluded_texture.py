@@ -1,6 +1,8 @@
-"""Generates textures/excluded.tga: a red prohibition sign (circle with a diagonal line from the top left to the
+"""Generates textures/excluded.tga: a white prohibition sign (circle with a diagonal line from the top left to the
 bottom right) with a dark outline, transparent inside. It marks a totem timer excluded from the active multicast
-spell (TotemTimers.CreateExcludedIcon in SetupTimers.lua), on the timer buttons and the Gamepad UI bar slots.
+spell (TotemTimers.CreateExcludedIcon in SetupTimers.lua), on the timer buttons and the Gamepad UI bar slots. The
+sign is colored in game with SetVertexColor (red, green on the exclusion toggle of the totem menus); the outline
+stays dark.
 
 Plain Python, no dependencies: python tools/excluded_texture.py
 """
@@ -12,12 +14,12 @@ SIZE = 64  # texture size in pixels
 SAMPLES = 4  # supersampling per axis
 
 # in units of the texture's half size (1 = edge)
-R_OUTER = 0.92  # outer edge of the red ring
-R_INNER = 0.66  # inner edge of the red ring
-BAR_HALF_WIDTH = 0.13  # half width of the red diagonal bar
-OUTLINE = 0.07  # width of the dark outline around the red shape
+R_OUTER = 0.92  # outer edge of the ring
+R_INNER = 0.66  # inner edge of the ring
+BAR_HALF_WIDTH = 0.13  # half width of the diagonal bar
+OUTLINE = 0.07  # width of the dark outline around the sign
 
-RED = (0.70, 0.05, 0.04)
+SIGN = (1.0, 1.0, 1.0)  # tinted in game
 DARK = (0.0, 0.0, 0.0)
 DARK_ALPHA = 0.85
 
@@ -37,7 +39,7 @@ def write_tga(path, size, pixels):
 
 
 def distance_to_sign(x, y):
-    """signed distance to the red shape (negative inside): the ring united with the bar inside the ring"""
+    """signed distance to the sign (negative inside): the ring united with the bar inside the ring"""
     r = math.hypot(x, y)
     ring = max(R_INNER - r, r - R_OUTER)
     # bar from the top left to the bottom right (y up): along the direction (1, -1), clipped to the inner disc
@@ -50,7 +52,7 @@ def shade(x, y):
     """premultiplied (r, g, b, a) at a point, or None"""
     d = distance_to_sign(x, y)
     if d <= 0:
-        return (RED[0], RED[1], RED[2], 1.0)
+        return (SIGN[0], SIGN[1], SIGN[2], 1.0)
     if d <= OUTLINE:
         return (DARK[0] * DARK_ALPHA, DARK[1] * DARK_ALPHA, DARK[2] * DARK_ALPHA, DARK_ALPHA)
     return None
