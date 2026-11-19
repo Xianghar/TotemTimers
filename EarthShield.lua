@@ -4,6 +4,21 @@ end
 
 local _, TotemTimers = ...
 
+-- WoW Forever has no Earth Shield: only a dummy timer is created, which is never activated. It keeps index 7
+-- (the first 8 timers, totems 1-4 and trackers 5-8, are addressed by number). Other clients (e.g. Retail) load
+-- the tracker below.
+if WOW_PROJECT_CAMELOT and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT then
+    function TotemTimers.CreateEarthShieldTracker()
+        local dummy = XiTimers:new(1)
+        dummy.button.anchorframe = TotemTimers_TrackerFrame
+        dummy.Activate = function() end
+        dummy:Deactivate()
+        TotemTimers.EarthShieldTracker = dummy
+    end
+    table.insert(TotemTimers.Modules, TotemTimers.CreateEarthShieldTracker)
+    return
+end
+
 local SpellNames = TotemTimers.SpellNames
 local SpellIDs = TotemTimers.SpellIDs
 local SpellTextures = TotemTimers.SpellTextures

@@ -1,7 +1,6 @@
 if select(2, UnitClass("player")) ~= "SHAMAN" then
     return
 end
-if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC and (C_Seasons and C_Seasons.GetActiveSeason() ~= 2) then return end
 
 local _, TotemTimers = ...
 

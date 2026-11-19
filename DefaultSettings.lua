@@ -114,7 +114,8 @@ TotemTimers.DefaultProfile = {
         ShieldLeftButton = SpellIDs.LightningShield,
         ShieldRightButton = SpellIDs.WaterShield,
         ShieldMiddleButton = SpellIDs.TotemicRecall,
-        ShieldButton4 = SpellIDs.EarthShield,
+        -- WoW Forever has no Earth Shield, button 4 casts nothing there by default
+        ShieldButton4 = not (WOW_PROJECT_CAMELOT and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT) and SpellIDs.EarthShield or nil,
         EarthShieldTargetName = true,
         ESMainTankMenu = true,
         ESMainTankMenuDirection = "auto",

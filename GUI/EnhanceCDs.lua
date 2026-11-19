@@ -1,9 +1,7 @@
 if select(2, UnitClass("player")) ~= "SHAMAN" then return end
-if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC and (not C_Seasons or C_Seasons.GetActiveSeason() ~= 2) then return end
 
 local _, TotemTimers = ...
 
-local GetSpellInfo = (C_Spell and C_Spell.GetSpellInfo) or GetSpellInfo
 
 local L = LibStub("AceLocale-3.0"):GetLocale("TotemTimers_GUI", true)
 
@@ -419,115 +417,111 @@ if (TotemTimers.LongCooldownSpells) then
     end
 end
 
-if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE or (C_Seasons and C_Seasons.GetActiveSeason() == 2) then
 
-    TotemTimers.options.args.enhancecds.args.options.args.OverlayGlow = {
-        order = 9,
-        type = "toggle",
-        name = L["Overlay Glow"],
-        desc = L["Show an overlay glow for affected spells on your action bars for some procs like Maelstrom Weapon, supports default action bars and Bartender"],
-        set = function(info, val)
-            TotemTimers.ActiveProfile.OverlayGlow = val
-        end,
-        get = function(info)
-            return TotemTimers.ActiveProfile.OverlayGlow
-        end,
-    }
+TotemTimers.options.args.enhancecds.args.options.args.OverlayGlow = {
+    order = 9,
+    type = "toggle",
+    name = L["Overlay Glow"],
+    desc = L["Show an overlay glow for affected spells on your action bars for some procs like Maelstrom Weapon, supports default action bars and Bartender"],
+    set = function(info, val)
+        TotemTimers.ActiveProfile.OverlayGlow = val
+    end,
+    get = function(info)
+        return TotemTimers.ActiveProfile.OverlayGlow
+    end,
+}
 
 
-    local MaelstromName = GetSpellInfo(SpellIDs.Maelstrom)
+local MaelstromName = C_Spell.GetSpellName(SpellIDs.Maelstrom)
 
-    TotemTimers.options.args.enhancecds.args.options.args.MaelstromHeader = {
-        order = 40,
-        type = "header",
-        name = MaelstromName,
-    }
+TotemTimers.options.args.enhancecds.args.options.args.MaelstromHeader = {
+    order = 40,
+    type = "header",
+    name = MaelstromName,
+}
 
-    TotemTimers.options.args.enhancecds.args.options.args.Maelstrom = {
-        order = 41,
-        type = "toggle",
-        name = MaelstromName,
-        set = function(info, val)
-            TotemTimers.ActiveProfile.EnhanceCDsMaelstrom = val
-            TotemTimers.ConfigEnhanceCDs()
-            TotemTimers.LayoutEnhanceCDs()
-        end,
-        get = function(info)
-            return TotemTimers.ActiveProfile.EnhanceCDsMaelstrom
-        end,
-    }
+TotemTimers.options.args.enhancecds.args.options.args.Maelstrom = {
+    order = 41,
+    type = "toggle",
+    name = MaelstromName,
+    set = function(info, val)
+        TotemTimers.ActiveProfile.EnhanceCDsMaelstrom = val
+        TotemTimers.ConfigEnhanceCDs()
+        TotemTimers.LayoutEnhanceCDs()
+    end,
+    get = function(info)
+        return TotemTimers.ActiveProfile.EnhanceCDsMaelstrom
+    end,
+}
 
-    TotemTimers.options.args.enhancecds.args.options.args.MaelstromSize = {
-        order = 44,
-        type = "range",
-        name = L["Size"],
-        min = 1,
-        max = 3,
-        step = 1,
-        set = function(info, val)
-            TotemTimers.ActiveProfile.MaelstromSize = val
-            TotemTimers.ProcessSetting("MaelstromSize")
-            TotemTimers.LayoutEnhanceCDs()
-        end,
-        get = function(info)
-            return TotemTimers.ActiveProfile.MaelstromSize
-        end,
-    }
+TotemTimers.options.args.enhancecds.args.options.args.MaelstromSize = {
+    order = 44,
+    type = "range",
+    name = L["Size"],
+    min = 1,
+    max = 3,
+    step = 1,
+    set = function(info, val)
+        TotemTimers.ActiveProfile.MaelstromSize = val
+        TotemTimers.ProcessSetting("MaelstromSize")
+        TotemTimers.LayoutEnhanceCDs()
+    end,
+    get = function(info)
+        return TotemTimers.ActiveProfile.MaelstromSize
+    end,
+}
 
-    TotemTimers.options.args.enhancecds.args.options.args.MaelstromStopPulse = {
-        order = 43,
-        type = "toggle",
-        name = L["Stop Pulse Animation"],
-        desc = L["Large animation on 5 stacks"],
-        set = function(info, val)
-            TotemTimers.ActiveProfile.MaelstromStopPulse = val
-            TotemTimers.ProcessSetting("MaelstromStopPulse")
-        end,
-        get = function(info)
-            return TotemTimers.ActiveProfile.MaelstromStopPulse
-        end,
-    }
+TotemTimers.options.args.enhancecds.args.options.args.MaelstromStopPulse = {
+    order = 43,
+    type = "toggle",
+    name = L["Stop Pulse Animation"],
+    desc = L["Large animation on 5 stacks"],
+    set = function(info, val)
+        TotemTimers.ActiveProfile.MaelstromStopPulse = val
+        TotemTimers.ProcessSetting("MaelstromStopPulse")
+    end,
+    get = function(info)
+        return TotemTimers.ActiveProfile.MaelstromStopPulse
+    end,
+}
 
-    TotemTimers.options.args.enhancecds.args.options.args.MaelstromNumberOnly = {
-        order = 42,
-        type = "toggle",
-        name = L["Show Number Only"],
-        desc = L["MaelstromNumberOnlyDesc"],
-        set = function(info, val)
-            TotemTimers.ActiveProfile.MaelstromNumberOnly = val
-            TotemTimers.ProcessSetting("MaelstromNumberOnly")
-            if TotemTimers.Maelstrom.active then
-                TotemTimers.MaelstromEvent(TotemTimers.Maelstrom.button, "UNIT_AURA")
-            end
-        end,
-        get = function(info)
-            return TotemTimers.ActiveProfile.MaelstromNumberOnly
-        end,
-    }
-end
+TotemTimers.options.args.enhancecds.args.options.args.MaelstromNumberOnly = {
+    order = 42,
+    type = "toggle",
+    name = L["Show Number Only"],
+    desc = L["MaelstromNumberOnlyDesc"],
+    set = function(info, val)
+        TotemTimers.ActiveProfile.MaelstromNumberOnly = val
+        TotemTimers.ProcessSetting("MaelstromNumberOnly")
+        if TotemTimers.Maelstrom.active then
+            TotemTimers.MaelstromEvent(TotemTimers.Maelstrom.button, "UNIT_AURA")
+        end
+    end,
+    get = function(info)
+        return TotemTimers.ActiveProfile.MaelstromNumberOnly
+    end,
+}
 
-if C_Seasons and C_Seasons.GetActiveSeason() == 2 then
-    local PowerSurgeName = GetSpellInfo(SpellIDs.PowerSurge)
+local PowerSurgeName = C_Spell.GetSpellName(SpellIDs.PowerSurge)
 
-    TotemTimers.options.args.enhancecds.args.options.args.ps = {
-        order = 50,
-        type = "header",
-        name = PowerSurgeName,
-    }
+TotemTimers.options.args.enhancecds.args.options.args.ps = {
+    order = 50,
+    type = "header",
+    name = PowerSurgeName,
+}
 
-    TotemTimers.options.args.enhancecds.args.options.args.psenable = {
-        order = 51,
-        type = "toggle",
-        name = L["Enable"],
-        set = function(info, val)
-            TotemTimers.ActiveProfile.PowerSurge = val
-            TotemTimers.ProcessSetting("PowerSurge")
-        end,
-        get = function(info)
-            return TotemTimers.ActiveProfile.PowerSurge
-        end,
-    }
-end
+TotemTimers.options.args.enhancecds.args.options.args.psenable = {
+    order = 51,
+    type = "toggle",
+    name = L["Enable"],
+    set = function(info, val)
+        TotemTimers.ActiveProfile.PowerSurge = val
+        TotemTimers.ProcessSetting("PowerSurge")
+    end,
+    get = function(info)
+        return TotemTimers.ActiveProfile.PowerSurge
+    end,
+}
 
 local ACD = LibStub("AceConfigDialog-3.0")
 local frame, categoryID = ACD:AddToBlizOptions("TotemTimers", L["Combat Cooldowns"], "TotemTimers", "enhancecds")

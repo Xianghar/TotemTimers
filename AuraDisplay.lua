@@ -34,6 +34,13 @@ local _, TotemTimers = ...
 -- With tint = true the "dot" is a colored additive layer over the given region (e.g. the icon) instead, optionally
 -- cut out by a mask atlas (maskAtlas, inset maskInset from the region's edges).
 --   display:SetDotColor(r, g, b)     -- rebuilds the container if the color changed
+--
+-- auras on other units than the player: AuraDisplay:new(timer.button, "target"), display:AddSlot(key, ids, level,
+-- "HARMFUL|PLAYER"). The container doesn't follow changes of the unit token (e.g. a new target) by itself;
+-- displays of "target" are refreshed on PLAYER_TARGET_CHANGED here, for other tokens call display:Refresh()
+-- (works in combat).
+-- display.iconAboveBar = true: for timer bars that start at the button (under the icon, like the Flame Shock timer),
+-- the icon is drawn above the bar instead of below it.
 
 local AuraDisplay = {}
 AuraDisplay.__index = AuraDisplay
@@ -78,6 +85,7 @@ end)
 -- options, for parents that aren't XiTimers buttons (without time, icons, count):
 --   textAnchor: region the time (or the charges) is centered on, instead of the parent's time string
 --   noIcon: the slot buttons show no icon (the parent shows one itself)
+--   swipeTexture, swipeInset: texture (e.g. round) and inset from the edges of the swipe
 --   dot: texture the slot buttons show a dot over (dot mode, see above)
 --   tint, maskAtlas, maskInset: dot mode with a tint over the dot region (see above)
 function AuraDisplay:new(parent, unit, options)
@@ -92,6 +100,8 @@ function AuraDisplay:new(parent, unit, options)
     display.tint = options and options.tint or false
     display.maskAtlas = options and options.maskAtlas
     display.maskInset = options and options.maskInset or 0
+    display.swipeTexture = options and options.swipeTexture
+    display.swipeInset = options and options.swipeInset or 0
     display.dotColor = { 1, 1, 1, 1 }
     display.unit = unit or "player"
     -- slot definitions in the order they were added
@@ -298,9 +308,20 @@ function AuraDisplay:InitSlotButton(button, frameLevel, regions)
     pcall(button.SetMouseClickEnabled, button, false)
     pcall(button.EnableMouseMotion, button, false)
 
+    -- the bar (a child frame, level + 1) covers the button's textures, so with iconAboveBar the icon gets a
+    -- frame above it, and swipe and texts go above that
+    local iconAboveBar = self.iconAboveBar and config.showBar
+    local level = button:GetFrameLevel()
+
     local icon
     if not self.noIcon then
-        icon = button:CreateTexture(nil, "ARTWORK")
+        local iconParent = button
+        if iconAboveBar then
+            iconParent = CreateFrame("Frame", nil, button)
+            iconParent:SetAllPoints(button)
+            iconParent:SetFrameLevel(level + 2)
+        end
+        icon = iconParent:CreateTexture(nil, "ARTWORK")
         icon:SetAllPoints(parent.icons[1])
         icon:SetTexCoord(parent.icons[1]:GetTexCoord())
         button:SetIcon(icon)
@@ -308,11 +329,22 @@ function AuraDisplay:InitSlotButton(button, frameLevel, regions)
 
     local texts = CreateFrame("Frame", nil, button)
     texts:SetAllPoints(button)
-    texts:SetFrameLevel(button:GetFrameLevel() + 1)
+    texts:SetFrameLevel(level + (iconAboveBar and 3 or 1))
 
     if config.timeShown and config.showSwirl then
         local cooldown = CreateFrame("Cooldown", nil, button, "CooldownFrameTemplate")
-        cooldown:SetAllPoints(icon or parent)
+        if iconAboveBar then cooldown:SetFrameLevel(level + 3) end
+        local swipeRegion = icon or parent
+        if self.swipeTexture then
+            local inset = self.swipeInset
+            cooldown:SetPoint("TOPLEFT", swipeRegion, "TOPLEFT", inset, -inset)
+            cooldown:SetPoint("BOTTOMRIGHT", swipeRegion, "BOTTOMRIGHT", -inset, inset)
+            cooldown:SetSwipeTexture(self.swipeTexture)
+            cooldown:SetSwipeColor(0, 0, 0, 0.8)
+            cooldown:SetDrawEdge(false)
+        else
+            cooldown:SetAllPoints(swipeRegion)
+        end
         cooldown:SetDrawBling(false)
         cooldown:SetHideCountdownNumbers(true)
         cooldown.noCooldownCount = true
@@ -325,6 +357,7 @@ function AuraDisplay:InitSlotButton(button, frameLevel, regions)
     local time
     if config.showBar then
         regions.bar, time = self:CreateTimerBar(button, config.timeShown)
+        if iconAboveBar then regions.bar:SetFrameLevel(level + 1) end
     else
         -- font strings size to their text, so only the anchor point of the button's own texts is taken
         time = texts:CreateFontString(nil, "OVERLAY")
@@ -370,6 +403,26 @@ function AuraDisplay:SetSlotEnabled(key, enabled)
         container:SetAuraSlotEnabled(key, enabled)
     end
 end
+
+-- rereads the auras of the unit, e.g. after the target changed (the container only marks itself dirty, so this
+-- also works in combat)
+function AuraDisplay:Refresh()
+    local container = self.container
+    if container then
+        pcall(container.UpdateAllAuras, container)
+    end
+end
+
+-- the containers don't follow target changes, all displays of "target" are refreshed
+local targetFrame = CreateFrame("Frame")
+targetFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+targetFrame:SetScript("OnEvent", function()
+    for _, display in ipairs(displays) do
+        if display.unit == "target" then
+            display:Refresh()
+        end
+    end
+end)
 
 -- time and swipe of all slots, hidden e.g. to show only charges in place of the time
 function AuraDisplay:SetTimeShown(shown)

@@ -41,6 +41,7 @@ Shield.lua
 EarthShield.lua
 Weapon.lua
 TotemicCall.lua
+CombatCDs.lua
 GamePad\GamePad.lua
 GamePad\GamePadSlots.lua
 GamePad\GamePadActionButtons.lua
@@ -49,7 +50,6 @@ GamePad\GamePadBarMode.lua
 GamePad\GamePadRanks.lua
 GamePad\GamePadLegend.lua
 GamePad\GamePadTutorial.lua
-#EnhanceCDs.lua
 #LongCooldowns.lua
 
 Warnings.lua

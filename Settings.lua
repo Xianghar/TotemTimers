@@ -759,11 +759,17 @@ SettingsFunctions.GamePadTimers = SettingsFunctions.GamePad
         TotemTimers.OrderTrackers()
     end
 
+    -- the Earth Shield settings below also run with the dummy timer of WoW Forever (EarthShield.lua), which has no
+    -- name, main tank bar or update functions
+
     SettingsFunctions.ESChargesOnly = function(value, Timers)
-        TotemTimers.SetEarthShieldUpdate()
+        if TotemTimers.SetEarthShieldUpdate then
+            TotemTimers.SetEarthShieldUpdate()
+        end
     end
 
     SettingsFunctions.EarthShieldTargetName = function(value, Timers)
+        if not Timers[7].name then return end
         if value then
             Timers[7].name:Show()
         else
@@ -772,7 +778,10 @@ SettingsFunctions.GamePadTimers = SettingsFunctions.GamePad
     end
 
     SettingsFunctions.ESMainTankMenuDirection = function(value, Timers)
-        TotemTimers.EarthShieldTracker.actionBar:SetDirection(value, TotemTimers.ActiveProfile.TrackerArrange)
+        local actionBar = TotemTimers.EarthShieldTracker and TotemTimers.EarthShieldTracker.actionBar
+        if actionBar then
+            actionBar:SetDirection(value, TotemTimers.ActiveProfile.TrackerArrange)
+        end
     end
 
 if TotemFrame then
@@ -904,15 +913,17 @@ end
             TotemTimers.Maelstrom.button:EnableMouse(not value)
             TotemTimers.MaelstromButton:EnableMouse(not value)
         end
-    end
+    end]]
 
+    -- combat cooldowns: for now only the Flame Shock duration timer (CombatCDs.lua)
     SettingsFunctions.EnhanceCDs = function(value)
+        if not TotemTimers.ActivateEnhanceCDs then return end
         if value then
             TotemTimers.ActivateEnhanceCDs()
         else
             TotemTimers.DeactivateEnhanceCDs()
         end
-    end]]
+    end
 
     if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC then
 
@@ -921,6 +932,8 @@ end
         end
     end
 
+    -- Maelstrom is commented out in CombatCDs.lua for now
+    --[==[
     if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE then
 
         SettingsFunctions.MaelstromSize = function(value)
@@ -945,6 +958,7 @@ end
         end
 
     end
+    ]==]
 
     --[[SettingsFunctions.LongCooldownsStopPulse = function(value, Timers)
         for _, timer in pairs(TotemTimers.LongCooldowns) do

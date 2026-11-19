@@ -323,24 +323,25 @@ TotemTimers.WeaponEnchants = {
 for i = 3018, 3044 do TotemTimers.WeaponEnchants[i] = SpellIDs.RockbiterWeapon end
 
 
+-- WoW Forever has no Earth Shield, so the shield lists only have Lightning and Water Shield
 TotemTimers.ShieldButtons = {
     SpellIDs.LightningShield,
     SpellIDs.WaterShield,
-    SpellIDs.EarthShield,
 }
 
 TotemTimers.ShieldSpells = {
     SpellIDs.LightningShield,
     SpellIDs.WaterShield,
-    SpellIDs.EarthShield,
 }
 
 -- aura spell IDs of all ranks of the shields, used by the aura container of the shield tracker
 TotemTimers.ShieldAuraSpells = {
     [SpellIDs.LightningShield] = { 324, 325, 905, 945, 8134, 10431, 10432 },
     [SpellIDs.WaterShield] = { 408510 },
-    [SpellIDs.EarthShield] = { 408514 },
 }
+
+-- aura spell IDs of all ranks of Flame Shock, used by the aura container of the Flame Shock timer (debuff on the target)
+TotemTimers.FlameShockAuraSpells = { 8050, 8052, 8053, 10447, 10448, 29228 }
 
 -- aura spell IDs of all ranks of the totem buffs, by the buff of TotemData (rank 1), used by the aura containers
 -- of the range dots

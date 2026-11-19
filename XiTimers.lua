@@ -42,8 +42,38 @@ local function GetSecondsFormatter()
         secondsFormatter:SetMinInterval(Enum.SecondsFormatterInterval.Seconds)
         secondsFormatter:SetMaxInterval(Enum.SecondsFormatterInterval.Minutes)
         secondsFormatter:SetCanRoundUpLastUnit(true)
+        if secondsFormatter.SetRounding then
+            secondsFormatter:SetRounding(Enum.SecondsFormatterRounding.RoundUp)
+        end
     end
     return secondsFormatter
+end
+
+-- "blizz" style of the aura containers: like the game's default aura duration formatter
+-- (Blizzard_AuraContainerShared.lua: seconds up to 90 s, minutes up to 90 m, ...), but that one truncates, so the
+-- last second shows 0; this one rounds up like the timers. false if not available (the game's default is used).
+local auraSecondsFormatter
+local function GetAuraSecondsFormatter()
+    if auraSecondsFormatter == nil then
+        local ok, formatter = pcall(function()
+            local curve = C_CurveUtil.CreateCurve()
+            curve:SetType(Enum.LuaCurveType.Step)
+            curve:AddPoint(0, Enum.SecondsFormatterInterval.Seconds)
+            curve:AddPoint(1 + 1.5 * SECONDS_PER_MIN, Enum.SecondsFormatterInterval.Minutes)
+            curve:AddPoint(1 + 1.5 * SECONDS_PER_HOUR, Enum.SecondsFormatterInterval.Hours)
+            curve:AddPoint(1 + 1.5 * SECONDS_PER_DAY, Enum.SecondsFormatterInterval.Days)
+            local f = C_StringUtil.CreateSecondsFormatter()
+            f:SetDefaultAbbreviation(Enum.SecondsFormatterAbbreviation.OneLetter)
+            f:SetRounding(Enum.SecondsFormatterRounding.RoundUp)
+            f:SetCanRoundUpLastUnit(true)
+            f:SetMinInterval(Enum.SecondsFormatterInterval.Seconds)
+            f:SetMaxIntervalCurve(curve)
+            f:SetDesiredUnitCount(1)
+            return f
+        end)
+        auraSecondsFormatter = ok and formatter or false
+    end
+    return auraSecondsFormatter or nil
 end
 
 -- also used for time texts outside of timers (e.g. GamePad.lua)
@@ -101,11 +131,13 @@ end
 XiTimers.TimeStyle = "blizz"
 local timeBindings = setmetatable({}, { __mode = "k" })
 
--- formatter of the current time style; nil for "blizz" if the game's default formatting is wanted (aura containers)
-function XiTimers.GetTimeFormatter(noDefault)
+-- formatter of the current time style; forAuras: for "blizz" the aura style (see GetAuraSecondsFormatter), nil if
+-- that isn't available (the aura containers then use the game's default)
+function XiTimers.GetTimeFormatter(forAuras)
     local formatter = XiTimers.TimeStyle ~= "blizz" and GetTimeStyleFormatter(XiTimers.TimeStyle)
     if formatter then return formatter end
-    return not noDefault and GetSecondsFormatter() or nil
+    if forAuras then return GetAuraSecondsFormatter() end
+    return GetSecondsFormatter()
 end
 
 -- duration text binding that follows the time style

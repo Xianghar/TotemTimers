@@ -21,8 +21,15 @@ local SpellIDs = TotemTimers.SpellIDs
 --   weapon (swipe and time), from the DurationObject of the weapon tracker (never read in Lua), on the button of that
 --   enchant, and the glow of the weapon tracker in combat. Weapon.lua calls GamePad.UpdateActionButtons when an
 --   enchant starts or ends and GamePad.SetWeaponGlow on its updates.
+-- - Flame Shock, while the Flame Shock timer (CombatCDs.lua) is active: two AuraDisplays on the target show the
+--   player's Flame Shock debuff, one its remaining time (swipe and time like the enchant buttons), the other a green
+--   tint over the icon. CombatCDs.lua calls GamePad.UpdateActionButtons when the timer is (de)activated.
 local SHIELD_SLOT = "shield"
+local FLAMESHOCK_SLOT = "flameshock"
+local FLAMESHOCK_TINT = { 0, 1, 0, 0.3 } -- like the player's range tint (SetupTimers.lua)
 local shieldDisplays = {} -- AuraDisplay by Gamepad UI button, kept once created (frames can't be destroyed)
+-- Flame Shock displays by Gamepad UI button and shape (round: true/false), { time = AuraDisplay, tint = AuraDisplay }
+local flameShockDisplays = {}
 local weaponOverlays = {} -- time overlay by Gamepad UI button
 local actionHooked = {}
 local shieldAuraSpells
@@ -85,6 +92,60 @@ local function UpdateShieldButton(button, name)
     end
     if display then
         display:SetSlotEnabled(SHIELD_SLOT, show)
+    end
+end
+
+local flameShockAuraSpells
+
+-- aura spell ids of all ranks of Flame Shock
+local function GetFlameShockAuraSpells()
+    if not flameShockAuraSpells then
+        flameShockAuraSpells = {}
+        for _, id in pairs(TotemTimers.FlameShockAuraSpells or { SpellIDs.FlameShock }) do
+            flameShockAuraSpells[id] = true
+        end
+    end
+    return flameShockAuraSpells
+end
+
+-- swipe and tint are cut out like the button's icon; the shape is fixed when the slot buttons are built, so each
+-- shape has its own displays
+local function CreateFlameShockDisplays(button, round)
+    local level = math.max(GetOverlayLevel(button) - button:GetFrameLevel(), 2)
+    local spells = GetFlameShockAuraSpells()
+    local displays = {}
+    displays.tint = TotemTimers.AuraDisplay:new(button, "target", {
+        dot = button, tint = true, maskAtlas = round and "CircleMask" or "SquareMask", maskInset = MASK_INSET,
+    })
+    if displays.tint then
+        displays.tint:SetDotColor(unpack(FLAMESHOCK_TINT))
+        displays.tint:AddSlot(FLAMESHOCK_SLOT, spells, level, "HARMFUL|PLAYER")
+    end
+    displays.time = TotemTimers.AuraDisplay:new(button, "target", {
+        textAnchor = button, noIcon = true, swipeTexture = round and CIRCLE_SWIPE or SQUARE_SWIPE, swipeInset = MASK_INSET,
+    })
+    if displays.time then
+        displays.time:AddSlot(FLAMESHOCK_SLOT, spells, level + 1, "HARMFUL|PLAYER")
+    end
+    return displays
+end
+
+local function UpdateFlameShockButton(button, name)
+    local timer = TotemTimers.FlameShockDuration
+    local show = name and timer and timer.active and IsSpellName(name, SpellIDs.FlameShock) or false
+    local round = not (button.SquareMask and button.SquareMask:IsShown())
+    local byShape = flameShockDisplays[button]
+    if show and not (byShape and byShape[round]) then
+        byShape = byShape or {}
+        byShape[round] = CreateFlameShockDisplays(button, round)
+        flameShockDisplays[button] = byShape
+    end
+    if not byShape then return end
+    for shape, displays in pairs(byShape) do
+        local enabled = show and shape == round
+        for _, display in pairs(displays) do
+            display:SetSlotEnabled(FLAMESHOCK_SLOT, enabled)
+        end
     end
 end
 
@@ -232,6 +293,7 @@ local function UpdateActionButton(button)
     if IsSecret(name) then name = nil end
     UpdateShieldButton(button, name)
     UpdateWeaponButton(button, name)
+    UpdateFlameShockButton(button, name)
 end
 
 function GamePad.UpdateActionButtons()

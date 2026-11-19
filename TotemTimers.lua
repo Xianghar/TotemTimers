@@ -37,9 +37,6 @@ local macroNeedsUpdate = false
 -- GetMacroIndexByName/GetNumMacros don't know them
 local macrosLoaded = false
 local duplicateMacroCheckNeeded = false
-local lastSpellsChanged = 0
-
-local runes = {}
 
 -- zone changes: from the loading screen until a moment after it, the game's data can read empty (weapon enchants,
 -- totems), timers stopped then play no warnings (TotemTimers.IsZoning)
@@ -109,28 +106,7 @@ local function TotemTimers_OnEvent(self, event, ...)
                 TotemTimers.ChangedTalents()
             end --]]
     elseif event == "SPELLS_CHANGED" or event == "CHARACTER_POINTS_CHANGED" or event == "PLAYER_TALENT_UPDATE"
-            or event == "LEARNED_SPELL_IN_TAB" or event == "RUNE_UPDATED" then
-
-        if event == "SPELLS_CHANGED" and (C_Seasons and C_Seasons.GetActiveSeason() == 2) then
-            local spellsChangedDiff = GetTime() - lastSpellsChanged
-            lastSpellsChanged = GetTime()
-            if spellsChangedDiff > 0.9 and spellsChangedDiff < 1.1 then
-                return
-            end
-        end
-
-        if event == "RUNE_UPDATED" then
-            local runesChanged = false
-            for slot = 1, 17 do
-                local rune = C_Engraving.GetRuneForEquipmentSlot(slot)
-                if rune then rune = rune.itemEnchantmentID end
-                if rune ~= runes[slot] then
-                    runesChanged = true
-                end
-                runes[slot] = rune
-            end
-            if not runesChanged then return end
-        end
+            or event == "LEARNED_SPELL_IN_TAB" then
 
         if InCombatLockdown() then
             updateAfterCombat = true
@@ -182,12 +158,6 @@ function TotemTimers.SetupGlobals()
 		-- TotemTimers.CreateLongCooldowns()
 
         TotemTimers.ProcessAllSettings()
-        if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC and (C_Seasons and C_Seasons.GetActiveSeason() == 2) then
-            for slot = 1, 17 do
-                local rune = C_Engraving.GetRuneForEquipmentSlot(slot)
-                if rune then runes[slot] = rune.itemEnchantmentID end
-            end
-        end
 
 		TotemTimers.OrderTimers()
 		--TotemTimers_OrderTrackers()
@@ -213,7 +183,6 @@ function TotemTimers.SetupGlobals()
             "LEARNED_SPELL_IN_TAB",
             "CHARACTER_POINTS_CHANGED",
             "PLAYER_TALENT_UPDATE",
-            "RUNE_UPDATED",
             --"SPELLS_CHANGED",
             --"PLAYER_SPECIALIZATION_CHANGED",
         }

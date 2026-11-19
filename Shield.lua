@@ -15,9 +15,12 @@ local shield = nil
 
 -- The shield aura can be secret, so it is displayed by an AuraDisplay (see AuraDisplay.lua) over the tracker button.
 -- Two slots: Lightning/Water Shield on top, Earth Shield (only with EarthShieldOnSelf) below.
+-- WoW Forever has no Earth Shield, there only the Lightning/Water Shield slot exists.
 
 local SLOT_SHIELD = "shield"
 local SLOT_EARTHSHIELD = "earthshield"
+
+local hasEarthShield = not (WOW_PROJECT_CAMELOT and WOW_PROJECT_ID == WOW_PROJECT_CAMELOT)
 
 local function SpellIDSet(...)
     local set = {}
@@ -32,7 +35,9 @@ end
 local function CreateAuraDisplay()
     local display = TotemTimers.AuraDisplay:new(shield.button)
     if not display then return end
-    display:AddSlot(SLOT_EARTHSHIELD, SpellIDSet(SpellIDs.EarthShield), 2)
+    if hasEarthShield then
+        display:AddSlot(SLOT_EARTHSHIELD, SpellIDSet(SpellIDs.EarthShield), 2)
+    end
     display:AddSlot(SLOT_SHIELD, SpellIDSet(SpellIDs.LightningShield, SpellIDs.WaterShield), 4)
     shield.auraDisplay = display
 end
@@ -94,7 +99,7 @@ end
 function TotemTimers.ShieldEvent(self, event, unit)
     if event == "UNIT_AURA" and unit == "player" then
         local display = self.timer.auraDisplay
-        if display then
+        if display and hasEarthShield then
             display:SetSlotEnabled(SLOT_EARTHSHIELD, TotemTimers.ActiveProfile.EarthShieldOnSelf)
         end
     end
