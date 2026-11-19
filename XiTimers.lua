@@ -81,7 +81,8 @@ XiTimers.CanBindDurationText = CanBindDurationText
 XiTimers.GetSecondsFormatter = GetSecondsFormatter
 
 -- breakpoints of the rule formatted time styles, times are rounded up to whole seconds (minutes rounded up, too)
--- tests: input -> expected output, the style falls back to "blizz" if the game formats differently
+-- tests: input -> expected output, the style falls back to "m-mm:ss-s" (that one to "blizz") if the game formats
+-- differently
 local function TimeStyleRules(rounding)
     local mmss = { step = 1, rounding = rounding.Up, format = "%d:%02d", components = {
         { div = 60, step = 1, rounding = rounding.Down },
@@ -105,6 +106,17 @@ local function TimeStyleRules(rounding)
             tests = { [44.2] = "45", [60] = "60", [60.5] = "1:01", [125] = "2:05", [599] = "9:59", [600] = "10m",
                 [630] = "11m" },
         },
+        -- "blizz" on Gamepad UI buttons: like the game's style (seconds, from 60 seconds minutes rounded up), but the
+        -- seconds without "s"
+        ["blizz-pad"] = {
+            breakpoints = {
+                { threshold = 0, step = 1, rounding = rounding.Up, format = "%d" },
+                { threshold = 60.001, step = 1, rounding = rounding.Up, format = "%dm", components = {
+                    { div = 60, step = 1, rounding = rounding.Up },
+                } },
+            },
+            tests = { [44.2] = "45", [0.3] = "1", [60] = "60", [60.5] = "2m", [125] = "3m", [600] = "10m" },
+        },
     }
 end
 
@@ -127,35 +139,42 @@ local function GetTimeStyleFormatter(style)
     return timeStyleFormatters[style] or nil
 end
 
--- time style of all duration texts (setting TimeStyle): "blizz" (game style, 5m / 45), "mm:ss" or "m-mm:ss-s"
-XiTimers.TimeStyle = "blizz"
+-- time style of all duration texts (setting TimeStyle, default "m-mm:ss-s"): "blizz" (game style, 5m / 45),
+-- "mm:ss" or "m-mm:ss-s"
+XiTimers.TimeStyle = "m-mm:ss-s"
 local timeBindings = setmetatable({}, { __mode = "k" })
 
 -- formatter of the current time style; forAuras: for "blizz" the aura style (see GetAuraSecondsFormatter), nil if
--- that isn't available (the aura containers then use the game's default)
-function XiTimers.GetTimeFormatter(forAuras)
-    local formatter = XiTimers.TimeStyle ~= "blizz" and GetTimeStyleFormatter(XiTimers.TimeStyle)
-    if formatter then return formatter end
+-- that isn't available (the aura containers then use the game's default); forGamePad: times on Gamepad UI buttons,
+-- for "blizz" without the "s" of the seconds ("blizz-pad", the other styles have none).
+-- A rule style that isn't available (or an unknown style) falls back to "m-mm:ss-s", only without that the game's
+-- seconds formatter ("blizz") is used.
+function XiTimers.GetTimeFormatter(forAuras, forGamePad)
+    local style = XiTimers.TimeStyle
+    if style == "blizz" and forGamePad then style = "blizz-pad" end
+    if style ~= "blizz" then
+        local formatter = GetTimeStyleFormatter(style) or GetTimeStyleFormatter("m-mm:ss-s")
+        if formatter then return formatter end
+    end
     if forAuras then return GetAuraSecondsFormatter() end
     return GetSecondsFormatter()
 end
 
--- duration text binding that follows the time style
-function XiTimers.CreateDurationTextBinding()
+-- duration text binding that follows the time style (forGamePad: see GetTimeFormatter)
+function XiTimers.CreateDurationTextBinding(forGamePad)
     local binding = C_DurationUtil.CreateDurationTextBinding()
-    binding:SetFormatter(XiTimers.GetTimeFormatter())
+    binding:SetFormatter(XiTimers.GetTimeFormatter(false, forGamePad))
     binding:SetExpiredText("")
     binding:SetZeroDurationText("")
-    timeBindings[binding] = true
+    timeBindings[binding] = forGamePad and true or false
     return binding
 end
 
 function XiTimers.SetTimeStyle(style)
-    XiTimers.TimeStyle = style or "blizz"
+    XiTimers.TimeStyle = style or "m-mm:ss-s"
     if not CanBindDurationText then return end
-    local formatter = XiTimers.GetTimeFormatter()
-    for binding in pairs(timeBindings) do
-        binding:SetFormatter(formatter)
+    for binding, forGamePad in pairs(timeBindings) do
+        binding:SetFormatter(XiTimers.GetTimeFormatter(false, forGamePad))
     end
 end
 

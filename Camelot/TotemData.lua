@@ -343,6 +343,16 @@ TotemTimers.ShieldAuraSpells = {
 -- aura spell IDs of all ranks of Flame Shock, used by the aura container of the Flame Shock timer (debuff on the target)
 TotemTimers.FlameShockAuraSpells = { 8050, 8052, 8053, 10447, 10448, 29228 }
 
+-- talents read from the talent tree (TotemTimers.GetTalents): key in TotemTimers.AvailableTalents -> spells of the
+-- talent (compared by ID and by name)
+TotemTimers.TalentSpells = {
+    Maelstrom = { SpellIDs.Maelstrom }, -- Maelstrom Weapon (rune spell, talent)
+}
+
+-- aura spell IDs of the Maelstrom Weapon buff (triggered by SpellIDs.Maelstrom), used by the aura container of the
+-- Maelstrom tracker
+TotemTimers.MaelstromAuraSpells = { 408505 }
+
 -- aura spell IDs of all ranks of the totem buffs, by the buff of TotemData (rank 1), used by the aura containers
 -- of the range dots
 TotemTimers.TotemBuffAuraSpells = {

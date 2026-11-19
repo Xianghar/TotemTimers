@@ -55,7 +55,7 @@ TotemTimers.DefaultProfile = {
         Show = true,
         Order = {1,2,3,4,},
         Arrange = "horizontal",
-        TimeStyle = "blizz",
+        TimeStyle = "m-mm:ss-s",
         TimerTimePos = "BOTTOM",   
         CastBarDirection = "auto",
         TimerSize = 32,
@@ -471,10 +471,11 @@ local SettingsConverters = {
         end
         TotemTimers_GlobalSettings.Version = 11.5
     end,
-    -- the default of TimeStyle was "mm:ss" by mistake, while the timers were shown in Blizzard style
+    -- the default of TimeStyle was "mm:ss" by mistake, while the timers were shown in Blizzard style; the default is
+    -- now "m-mm:ss-s"
     [11.5] = function()
         for k,profile in pairs(TotemTimers_Profiles) do
-            profile.TimeStyle = "blizz"
+            profile.TimeStyle = "m-mm:ss-s"
         end
         TotemTimers_GlobalSettings.Version = Version
     end,

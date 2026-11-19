@@ -932,13 +932,19 @@ end
         end
     end
 
-    -- Maelstrom is commented out in CombatCDs.lua for now
+    -- Maelstrom tracker (CombatCDs.lua); settings are applied in any order, so the size lays out again
+    SettingsFunctions.MaelstromSize = function(value)
+        if not TotemTimers.Maelstrom then return end
+        TotemTimers.Maelstrom.size = value
+        if TotemTimers.LayoutEnhanceCDs then
+            TotemTimers.LayoutEnhanceCDs()
+        end
+    end
+
+    -- the pulse at 5 stacks and the number-only display need the stack count, which can be secret (the stacks
+    -- are always shown on the bar now)
     --[==[
     if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE then
-
-        SettingsFunctions.MaelstromSize = function(value)
-            TotemTimers.Maelstrom.size = value
-        end
 
         SettingsFunctions.MaelstromStopPulse = function(value)
             TotemTimers.Maelstrom.StopPulseOn5 = value

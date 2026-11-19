@@ -1,6 +1,6 @@
 if select(2,UnitClass("player")) ~= "SHAMAN" then return end
 
--- For now only the Flame Shock duration timer is active, everything else is commented out.
+-- For now only the Flame Shock duration timer and the Maelstrom tracker are active, everything else is commented out.
 
 local _, TotemTimers = ...
 
@@ -28,7 +28,10 @@ local CDSpells = TotemTimers.CombatCooldownSpells
 ]==]
 
 local FlameShockDuration = null
---local Maelstrom, MaelstromButton, MaelstromIcon
+local Maelstrom --, MaelstromButton, MaelstromIcon
+-- stacks of a full Maelstrom bar (like the old tracker: Lightning Bolt/Chain Lightning are instant at 5)
+local MAELSTROM_MAX_STACKS = 5
+TotemTimers.MaelstromMaxStacks = MAELSTROM_MAX_STACKS -- also the glow of the Gamepad UI's Lightning Bolt buttons
 
 --[==[
 local CenterProcAnchor = CreateFrame("Frame", "CenterProcAnchor", UIParent)
@@ -137,70 +140,78 @@ function TotemTimers.CreateEnhanceCDs()
                                               end]])
         cds[i].button.ChangeCDOrder = ChangeCDOrder
     end
+    ]==]
 
 
+    -- Maelstrom Weapon tracker: the stacks of the buff fill the bar and are shown on it. The buff can be secret,
+    -- so it is displayed by an AuraDisplay (see AuraDisplay.lua) with an application bar; the stack count is never
+    -- read in Lua, the XiTimers timer isn't started (its hidden timer bar is anchor and look of the display's bar).
+    -- The button is clicked on itself and on its bar (its hit rect reaches over the bar, see LayoutEnhanceCDs):
+    -- leftclick Lightning Bolt, rightclick Chain Lightning.
     Maelstrom = XiTimers:new(1)
     TotemTimers.Maelstrom = Maelstrom
 
-    --Maelstrom.button:Disable()
     Maelstrom.button.icons[1]:SetVertexColor(1,1,1)
-
-    --Maelstrom.button.icons[1]:SetTexture(237584)
     Maelstrom.button.icons[1]:SetTexture((C_Spell.GetSpellTexture(SpellIDs.Maelstrom)))
     Maelstrom.button.anchorframe = TotemTimers_EnhanceCDsFrame
     Maelstrom.dontAlpha = true
     Maelstrom.dontFlash = true
     Maelstrom.button:SetAttribute("*type*", "spell")
-    Maelstrom.button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    -- like the other timer buttons: secure action buttons act on key down (CVar ActionButtonUseKeyDown), a button
+    -- registered only for "Up" clicks never casts
+    Maelstrom.button:RegisterForClicks("AnyDown")
     Maelstrom.button:SetAttribute("spell1", SpellIDs.LightningBolt)
     Maelstrom.button:SetAttribute("spell2", SpellIDs.ChainLightning)
     Maelstrom.button.icons[1]:SetAlpha(1)
     Maelstrom.rangeCheck = SpellNames[SpellIDs.LightningBolt]
     Maelstrom.manaCheck = SpellNames[SpellIDs.LightningBolt]
-    Maelstrom.button:SetScript("OnEvent", TotemTimers.MaelstromEvent)
-    Maelstrom.playerEvents[1] = "UNIT_AURA"
     Maelstrom.forceBar = true
     Maelstrom.timerBarPos = nil
     Maelstrom.timerBars[1]:ClearAllPoints()
     Maelstrom.timerBars[1]:SetPoint("LEFT", Maelstrom.button, "LEFT")
     Maelstrom.timerBars[1]:SetFrameStrata("LOW")
     Maelstrom:SetTimeWidth(100)
-    --Maelstrom.timerBars[1]:SetStatusBarAtlas("_Shaman-MaelstromBar")
-    --Maelstrom:SetBarColor(0.8,.8,1)
-    Maelstrom:SetBarColor(RAID_CLASS_COLORS.SHAMAN.r, RAID_CLASS_COLORS.SHAMAN.g, RAID_CLASS_COLORS.SHAMAN.b, 1)
-    --Maelstrom.timerBars[1].background:SetStatusBarAtlas("_Shaman-MaelstromBar")
-    Maelstrom.timerBars[1].time:Hide()
+    -- the bar shows a lightning bolt in the style of the Lightning Bolt icon, drawn for the bar's shape without the
+    -- icon's border (textures/lightning_bar.tga, tools/lightning_texture.py), uncolored; the aura display takes over
+    -- texture and colors of this bar (the bar texture setting TimerBarTexture skips Maelstrom)
+    local lightningTexture = "Interface\\AddOns\\TotemTimers\\textures\\lightning_bar"
+    Maelstrom.timerBars[1]:SetStatusBarTexture(lightningTexture)
+    Maelstrom.timerBars[1].background:SetStatusBarTexture(lightningTexture)
+    Maelstrom:SetBarColor(1, 1, 1, 1)
     Maelstrom.button.icons[1]:SetAllPoints(Maelstrom.button)
-
-    Maelstrom.animation.icon:SetTexture("Interface/AddOns/TotemTimers/textures/mw5")
-    Maelstrom.animation.button:SetSize(72,36)
-
-
     Maelstrom.Update = function() end
-    Maelstrom.Activate = function(self)
-        XiTimers.Activate(self)
-        TotemTimers.MaelstromEvent(self.button)
+
+    local msDisplay = TotemTimers.AuraDisplay:new(Maelstrom.button)
+    if msDisplay then
+        msDisplay.iconAboveBar = true
+        msDisplay.maxApplications = MAELSTROM_MAX_STACKS
+        msDisplay:SetTimeShown(false)
+        local spellIDs = {}
+        for _, id in pairs(TotemTimers.MaelstromAuraSpells or {}) do
+            spellIDs[id] = true
+        end
+        msDisplay:AddSlot("maelstrom", spellIDs, 2)
+        Maelstrom.auraDisplay = msDisplay
+
+        -- glow around button and bar (the hidden timer bar spans both) from 5 stacks on, decided by the game (an
+        -- aura feeds only one application bar per slot button, so the glow has a display of its own); below the
+        -- stack display, so the glow only brightens around it
+        local glowDisplay = TotemTimers.AuraDisplay:new(Maelstrom.button, "player", {
+            glow = { region = Maelstrom.timerBars[1], minApplications = MAELSTROM_MAX_STACKS },
+        })
+        if glowDisplay then
+            glowDisplay:AddSlot("maelstromglow", spellIDs, 1)
+            Maelstrom.glowDisplay = glowDisplay
+        end
     end
 
 
-    MaelstromButton = CreateFrame("Button", "TotemTimers_MaelstromBarButton", Maelstrom.button, "ActionButtonTemplate, SecureActionButtonTemplate")
-    TotemTimers.MaelstromButton = MaelstromButton
 
-    MaelstromButton:SetFrameLevel(Maelstrom.button:GetFrameLevel() + 10)
-    MaelstromButton:SetPoint("LEFT", Maelstrom.button, "LEFT")
-    MaelstromButton:SetSize(100, 17)
-    --MaelstromButton:SetAllPoints(Maelstrom.timerBars[1])
-
-    --MaelstromButton:SetNormalTexture(nil)
-    _G[MaelstromButton:GetName().."NormalTexture"]:SetTexture(nil)
-    MaelstromButton:SetHighlightTexture("Interface/AddOns/TotemTimers/textures/MaelstromHilight")
-    MaelstromButton:SetPushedTexture("Interface/AddOns/TotemTimers/textures/MaelstromPushed")
-    MaelstromButton:SetAttribute("*type*", "spell")
-    MaelstromButton:RegisterForClicks("AnyDown")
-    MaelstromButton:SetAttribute("useOnKeyDown", 1)
-    MaelstromButton:SetAttribute("spell1", SpellIDs.LightningBolt)
-    MaelstromButton:SetAttribute("spell2", SpellIDs.ChainLightning)
-    MaelstromButton.icon = TotemTimers_MaelstromBarButtonIcon
+    -- the large stack icon above the bar (textures/mw<stacks>), its pulse at 5 and 10 stacks, the warning and the
+    -- glow of the Lightning Bolt/Chain Lightning buttons need the stack count, which can be secret
+    --[==[
+    Maelstrom.animation.icon:SetTexture("Interface/AddOns/TotemTimers/textures/mw5")
+    Maelstrom.animation.button:SetSize(72,36)
 
     MaelstromIcon = CreateFrame("Frame", "TotemTimers_MaelstromIcon", UIParent)
     TotemTimers.MaelstromIcon = MaelstromIcon
@@ -254,12 +265,8 @@ function TotemTimers.ConfigEnhanceCDs()
     end
     ]==]
     FlameShockDuration:Deactivate()
-    --[==[
-    if Maelstrom then
-        Maelstrom:Deactivate()
-        MaelstromIcon:Hide()
-    end
-    ]==]
+    Maelstrom:Deactivate()
+    --MaelstromIcon:Hide()
 
     if role == 0 or not TotemTimers.ActiveProfile.EnhanceCDs then
         UpdateGamePadButtons()
@@ -335,11 +342,11 @@ function TotemTimers.ConfigEnhanceCDs()
     end
     UpdateGamePadButtons()
 
-    --[==[
-    if Maelstrom and TotemTimers.AvailableTalents.Maelstrom and TotemTimers.ActiveProfile.EnhanceCDsMaelstrom
-        then Maelstrom:Activate()
+    if TotemTimers.AvailableTalents.Maelstrom and TotemTimers.ActiveProfile.EnhanceCDsMaelstrom then
+        Maelstrom:Activate()
     end
 
+    --[==[
     for i=1,#CDSpells[role] do
         if TotemTimers.ActiveProfile.EnhanceCDs_Spells[role][i] and AvailableSpells[cds[i].button.cdspell] then
             cds[i]:Activate()
@@ -462,8 +469,26 @@ function TotemTimers.LayoutEnhanceCDs()
 
     FlameShockDuration.button:SetPoint(fspoint, TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, fsy)
     ]==]
-    -- without the cooldown buttons the Flame Shock timer (button + bar) is centered on the anchor frame
-    FlameShockDuration.button:SetPoint("LEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, 0)
+    -- without the cooldown buttons the Flame Shock timer and the Maelstrom tracker (each button + bar) are centered
+    -- on the anchor frame, with both active the Maelstrom tracker on top
+    local msWidth, msHeight = SizeToWidthHeight(Maelstrom.size)
+    Maelstrom.button:ClearAllPoints()
+    Maelstrom:SetTimeWidth(msWidth)
+    Maelstrom:SetTimeHeight(msHeight)
+    Maelstrom.button:SetSize(msHeight, msHeight)
+    Maelstrom.button.icons[1]:SetAllPoints(Maelstrom.button)
+    -- the bar starts at the button and is msWidth wide: a negative right inset extends the button's clickable area
+    -- over the whole bar
+    Maelstrom.button:SetHitRectInsets(0, msHeight - msWidth, 0, 0)
+
+    if FlameShockDuration.active and Maelstrom.active then
+        local halfSpacing = TotemTimers.ActiveProfile.CooldownSpacing / 2
+        Maelstrom.button:SetPoint("BOTTOMLEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -msWidth / 2, halfSpacing)
+        FlameShockDuration.button:SetPoint("TOPLEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, -halfSpacing)
+    else
+        Maelstrom.button:SetPoint("LEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -msWidth / 2, 0)
+        FlameShockDuration.button:SetPoint("LEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, 0)
+    end
 
     --[==[
     local cprocy = 18 + spacing + activeCDs[1]:GetBorder("TOP")
@@ -516,7 +541,7 @@ function TotemTimers.DeactivateEnhanceCDs()
     end
     ]==]
     FlameShockDuration:Deactivate()
-    --if Maelstrom then Maelstrom:Deactivate() end
+    Maelstrom:Deactivate()
     UpdateGamePadButtons()
 end
 

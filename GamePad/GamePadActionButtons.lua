@@ -24,7 +24,13 @@ local SpellIDs = TotemTimers.SpellIDs
 -- - Flame Shock, while the Flame Shock timer (CombatCDs.lua) is active: two AuraDisplays on the target show the
 --   player's Flame Shock debuff, one its remaining time (swipe and time like the enchant buttons), the other a green
 --   tint over the icon. CombatCDs.lua calls GamePad.UpdateActionButtons when the timer is (de)activated.
+-- - Lightning Bolt: two AuraDisplays on the player's Maelstrom Weapon buff, one shows the stacks (like the shield
+--   charges), the other the action bar's proc glow around the button from TotemTimers.MaelstromMaxStacks stacks on
+--   (AuraDisplay glow mode, the game decides when to glow, the stacks are never read in Lua).
 local SHIELD_SLOT = "shield"
+local MAELSTROM_SLOT = "maelstrom"
+-- Maelstrom displays by Gamepad UI button, { count = AuraDisplay, glow = AuraDisplay }
+local maelstromDisplays = {}
 local FLAMESHOCK_SLOT = "flameshock"
 local FLAMESHOCK_TINT = { 0, 1, 0, 0.3 } -- like the player's range tint (SetupTimers.lua)
 local shieldDisplays = {} -- AuraDisplay by Gamepad UI button, kept once created (frames can't be destroyed)
@@ -95,6 +101,41 @@ local function UpdateShieldButton(button, name)
     end
 end
 
+local function CreateMaelstromDisplays(button)
+    local spells = {}
+    for _, id in pairs(TotemTimers.MaelstromAuraSpells or {}) do
+        spells[id] = true
+    end
+    local level = math.max(GetOverlayLevel(button) - button:GetFrameLevel(), 2)
+    local displays = {}
+    displays.glow = TotemTimers.AuraDisplay:new(button, "player", {
+        glow = { region = button, minApplications = TotemTimers.MaelstromMaxStacks or 5 },
+    })
+    if displays.glow then
+        displays.glow:AddSlot(MAELSTROM_SLOT, spells, level)
+    end
+    displays.count = TotemTimers.AuraDisplay:new(button, "player", { textAnchor = button, noIcon = true })
+    if displays.count then
+        displays.count:SetTimeShown(false)
+        displays.count:AddSlot(MAELSTROM_SLOT, spells, level + 1)
+    end
+    return displays
+end
+
+local function UpdateMaelstromButton(button, name)
+    local show = name and IsSpellName(name, SpellIDs.LightningBolt) or false
+    local displays = maelstromDisplays[button]
+    if show and not displays then
+        displays = CreateMaelstromDisplays(button)
+        maelstromDisplays[button] = displays
+    end
+    if displays then
+        for _, display in pairs(displays) do
+            display:SetSlotEnabled(MAELSTROM_SLOT, show)
+        end
+    end
+end
+
 local flameShockAuraSpells
 
 -- aura spell ids of all ranks of Flame Shock
@@ -123,6 +164,7 @@ local function CreateFlameShockDisplays(button, round)
     end
     displays.time = TotemTimers.AuraDisplay:new(button, "target", {
         textAnchor = button, noIcon = true, swipeTexture = round and CIRCLE_SWIPE or SQUARE_SWIPE, swipeInset = MASK_INSET,
+        forGamePad = true,
     })
     if displays.time then
         displays.time:AddSlot(FLAMESHOCK_SLOT, spells, level + 1, "HARMFUL|PLAYER")
@@ -179,7 +221,7 @@ local function GetWeaponOverlay(button)
         overlay.time = texts:CreateFontString(nil, "OVERLAY")
         overlay.time:SetFontObject(TotemTimersButtonTimeFont)
         overlay.time:SetPoint("CENTER", button, "CENTER")
-        overlay.binding = XiTimers.CreateDurationTextBinding()
+        overlay.binding = XiTimers.CreateDurationTextBinding(true)
         overlay.binding:SetFontString(overlay.time)
     else
         overlay.cooldown:SetHideCountdownNumbers(false)
@@ -294,6 +336,7 @@ local function UpdateActionButton(button)
     UpdateShieldButton(button, name)
     UpdateWeaponButton(button, name)
     UpdateFlameShockButton(button, name)
+    UpdateMaelstromButton(button, name)
 end
 
 function GamePad.UpdateActionButtons()

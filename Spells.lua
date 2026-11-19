@@ -49,58 +49,50 @@ function TotemTimers.GetSpells()
     end
 end
 
+
+-- spells (by ID and by name) of the talents with a rank in the active loadout of the talent tree
+local function GetSelectedTalentSpells()
+    local ids, names = {}, {}
+    local configID = C_ClassTalents and C_ClassTalents.GetActiveConfigID()
+    local configInfo = configID and C_Traits.GetConfigInfo(configID)
+    if not configInfo then return ids, names end
+    for _, treeID in ipairs(configInfo.treeIDs) do
+        for _, nodeID in ipairs(C_Traits.GetTreeNodes(treeID)) do
+            local node = C_Traits.GetNodeInfo(configID, nodeID)
+            local entryID = node and node.activeRank > 0 and node.activeEntry and node.activeEntry.entryID
+            local entry = entryID and C_Traits.GetEntryInfo(configID, entryID)
+            local definition = entry and entry.definitionID and C_Traits.GetDefinitionInfo(entry.definitionID)
+            if definition then
+                for _, spellID in pairs({ definition.spellID, definition.overriddenSpellID }) do
+                    ids[spellID] = true
+                    local name = C_Spell.GetSpellName(spellID)
+                    if name then names[name] = true end
+                end
+            end
+        end
+    end
+    return ids, names
+end
+
+-- AvailableTalents[key] is true if a talent of TotemTimers.TalentSpells[key] (TotemData) is taken in the talent
+-- tree; the spells are compared by ID and by name, so other IDs of the same talent count, too. Without loaded talent
+-- data (early at login) nothing is available, the trait events (TRAIT_CONFIG_LIST_UPDATED, TRAIT_CONFIG_UPDATED)
+-- read the talents again.
 function TotemTimers.GetTalents()
     wipe(TotemTimers.AvailableTalents)
-end
-
-if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC then
-    if not GetTalentInfo then
-        TotemTimers.GetTalents = function()
-            TotemTimers.AvailableTalents.TotemicMastery = 0
-            TotemTimers.AvailableTalents.DualWield = nil
-            TotemTimers.AvailableTalents.Maelstrom = nil
-        end
-    else
-        TotemTimers.GetTalents = function()
-            wipe(TotemTimers.AvailableTalents)
-            TotemTimers.AvailableTalents.TotemicMastery = select(5, GetTalentInfo(3, 8)) * 10
-            TotemTimers.AvailableTalents.DualWield = AvailableSpells[SpellIDs.DualWield]
-            TotemTimers.AvailableTalents.Maelstrom = AvailableSpells[SpellIDs.Maelstrom]
+    local ids, names = GetSelectedTalentSpells()
+    for key, spells in pairs(TotemTimers.TalentSpells or {}) do
+        for _, spell in ipairs(spells) do
+            local name = C_Spell.GetSpellName(spell)
+            if ids[spell] or (name and names[name]) then
+                TotemTimers.AvailableTalents[key] = true
+                break
+            end
         end
     end
-
-elseif LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_BURNING_CRUSADE then
-
-    TotemTimers.GetTalents = function()
-        wipe(TotemTimers.AvailableTalents)
-        TotemTimers.AvailableTalents.TotemicMastery = select(5, GetTalentInfo(3, 8)) * 10
-        TotemTimers.AvailableTalents.DualWield = select(5, GetTalentInfo(2, 18)) > 0
-    end
-
-elseif LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_WRATH_OF_THE_LICH_KING then
-
-    TotemTimers.GetTalents = function()
-        wipe(TotemTimers.AvailableTalents)
-        TotemTimers.AvailableTalents.TotemicMastery = 0
-        TotemTimers.AvailableTalents.DualWield = select(5, GetTalentInfo(2, 17)) > 0
-        TotemTimers.AvailableTalents.Maelstrom = select(5, GetTalentInfo(2,24)) > 0
-    end
-
-elseif LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CATACLYSM then
-    TotemTimers.GetTalents = function()
-        wipe(TotemTimers.AvailableTalents)
-        TotemTimers.AvailableTalents.TotemicMastery = 0
-        TotemTimers.AvailableTalents.DualWield = TotemTimers.Specialization == 2
-        TotemTimers.AvailableTalents.Maelstrom = select(5, GetTalentInfo(2,11)) > 0
-    end
-elseif LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_MISTS_OF_PANDARIA then
-    TotemTimers.GetTalents = function()
-        wipe(TotemTimers.AvailableTalents)
-        TotemTimers.AvailableTalents.TotemicMastery = 0
-        TotemTimers.AvailableTalents.DualWield = TotemTimers.Specialization == 2
-        TotemTimers.AvailableTalents.Maelstrom = TotemTimers.Specialization == 2
-    end
 end
+
+
 
 function TotemTimers.GetBaseSpellID(spell)
     local name = C_Spell.GetSpellName(spell)

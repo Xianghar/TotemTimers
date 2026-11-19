@@ -1,5 +1,9 @@
 # TotemTimers
 
+## 20.18
+- Added Flame Shock duration timer
+- 
+
 ## 20.17
 - Some smaller bugfixes
 

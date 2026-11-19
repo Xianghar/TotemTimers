@@ -106,7 +106,7 @@ local function TotemTimers_OnEvent(self, event, ...)
                 TotemTimers.ChangedTalents()
             end --]]
     elseif event == "SPELLS_CHANGED" or event == "CHARACTER_POINTS_CHANGED" or event == "PLAYER_TALENT_UPDATE"
-            or event == "LEARNED_SPELL_IN_TAB" then
+            or event == "LEARNED_SPELL_IN_TAB" or event == "TRAIT_CONFIG_LIST_UPDATED" or event == "TRAIT_CONFIG_UPDATED" then
 
         if InCombatLockdown() then
             updateAfterCombat = true
@@ -183,6 +183,8 @@ function TotemTimers.SetupGlobals()
             "LEARNED_SPELL_IN_TAB",
             "CHARACTER_POINTS_CHANGED",
             "PLAYER_TALENT_UPDATE",
+            "TRAIT_CONFIG_LIST_UPDATED",
+            "TRAIT_CONFIG_UPDATED",
             --"SPELLS_CHANGED",
             --"PLAYER_SPECIALIZATION_CHANGED",
         }

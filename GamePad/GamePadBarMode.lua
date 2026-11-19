@@ -156,6 +156,11 @@ local function GetHideableButtons()
     if TotemTimers.TotemicCallTimer then
         table.insert(list, { button = TotemTimers.TotemicCallTimer.button })
     end
+    -- the Flame Shock timer and the Maelstrom tracker (CombatCDs.lua), shown on the Gamepad UI buttons of Flame
+    -- Shock and Lightning Bolt; their aura displays (and the Maelstrom glow) are children of the buttons
+    for _, timer in ipairs({ TotemTimers.FlameShockDuration, TotemTimers.Maelstrom }) do
+        if timer then table.insert(list, { button = timer.button }) end
+    end
     return list
 end
 

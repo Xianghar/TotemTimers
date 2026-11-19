@@ -41,6 +41,8 @@ local _, TotemTimers = ...
 -- (works in combat).
 -- display.iconAboveBar = true: for timer bars that start at the button (under the icon, like the Flame Shock timer),
 -- the icon is drawn above the bar instead of below it.
+-- display.maxApplications = n: the bar shows the stacks of the aura (full at n) instead of the duration (with
+-- SetTimeShown(false) the bar's text shows the stacks, e.g. the Maelstrom tracker).
 
 local AuraDisplay = {}
 AuraDisplay.__index = AuraDisplay
@@ -71,6 +73,18 @@ local function IsAuraContainerAvailable()
     return C_AddOns.IsAddOnLoaded("Blizzard_AuraContainer")
 end
 
+-- always shown frame outside the aura containers that runs the glow animations (see InitGlowButton)
+local glowAnimator = CreateFrame("Frame", nil, UIParent)
+glowAnimator:SetSize(1, 1)
+glowAnimator:SetPoint("TOPLEFT")
+local glowAnimations = setmetatable({}, { __mode = "k" })
+-- hiding the UI (UIParent) stops the animations
+glowAnimator:SetScript("OnShow", function()
+    for animation in pairs(glowAnimations) do
+        animation:Play()
+    end
+end)
+
 -- displays waiting for the end of combat to be built
 local pendingBuilds = {}
 local combatFrame = CreateFrame("Frame")
@@ -86,8 +100,11 @@ end)
 --   textAnchor: region the time (or the charges) is centered on, instead of the parent's time string
 --   noIcon: the slot buttons show no icon (the parent shows one itself)
 --   swipeTexture, swipeInset: texture (e.g. round) and inset from the edges of the swipe
+--   forGamePad: the time is formatted for Gamepad UI buttons (no "s" for seconds, see XiTimers.GetTimeFormatter)
 --   dot: texture the slot buttons show a dot over (dot mode, see above)
 --   tint, maskAtlas, maskInset: dot mode with a tint over the dot region (see above)
+--   glow: { region = region, minApplications = n }: glow mode, a glow around the region while the aura has at least
+--     n stacks (see InitGlowButton)
 function AuraDisplay:new(parent, unit, options)
     if not IsAuraContainerAvailable() then return end
     local display = setmetatable({}, AuraDisplay)
@@ -102,6 +119,8 @@ function AuraDisplay:new(parent, unit, options)
     display.maskInset = options and options.maskInset or 0
     display.swipeTexture = options and options.swipeTexture
     display.swipeInset = options and options.swipeInset or 0
+    display.forGamePad = options and options.forGamePad or false
+    display.glow = options and options.glow
     display.dotColor = { 1, 1, 1, 1 }
     display.unit = unit or "player"
     -- slot definitions in the order they were added
@@ -128,6 +147,10 @@ function AuraDisplay:GetConfig()
     if self.dot then
         config.dotColor = { unpack(self.dotColor) }
     end
+    if self.glow then
+        -- the glow's outset follows the height of the region, a new size rebuilds the container
+        config.glowHeight = math.floor(self.glow.region:GetHeight() + 0.5)
+    end
     if timer then
         config.showBar = not timer.timerOnButton or timer.forceBar or false
         config.showSwirl = not config.showBar or timer.showCooldown or false
@@ -147,7 +170,7 @@ function AuraDisplay:GetConfig()
 end
 
 local configKeys = { "timeShown", "timeStyle", "showBar", "showSwirl", "texture", "barColor", "backgroundColor", "font", "textColor",
-    "dotColor" }
+    "dotColor", "glowHeight" }
 
 local function ConfigSignature(config)
     local parts = {}
@@ -188,8 +211,13 @@ function AuraDisplay:Build()
     local old = self.container
     if old then
         old:Hide()
-        for key in pairs(self.regions) do
+        for key, regions in pairs(self.regions) do
             pcall(old.SetAuraSlotEnabled, old, key, false)
+            -- the glow animation runs on a frame outside the container (see InitGlowButton)
+            if regions.glowAnimation then
+                regions.glowAnimation:Stop()
+                glowAnimations[regions.glowAnimation] = nil
+            end
         end
         self.container = nil
     end
@@ -252,7 +280,12 @@ function AuraDisplay:CreateTimerBar(button, showDuration)
     time:SetTextColor(unpack(config.textColor))
     time:SetPoint("CENTER", bar, "CENTER")
 
-    if showDuration then
+    if self.maxApplications then
+        button:SetApplicationBar(bar, {
+            maxApplications = self.maxApplications,
+            interpolation = Enum.StatusBarInterpolation.Immediate,
+        })
+    elseif showDuration then
         button:SetDurationBar(bar, {
             interpolation = Enum.StatusBarInterpolation.Immediate,
             direction = Enum.StatusBarTimerDirection.RemainingTime,
@@ -293,8 +326,127 @@ function AuraDisplay:InitDotButton(button, frameLevel, regions)
     regions.dot = texture
 end
 
+-- glow mode: the slot button covers the glow region. The stack count can be secret, so the game decides when to
+-- glow: an invisible application bar with minApplications = maxApplications = n is only shown by the container
+-- from n stacks on (CustomAuraButton ApplyApplicationBar), the glow is its child.
+-- The glow is the loop of the action bar's proc glow (atlas UI-HUD-ActionBar-Proc-Loop-Flipbook: 30 frames in 6 rows
+-- of 5, one second per loop). Animations stop while their frame is hidden and can't be restarted below a frame with
+-- secret visibility (no OnShow scripts there), and a stopped FlipBook animation shows the whole sheet. So each frame
+-- of the sheet is made of textures of its own (fixed tex coords, cut into three parts for wide regions, see
+-- CreateGlowFrame; only the first frame visible by default: without animation
+-- the glow is a static frame), and the frames are stepped through by alpha animations of an always shown frame
+-- outside the aura containers (glowAnimator), which keep running while the glow is hidden.
+local GLOW_ATLAS = "UI-HUD-ActionBar-Proc-Loop-Flipbook"
+local GLOW_ROWS, GLOW_COLUMNS, GLOW_FRAMES, GLOW_LOOP = 6, 5, 30, 1
+
+-- steps through the frames: frame i (all its textures) is shown from i/GLOW_FRAMES of the loop for one frame's time
+local function CreateGlowAnimation(frames)
+    local animation = glowAnimator:CreateAnimationGroup()
+    animation:SetLooping("REPEAT")
+    animation:SetToFinalAlpha(true)
+    local step = GLOW_LOOP / GLOW_FRAMES
+    for i, textures in ipairs(frames) do
+        for _, texture in ipairs(textures) do
+            local show = animation:CreateAnimation("Alpha")
+            show:SetTarget(texture)
+            show:SetFromAlpha(1)
+            show:SetToAlpha(1)
+            show:SetStartDelay((i - 1) * step)
+            show:SetDuration(step)
+            local hide = animation:CreateAnimation("Alpha")
+            hide:SetTarget(texture)
+            hide:SetFromAlpha(0)
+            hide:SetToAlpha(0)
+            hide:SetStartDelay(i * step)
+            hide:SetDuration(0.001)
+        end
+    end
+    return animation
+end
+
+-- one frame of the glow in three parts, so it fits a wide region: the left and right halves of the square frame
+-- as ends (as wide as half the glow's height, so they keep their shape) and a thin strip from the frame's center
+-- stretched in between (there the glow is only its straight top and bottom edge)
+local GLOW_MIDDLE_STRIP = 0.02 -- width of the stretched center strip, share of the frame
+local function CreateGlowFrame(glow, file, left, right, top, bottom, capWidth, alpha)
+    local center = (left + right) / 2
+    local strip = (right - left) * GLOW_MIDDLE_STRIP / 2
+    local parts = {}
+    local leftCap = glow:CreateTexture(nil, "OVERLAY")
+    leftCap:SetPoint("TOPLEFT", glow, "TOPLEFT")
+    leftCap:SetPoint("BOTTOMLEFT", glow, "BOTTOMLEFT")
+    leftCap:SetWidth(capWidth)
+    leftCap:SetTexCoord(left, center - strip, top, bottom)
+    local rightCap = glow:CreateTexture(nil, "OVERLAY")
+    rightCap:SetPoint("TOPRIGHT", glow, "TOPRIGHT")
+    rightCap:SetPoint("BOTTOMRIGHT", glow, "BOTTOMRIGHT")
+    rightCap:SetWidth(capWidth)
+    rightCap:SetTexCoord(center + strip, right, top, bottom)
+    local middle = glow:CreateTexture(nil, "OVERLAY")
+    middle:SetPoint("TOPLEFT", leftCap, "TOPRIGHT")
+    middle:SetPoint("BOTTOMRIGHT", rightCap, "BOTTOMLEFT")
+    middle:SetTexCoord(center - strip, center + strip, top, bottom)
+    for _, texture in ipairs({ leftCap, middle, rightCap }) do
+        texture:SetTexture(file)
+        texture:SetAlpha(alpha)
+        parts[#parts + 1] = texture
+    end
+    return parts
+end
+
+function AuraDisplay:InitGlowButton(button, frameLevel, regions)
+    local count = self.glow.minApplications
+    button:ClearAllPoints()
+    button:SetAllPoints(self.glow.region)
+    button:SetFrameLevel(frameLevel)
+    pcall(button.SetMouseClickEnabled, button, false)
+    pcall(button.EnableMouseMotion, button, false)
+
+    local bar = CreateFrame("StatusBar", nil, button)
+    bar:SetAllPoints(button)
+    bar:SetStatusBarTexture("Interface/Buttons/WHITE8X8")
+    bar:SetStatusBarColor(0, 0, 0, 0)
+    button:SetApplicationBar(bar, { minApplications = count, maxApplications = count })
+
+    local glow = CreateFrame("Frame", nil, bar)
+    -- like the action bar's glow (1.4 times the button size): 20% of the height on each side
+    local height = self.config.glowHeight or 20
+    local outset = height * 0.2
+    glow:SetPoint("TOPLEFT", bar, "TOPLEFT", -outset, outset)
+    glow:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", outset, -outset)
+    regions.bar = bar
+    regions.glow = glow
+
+    local atlas = C_Texture.GetAtlasInfo(GLOW_ATLAS)
+    local file = atlas and (atlas.file or atlas.filename)
+    if not file then return end
+    local capWidth = (height + 2 * outset) / 2
+    local frames = {}
+    local cellWidth = (atlas.rightTexCoord - atlas.leftTexCoord) / GLOW_COLUMNS
+    local cellHeight = (atlas.bottomTexCoord - atlas.topTexCoord) / GLOW_ROWS
+    for i = 0, GLOW_FRAMES - 1 do
+        local column, row = i % GLOW_COLUMNS, math.floor(i / GLOW_COLUMNS)
+        local left = atlas.leftTexCoord + column * cellWidth
+        local top = atlas.topTexCoord + row * cellHeight
+        frames[#frames + 1] = CreateGlowFrame(glow, file, left, left + cellWidth, top, top + cellHeight, capWidth,
+                i == 0 and 1 or 0)
+    end
+
+    -- targets below a frame with secret visibility might be refused, the glow then stays static
+    local ok, animation = pcall(CreateGlowAnimation, frames)
+    if ok then
+        animation:Play()
+        glowAnimations[animation] = true
+        regions.glowAnimation = animation
+    end
+end
+
 -- runs inside AddAuraSlot, the only point where the slot button can be set up
 function AuraDisplay:InitSlotButton(button, frameLevel, regions)
+    if self.glow then
+        self:InitGlowButton(button, frameLevel, regions)
+        return
+    end
     if self.dot then
         self:InitDotButton(button, frameLevel, regions)
         return
@@ -367,7 +519,7 @@ function AuraDisplay:InitSlotButton(button, frameLevel, regions)
 
     local count
     if config.timeShown then
-        local timeFormatter = XiTimers.GetTimeFormatter(true)
+        local timeFormatter = XiTimers.GetTimeFormatter(true, self.forGamePad)
         button:SetDurationText(time, timeFormatter and { textFormatter = timeFormatter } or nil)
         regions.time = time
         count = texts:CreateFontString(nil, "OVERLAY")

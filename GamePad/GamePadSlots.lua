@@ -171,7 +171,7 @@ local function GetBarIcon(button, index)
             slot.time = texts:CreateFontString(nil, "OVERLAY")
             slot.time:SetFontObject(TotemTimersButtonTimeFont)
             slot.time:SetPoint("CENTER", slot, "CENTER")
-            slot.timeBinding = XiTimers.CreateDurationTextBinding()
+            slot.timeBinding = XiTimers.CreateDurationTextBinding(true)
             slot.timeBinding:SetFontString(slot.time)
         else
             slot.cooldown:SetHideCountdownNumbers(false)
