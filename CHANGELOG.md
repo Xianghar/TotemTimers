@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.17
+- Some smaller bugfixes
+
 ## 20.16
 - Added timer for Totemic Call
 - Possible fixes for multicast button

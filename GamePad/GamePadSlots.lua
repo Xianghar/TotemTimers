@@ -143,7 +143,7 @@ local function GetBarIcon(button, index)
             active:SetPoint("BOTTOMRIGHT", slot, "BOTTOMRIGHT", width * ACTIVE_OFFSET_X, -height * ACTIVE_OFFSET_Y)
             slot.excluded:SetSize(width * 0.4, height * 0.4)
             slot.excluded:ClearAllPoints()
-            slot.excluded:SetPoint("BOTTOMLEFT", slot, "BOTTOMLEFT", MASK_INSET, MASK_INSET)
+            slot.excluded:SetPoint("BOTTOMLEFT", slot, "BOTTOMLEFT", MASK_INSET, MASK_INSET - height * 0.06)
         end
         UpdateActiveSize()
         slot:SetScript("OnSizeChanged", UpdateActiveSize)
@@ -182,7 +182,8 @@ local function GetBarIcon(button, index)
         slot.glow = CreateFrame("Frame", nil, slot)
         slot.glow:SetAllPoints(slot)
         slot.glow:SetFrameLevel(texts:GetFrameLevel() + 1)
-        slot.excluded:SetFrameLevel(texts:GetFrameLevel() + 1)
+        -- behind the texts (duration)
+        slot.excluded:SetFrameLevel(active:GetFrameLevel())
 
         -- anchors of the range dots (see ShowSlot), hidden: the dots are drawn by aura containers over them;
         -- a row along the top edge, the player's dot first (option PlayerRangeStyle "dot", otherwise the party dots

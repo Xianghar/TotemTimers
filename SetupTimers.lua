@@ -289,8 +289,9 @@ end
         -- lower left corner: marks the element as excluded from the active multicast spell
         tt.button.excludedIcon = TotemTimers.CreateExcludedIcon(tt.button)
         tt.button.excludedIcon:SetSize(14, 14)
-        tt.button.excludedIcon:SetPoint("BOTTOMLEFT", tt.button, "BOTTOMLEFT", 1, 1)
-        tt.button.excludedIcon:SetFrameLevel(tt.button:GetFrameLevel() + 12)
+        tt.button.excludedIcon:SetPoint("BOTTOMLEFT", tt.button, "BOTTOMLEFT", 1, -2)
+        -- below the frame of the time on the button (button level + 11, XiTimers:new), above the cooldown swipe
+        tt.button.excludedIcon:SetFrameLevel(tt.button:GetFrameLevel() + 10)
         tt.button.UpdateMultiSpellExcluded = function(self)
             local excluded = TotemTimers.GetExcludedMultiSpell(self.timer)
             TotemTimers.SetExcludedIcon(self.excludedIcon, excluded)

@@ -654,6 +654,7 @@ function TotemTimers.UpdateMacro()
                 if used < MaxCharacterMacros or index ~= 0 then
                     if index == 0 then
                         CreateMacro(macroName, DynamicMacroIcon, elementMacro, true)
+                        used = used + 1
                     else
                         EditMacro(index, macroName, DynamicMacroIcon, elementMacro)
                     end
@@ -665,7 +666,10 @@ function TotemTimers.UpdateMacro()
 
         local nr = GetMacroIndexByName("TT Cast")
         if nr == 0 then
-            CreateMacro("TT Cast", DynamicMacroIcon, sequence, true)
+            -- CreateMacro throws an error when the character macros are full
+            if used < MaxCharacterMacros then
+                CreateMacro("TT Cast", DynamicMacroIcon, sequence, true)
+            end
         else
             EditMacro(nr, "TT Cast", DynamicMacroIcon, sequence)
         end
