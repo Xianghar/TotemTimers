@@ -478,20 +478,6 @@ TotemTimers.options.args.enhancecds.args.options.args.MaelstromSize = {
     end,
 }
 
-TotemTimers.options.args.enhancecds.args.options.args.MaelstromStopPulse = {
-    order = 43,
-    type = "toggle",
-    name = L["Stop Pulse Animation"],
-    desc = L["MaelstromStopPulseDesc"],
-    set = function(info, val)
-        TotemTimers.ActiveProfile.MaelstromStopPulse = val
-        TotemTimers.ProcessSetting("MaelstromStopPulse")
-    end,
-    get = function(info)
-        return TotemTimers.ActiveProfile.MaelstromStopPulse
-    end,
-}
-
 -- layout of the tracker, the entries are pictures instead of text, composed by the ImageSelect widget from the
 -- tracker's own textures (units: the widget scales them): a small Maelstrom bar (the Maelstrom icon at its left, 5
 -- stacks as number) and/or the 5 stacks icon (mw5), for "gamepad" the connected controller
@@ -599,6 +585,25 @@ TotemTimers.options.args.enhancecds.args.options.args.MaelstromIconSize = {
     end,
     get = function(info)
         return TotemTimers.ActiveProfile.MaelstromIconSize or 1
+    end,
+}
+
+-- the stack icon above the character, where the game shows proc graphics (only for layouts with the icon)
+TotemTimers.options.args.enhancecds.args.options.args.MaelstromIconAtCharacter = {
+    order = 46,
+    type = "toggle",
+    name = L["Icon Above Character"],
+    desc = L["MaelstromIconAtCharacterDesc"],
+    disabled = function()
+        local layout = TotemTimers.ActiveProfile.MaelstromLayout
+        return layout == "bar" or layout == "gamepad"
+    end,
+    set = function(info, val)
+        TotemTimers.ActiveProfile.MaelstromIconAtCharacter = val
+        TotemTimers.ProcessSetting("MaelstromIconAtCharacter")
+    end,
+    get = function(info)
+        return TotemTimers.ActiveProfile.MaelstromIconAtCharacter
     end,
 }
 

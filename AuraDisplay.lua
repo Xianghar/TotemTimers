@@ -511,29 +511,8 @@ function AuraDisplay:InitImageButton(button, frameLevel, regions)
         end)
         if ok then
             regions.animation = animation
-            if self.imagePulse ~= false then
-                animation:Play()
-                animations[animation] = true
-            end
-        end
-    end
-end
-
--- image mode: turns the pulse of the image on or off (the animation runs outside the container, so this needs no
--- rebuild and works in combat)
-function AuraDisplay:SetImagePulse(pulse)
-    pulse = pulse and true or false
-    self.imagePulse = pulse
-    for _, regions in pairs(self.regions) do
-        local animation = regions.animation
-        if animation and self.image then
-            if pulse then
-                animation:Play()
-                animations[animation] = true
-            else
-                animation:Stop()
-                animations[animation] = nil
-            end
+            animation:Play()
+            animations[animation] = true
         end
     end
 end

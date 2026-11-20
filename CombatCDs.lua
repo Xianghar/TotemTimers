@@ -209,7 +209,7 @@ function TotemTimers.CreateEnhanceCDs()
     -- the large stack icon above the bar: textures/mw<n> for n stacks (the images add a bolt per stack, mw5 adds the
     -- emblem), from 5 stacks on mw5 with a slight pulse. The stacks can be secret, so each image is an AuraDisplay
     -- in image mode of its own (one application bar per slot button), shown by the game for exactly its count
-    -- (mw5: from 5 on). The icon has its own settings (MaelstromLayout "bar" hides it, MaelstromStopPulse,
+    -- (mw5: from 5 on). The icon has its own settings (MaelstromLayout "bar" hides it,
     -- MaelstromIconSize) and is no child of the button: it stays visible when the Gamepad UI option
     -- GamePadHideTimers makes the button invisible; it is shown with the active tracker (UpdateMaelstromIcon).
     MaelstromIcon = CreateFrame("Frame", "TotemTimers_MaelstromIcon", UIParent)
@@ -235,7 +235,6 @@ function TotemTimers.CreateEnhanceCDs()
             Maelstrom.iconDisplays[count] = display
         end
     end
-    TotemTimers.SetMaelstromIconPulse(not TotemTimers.ActiveProfile.MaelstromStopPulse)
 
     -- the warning and the glow of the Lightning Bolt/Chain Lightning buttons need the stack count in Lua, which can
     -- be secret (the Gamepad UI's Lightning Bolt buttons show stacks and glow with AuraDisplays)
@@ -293,17 +292,30 @@ end
 
 -- the stack icon is shown while the tracker is enabled with the layouts "both" and "icon"; while the options are
 -- open the preview replaces it
+-- opacity of the icon: above the character it follows the game's opacity of proc graphics (CVar
+-- spellActivationOverlayOpacity, "Spell Alert Opacity", 0 to 1; SpellActivationOverlay.lua sets it as the alpha of
+-- its frame), otherwise opaque
+local function GetMaelstromIconAlpha()
+    if not TotemTimers.ActiveProfile.MaelstromIconAtCharacter then return 1 end
+    local value = tonumber(C_CVar.GetCVar("spellActivationOverlayOpacity"))
+    if not value then return 1 end
+    return math.max(0, math.min(1, value))
+end
+
 function TotemTimers.UpdateMaelstromIcon()
-    if not MaelstromIcon then return end
+    if not MaelstromIcon or not TotemTimers.ActiveProfile then return end
     local layout = GetMaelstromLayout()
     local shown = maelstromEnabled and (layout == "both" or layout == "icon")
     MaelstromIcon:SetShown(shown)
     local previewShown = shown and TotemTimers.IsOptionsShown and TotemTimers.IsOptionsShown() or false
-    MaelstromIcon:SetAlpha(previewShown and 0 or 1)
+    -- the out-of-combat fade of the tracker (EnhanceCDsOOCAlpha, mouseover alpha) on top
+    local alpha = GetMaelstromIconAlpha() * (Maelstrom.button:GetAlpha() or 1)
+    MaelstromIcon:SetAlpha(previewShown and 0 or alpha)
     if previewShown or maelstromPreview then
         local preview = GetMaelstromPreview()
         preview:SetShown(previewShown)
-        if previewShown and not TotemTimers.ActiveProfile.MaelstromStopPulse then
+        preview:SetAlpha(alpha)
+        if previewShown then
             preview.pulse:Play()
         else
             preview.pulse:Stop()
@@ -315,14 +327,17 @@ TotemTimers.OptionsShownChanged = function(shown)
     TotemTimers.UpdateMaelstromIcon()
 end
 
--- pulse of the mw5 image (setting MaelstromStopPulse)
-function TotemTimers.SetMaelstromIconPulse(pulse)
-    if not Maelstrom or not Maelstrom.iconDisplays then return end
-    for _, display in pairs(Maelstrom.iconDisplays) do
-        display:SetImagePulse(pulse)
+-- the tracker's button was faded (out of combat, mouseover): the icon isn't its child, so it follows here
+hooksecurefunc(XiTimers, "UpdateFade", function() TotemTimers.UpdateMaelstromIcon() end)
+
+-- the game's opacity of proc graphics changed (Options > Combat or Accessibility)
+local cvarFrame = CreateFrame("Frame")
+cvarFrame:RegisterEvent("CVAR_UPDATE")
+cvarFrame:SetScript("OnEvent", function(_, _, name)
+    if type(name) == "string" and name:lower() == "spellactivationoverlayopacity" then
+        TotemTimers.UpdateMaelstromIcon()
     end
-    TotemTimers.UpdateMaelstromIcon()
-end
+end)
 
 -- the Gamepad UI buttons with Flame Shock show its duration while the Flame Shock timer is active
 -- (GamePad/GamePadActionButtons.lua, loaded later)
@@ -449,6 +464,9 @@ end
 ]==]
 
 
+-- side of the game's proc graphics frame at the screen center (SpellActivationOverlay.lua: 256 * 0.8)
+local OVERLAY_LONG_SIDE = 256 * 0.8
+
 local function SizeToWidthHeight(size)
     size = min(3, size or 1)
 
@@ -568,14 +586,22 @@ function TotemTimers.LayoutEnhanceCDs()
     -- the stack icon above the bar (centered over button + bar, the hidden timer bar spans both; the images are
     -- 2:1 with the bolts in their lower half, so the icon reaches a little into the bar's top); its size setting
     -- MaelstromIconSize scales it (1 = 75% of the bar's width)
-    local iconWidth = msWidth * 0.75 * (TotemTimers.ActiveProfile.MaelstromIconSize or 1)
+    -- option MaelstromIconAtCharacter: the icon above the character instead, where the game shows proc graphics at
+    -- the top (SpellActivationOverlay.lua: a 204.8 square frame at the screen center, "Top" overlays 204.8 x 102.4
+    -- (2:1 like the mw textures) on its top edge); MaelstromIconSize scales it there too
+    local atCharacter = TotemTimers.ActiveProfile.MaelstromIconAtCharacter
+    local iconScale = TotemTimers.ActiveProfile.MaelstromIconSize or 1
+    local iconWidth = atCharacter and OVERLAY_LONG_SIDE * iconScale or msWidth * 0.75 * iconScale
     MaelstromIcon:SetSize(iconWidth, iconWidth / 2)
     MaelstromIcon:ClearAllPoints()
     -- displays whose look depends on these sizes (glow outset, mask margin) are rebuilt if they changed
     for _, display in pairs(Maelstrom.iconDisplays or {}) do display:ScheduleBuild() end
     if Maelstrom.glowDisplay then Maelstrom.glowDisplay:ScheduleBuild() end
-    local iconOnly = maelstromEnabled and GetMaelstromLayout() == "icon"
-    if not iconOnly then
+    -- the icon alone in the place of the bar (not with the icon above the character)
+    local iconOnly = maelstromEnabled and GetMaelstromLayout() == "icon" and not atCharacter
+    if atCharacter then
+        MaelstromIcon:SetPoint("BOTTOM", UIParent, "CENTER", 0, OVERLAY_LONG_SIDE / 2)
+    elseif not iconOnly then
         MaelstromIcon:SetPoint("BOTTOM", Maelstrom.timerBars[1], "TOP", 0, -iconWidth / 2 * 0.15)
     end
 

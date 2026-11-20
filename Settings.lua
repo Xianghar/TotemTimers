@@ -915,6 +915,14 @@ end
         end
     end]]
 
+    -- out-of-combat opacity of the combat cooldowns: the Flame Shock timer and the Maelstrom tracker (its stack icon
+    -- follows the tracker's button, CombatCDs.lua), faded by XiTimers' out-of-combat fader
+    SettingsFunctions.EnhanceCDsOOCAlpha = function(value)
+        if TotemTimers.FlameShockDuration then TotemTimers.FlameShockDuration.OOCAlpha = value end
+        if TotemTimers.Maelstrom then TotemTimers.Maelstrom.OOCAlpha = value end
+        XiTimers.invokeOOCFader()
+    end
+
     -- combat cooldowns: for now only the Flame Shock duration timer (CombatCDs.lua)
     SettingsFunctions.EnhanceCDs = function(value)
         if not TotemTimers.ActivateEnhanceCDs then return end
@@ -942,8 +950,8 @@ end
     end
 
     -- the Maelstrom stack icon above the bar (CombatCDs.lua), settings of its own (the stacks are always shown on
-    -- the bar): MaelstromLayout ("both", "bar", "icon") shows bar and/or icon, MaelstromStopPulse stops the pulse at
-    -- 5 stacks, MaelstromIconSize scales it. The layout (de)activates the tracker button, so it is configured again.
+    -- the bar): MaelstromLayout ("both", "bar", "icon") shows bar and/or icon (mw5 always pulses at
+    -- 5 stacks), MaelstromIconSize scales it. The layout (de)activates the tracker button, so it is configured again.
     SettingsFunctions.MaelstromLayout = function(value)
         if TotemTimers.ConfigEnhanceCDs and TotemTimers.Maelstrom then
             TotemTimers.ConfigEnhanceCDs()
@@ -951,8 +959,13 @@ end
         end
     end
 
-    SettingsFunctions.MaelstromStopPulse = function(value)
-        if TotemTimers.SetMaelstromIconPulse then TotemTimers.SetMaelstromIconPulse(not value) end
+
+    SettingsFunctions.MaelstromIconAtCharacter = function(value)
+        if TotemTimers.Maelstrom and TotemTimers.LayoutEnhanceCDs then
+            TotemTimers.LayoutEnhanceCDs()
+            -- opacity: above the character the game's opacity of proc graphics
+            TotemTimers.UpdateMaelstromIcon()
+        end
     end
 
     SettingsFunctions.MaelstromIconSize = function(value)

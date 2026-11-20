@@ -318,10 +318,11 @@ TotemTimers.DefaultProfile = {
         FlameShockDurationStopPulse = false,
         EnhanceCDsMaelstrom = true,
         MaelstromSize = 2,
-        MaelstromStopPulse = false,
         -- "both" (bar + stack icon), "bar" (bar only), "icon" (stack icon only, in the place of the bar)
         MaelstromLayout = "both",
         MaelstromIconSize = 1,
+        -- the stack icon above the character (where the game shows proc graphics) instead of above the bar
+        MaelstromIconAtCharacter = true,
         OverlayGlow = true,
         EnhanceCDsOneRow = false,
 
@@ -486,6 +487,8 @@ local SettingsConverters = {
             profile.PowerSurge = nil
             profile.PowerSurgeOverlay = nil
             if profile.Warnings then profile.Warnings.PowerSurge = nil end
+            -- the Maelstrom option "stop pulse animation" was removed (mw5 always pulses)
+            profile.MaelstromStopPulse = nil
         end
         TotemTimers_GlobalSettings.Version = Version
     end,
@@ -685,7 +688,7 @@ end
     "EnhanceCDsOOCAlpha", "CDTimersOnButtons", "EnhanceCDsClickthrough",
     "FlameShockDurationOnTop", "EnhanceCDsFlameShockDuration", "EnhanceCDsFlameShockDuration_Specialization",
     "FlameShockDurationSize", "FlameShockDurationStopPulse",
-    "EnhanceCDsMaelstrom", "MaelstromSize", "MaelstromStopPulse", "MaelstromLayout", "MaelstromIconSize",
+    "EnhanceCDsMaelstrom", "MaelstromSize", "MaelstromLayout", "MaelstromIconSize", "MaelstromIconAtCharacter",
     "OverlayGlow",
     "LongCooldownSpells", "LongCooldownsStopPulse",
 }

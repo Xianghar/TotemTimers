@@ -215,10 +215,11 @@ L["MaelstromLayoutBarDesc"] = "Show the Maelstrom Weapon bar only"
 L["MaelstromLayoutIconDesc"] = "Show lightning bolts only"
 L["MaelstromLayoutGamePadDesc"] = "Show tracker only on the Lightning Bolt button in the Gamepad UI"
 L["Stop Pulse Animation"] = true
-L["MaelstromStopPulseDesc"] = "The lightning bolt icon doesn't pulse at 5 stacks"
 L["Icon Size"] = true
 L["Size"] = true
-L["MaelstromIconSizeDesc"] = "Size of the lightning bolt icon above the bar"
+L["MaelstromIconSizeDesc"] = "Size of the lightning bolt icon"
+L["Icon Above Character"] = true
+L["MaelstromIconAtCharacterDesc"] = "Shows the lightning bolt icon above your character, where the game shows proc effects, instead of above the bar. It then uses the game's Spell Alert Opacity setting"
 
 L["Arena"] = true
 L["Battleground"] = true
