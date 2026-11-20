@@ -29,7 +29,7 @@ local SQUARE_SWIPE = "Interface\\Buttons\\WHITE8X8"
 -- mask inset from the slot edges, like the CircleMask/SquareMask of the gamepad buttons (ActionBarButton.xml)
 local MASK_INSET = 3
 
--- icon of the active totem (with hidden timers): size and offset downwards relative to the slot's size,
+-- icon of the active totem: size and offset downwards relative to the slot's size,
 -- mask inset scaled like the size, border of the round gamepad slots (ActionBarButton.lua CIRCLE_NORMAL_FRAME_ATLAS)
 local ACTIVE_SIZE = 0.6
 local ACTIVE_OFFSET_X = 0.1
@@ -37,7 +37,7 @@ local ACTIVE_OFFSET_Y = 0.3
 local ACTIVE_MASK_INSET = MASK_INSET * ACTIVE_SIZE
 local ROUND_SLOT_BORDER = "gamepad-actionbar-circleslot-border-normal"
 
--- the active totem icon is shown on the totem slots (option GamePadHideTimers in bar mode)
+-- the active totem icon is shown on the totem slots while timers are shown on them (option GamePadTimers)
 -- option GamePadTimers: timers on the Gamepad UI buttons (totem durations on the bar slots, shield charges, weapon
 -- enchant times and glow); without it the slots only show the icons and GamePadHideTimers is ignored
 
@@ -128,7 +128,7 @@ local function GetBarIcon(button, index)
         slot.border = overlay:CreateTexture(nil, "ARTWORK")
         slot.border:SetAllPoints(slot)
 
-        -- above the border: the icon of the active totem (with hidden timers), a round button in the bottom right
+        -- above the border: the icon of the active totem (if not the assigned one), a round button in the bottom right
         -- corner of the slot (ACTIVE_SIZE of the slot's size, moved right and down by ACTIVE_OFFSET_X/Y of the
         -- slot's width/height),
         -- following the slot's size (the bar expands)

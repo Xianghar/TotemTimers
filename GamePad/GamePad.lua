@@ -586,7 +586,8 @@ function GamePad.Apply()
     end
     GamePad.UpdateBarIcons()
     local hideTimers = GamePad.barMode and GamePad.timersShown and TotemTimers.ActiveProfile.GamePadHideTimers
-    GamePad.showActiveTotems = hideTimers and true or false
+    -- the icon of a running totem that isn't the assigned one, on the totem slots whenever timers are shown on them
+    GamePad.showActiveTotems = GamePad.timersShown and true or false
     GamePad.UpdateBarDurations()
     GamePad.SetTimersHidden(hideTimers)
     GamePad.SetMenusAtBar(hideTimers and GamePad.GetLayerKeyBar())
