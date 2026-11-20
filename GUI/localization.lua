@@ -208,8 +208,12 @@ L["Mouseover Opacity"] = true
 L["Mouseover Opacity Desc"] = "Opacity of all buttons while the mouse is over none of them (out of combat only). Hovering any button shows all of them fully opaque. 1 = off"
 L["Show OmniCC counters"] = true
 L["Spells"] = true
-L["MaelstromNumberOnlyDesc"] = "Hides the lightning bolt icon above the bar, the stacks are only shown as a number on the bar"
-L["Show Number Only"] = true
+L["Layout"] = true
+L["MaelstromLayoutDesc"] = "Bar with the stacks as number and the lightning bolt icon above it, only the bar, only the lightning bolt icon in the place of the bar, or only the stacks on the Lightning Bolt buttons of the Gamepad UI"
+L["MaelstromLayoutBothDesc"] = "Show lightning bolts above the Maelstrom Weapon bar"
+L["MaelstromLayoutBarDesc"] = "Show the Maelstrom Weapon bar only"
+L["MaelstromLayoutIconDesc"] = "Show lightning bolts only"
+L["MaelstromLayoutGamePadDesc"] = "Show tracker only on the Lightning Bolt button in the Gamepad UI"
 L["Stop Pulse Animation"] = true
 L["MaelstromStopPulseDesc"] = "The lightning bolt icon doesn't pulse at 5 stacks"
 L["Icon Size"] = true

@@ -419,55 +419,6 @@ TotemTimers.options.args.messages.args.Messages.args.MaelstromMsg = {
 
 
 
-local PowerSurgeName = C_Spell.GetSpellName(SpellIDs.PowerSurge)
-
-TotemTimers.options.args.messages.args.Messages.args.PowerSurgeMsg = {
-    order = 9,
-    type = "group",
-    name = PowerSurgeName,
-    args = {
-        enable = {
-            order = 0,
-            type = "toggle",
-            name = L["Enable"],
-            set = function(info, val) TotemTimers.ActiveProfile.Warnings.PowerSurge.enabled = val end,
-            get = function(info) return TotemTimers.ActiveProfile.Warnings.PowerSurge.enabled end,
-        },
-        --[[color =  {
-            order = 1,
-            type = "color",
-            name = L["Color"],
-            hasAlpha = false,
-            set = function(info, r,g,b)
-                TotemTimers.ActiveProfile.Warnings.PowerSurge.r = r
-                TotemTimers.ActiveProfile.Warnings.PowerSurge.g = g
-                TotemTimers.ActiveProfile.Warnings.PowerSurge.b = b
-            end,
-            get = function(info)
-                return TotemTimers.ActiveProfile.Warnings.PowerSurge.r,
-                TotemTimers.ActiveProfile.Warnings.PowerSurge.g,
-                TotemTimers.ActiveProfile.Warnings.PowerSurge.b, 1
-            end,
-        },]]
-        sound = {
-            order = 2,
-            type = "select",
-            name = L["Sound"],
-            values = AceGUIWidgetLSMlists.sound,
-            set = function(info, val) TotemTimers.ActiveProfile.Warnings.PowerSurge.sound = val end,
-            get = function(info) return TotemTimers.ActiveProfile.Warnings.PowerSurge.sound end,
-            dialogControl = "LSM30_Sound",
-        },
-        nosound = {
-            order = 3,
-            type = "execute",
-            name = L["No Sound"],
-            func = function(info) TotemTimers.ActiveProfile.Warnings.PowerSurge.sound = "" end,
-        },
-    },
-}
-
-
 local ACD = LibStub("AceConfigDialog-3.0")
 local frame, categoryID = ACD:AddToBlizOptions("TotemTimers", L["Warnings"], "TotemTimers", "messages")
 TotemTimers.HookGUIFrame(frame, categoryID)

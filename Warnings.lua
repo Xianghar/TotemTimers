@@ -12,7 +12,7 @@ function XiTimers.InitWarnings(newwarnings)
     Warnings = newwarnings
 end
 
-local noTextWarnings = { "Maelstrom", "PowerSurge"}
+local noTextWarnings = { "Maelstrom" }
 
 
 function XiTimers.PlayWarning(self, warning, spell, icon)

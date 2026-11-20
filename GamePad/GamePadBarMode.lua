@@ -156,11 +156,11 @@ local function GetHideableButtons()
     if TotemTimers.TotemicCallTimer then
         table.insert(list, { button = TotemTimers.TotemicCallTimer.button })
     end
-    -- the Flame Shock timer and the Maelstrom tracker (CombatCDs.lua), shown on the Gamepad UI buttons of Flame
-    -- Shock and Lightning Bolt; their aura displays (and the Maelstrom glow) are children of the buttons. The
-    -- Maelstrom stack icon (TotemTimers_MaelstromIcon) isn't, it stays visible.
-    for _, timer in ipairs({ TotemTimers.FlameShockDuration, TotemTimers.Maelstrom }) do
-        if timer then table.insert(list, { button = timer.button }) end
+    -- the Flame Shock timer (CombatCDs.lua), shown on the Gamepad UI buttons of Flame Shock; its aura display is a
+    -- child of the button. The Maelstrom tracker isn't hidden: its layout setting (MaelstromLayout) decides where
+    -- it is shown, "gamepad" only on the Lightning Bolt buttons.
+    if TotemTimers.FlameShockDuration then
+        table.insert(list, { button = TotemTimers.FlameShockDuration.button })
     end
     return list
 end

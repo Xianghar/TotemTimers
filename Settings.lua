@@ -942,10 +942,13 @@ end
     end
 
     -- the Maelstrom stack icon above the bar (CombatCDs.lua), settings of its own (the stacks are always shown on
-    -- the bar): MaelstromNumberOnly hides it, MaelstromStopPulse stops the pulse at 5 stacks, MaelstromIconSize
-    -- scales it
-    SettingsFunctions.MaelstromNumberOnly = function(value)
-        if TotemTimers.UpdateMaelstromIcon then TotemTimers.UpdateMaelstromIcon() end
+    -- the bar): MaelstromLayout ("both", "bar", "icon") shows bar and/or icon, MaelstromStopPulse stops the pulse at
+    -- 5 stacks, MaelstromIconSize scales it. The layout (de)activates the tracker button, so it is configured again.
+    SettingsFunctions.MaelstromLayout = function(value)
+        if TotemTimers.ConfigEnhanceCDs and TotemTimers.Maelstrom then
+            TotemTimers.ConfigEnhanceCDs()
+            TotemTimers.LayoutEnhanceCDs()
+        end
     end
 
     SettingsFunctions.MaelstromStopPulse = function(value)

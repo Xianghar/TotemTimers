@@ -341,6 +341,36 @@ local function GetPadIconMarkup(key)
 end
 GamePad.GetPadIconMarkup = GetPadIconMarkup
 
+-- type of the active controller: "dualsense", "dualshock4", "xbox", "switch" or nil (none or unknown), by the USB
+-- vendor/product IDs of the device, otherwise by the label style of its mapping (Shapes = PlayStation, Letters =
+-- Xbox, Reverse = Nintendo). Controllers behind Steam Input or similar tools may report as Xbox controllers.
+local SONY, MICROSOFT, NINTENDO = 0x054C, 0x045E, 0x057E
+local SonyProducts = {
+    [0x0CE6] = "dualsense", [0x0DF2] = "dualsense", -- DualSense, DualSense Edge
+    [0x05C4] = "dualshock4", [0x09CC] = "dualshock4", [0x0BA0] = "dualshock4", -- DualShock 4 (v1, v2, USB adapter)
+}
+local LabelStyleTypes = { Shapes = "dualsense", Letters = "xbox", Reverse = "switch" }
+
+local function GetControllerType()
+    if not (C_GamePad and C_GamePad.GetActiveDeviceID) then return end
+    local ok, deviceID = pcall(C_GamePad.GetActiveDeviceID)
+    if not ok or not deviceID or deviceID < 0 then return end
+    local okRaw, raw = pcall(C_GamePad.GetDeviceRawState, deviceID)
+    if okRaw and raw then
+        if raw.vendorID == SONY then
+            return SonyProducts[raw.productID] or "dualsense"
+        elseif raw.vendorID == MICROSOFT then
+            return "xbox"
+        elseif raw.vendorID == NINTENDO then
+            return "switch"
+        end
+    end
+    local okMapped, mapped = pcall(C_GamePad.GetDeviceMappedState, deviceID)
+    return okMapped and mapped and LabelStyleTypes[mapped.labelStyle] or nil
+end
+GamePad.GetControllerType = GetControllerType
+TotemTimers.GetControllerType = GetControllerType
+
 -- left/rightclick in the tooltip lines are replaced by the icons of the pad buttons that click
 local function ReplaceClickTexts()
     local replacements = {
@@ -509,6 +539,9 @@ GamePad.barMode = false
 GamePad.timersShown = true
 GamePad.showActiveTotems = false
 GamePad.actionOverlaysShown = false
+-- the Gamepad UI is active (with option GamePad), action button overlays that don't follow GamePadTimers (Maelstrom
+-- with layout "gamepad") need only this
+GamePad.actionButtonsActive = false
 
 -- learned spells (Totemic Recall, Totemic Call, multicast spells), runs out of combat
 table.insert(TotemTimers.SpellUpdaters, function() GamePad.Apply() end)
@@ -527,6 +560,7 @@ function GamePad.Apply()
     local active = TotemTimers.ActiveProfile.GamePad and IsGamepadUI()
     GamePad.timersShown = TotemTimers.ActiveProfile.GamePadTimers and true or false
     GamePad.actionOverlaysShown = active and GamePad.timersShown or false
+    GamePad.actionButtonsActive = active and true or false
     GamePad.UpdateActionButtons()
     TotemTimers.UpdateRangeDots()
     if not active and not GamePad.nav then return end

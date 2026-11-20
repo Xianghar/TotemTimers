@@ -56,6 +56,7 @@ Warnings.lua
 Masque.lua
 GUI\localization.lua
 GUI\localization.[TextLocale].lua [AllowLoadTextLocale deDE, esES, esMX, frFR, koKR, ptBR, ruRU, zhCN, zhTW]
+GUI\ImageSelect.lua
 GUI\General.lua
 GUI\Timers.lua
 GUI\Trackers.lua

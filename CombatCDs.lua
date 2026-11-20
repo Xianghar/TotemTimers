@@ -209,7 +209,7 @@ function TotemTimers.CreateEnhanceCDs()
     -- the large stack icon above the bar: textures/mw<n> for n stacks (the images add a bolt per stack, mw5 adds the
     -- emblem), from 5 stacks on mw5 with a slight pulse. The stacks can be secret, so each image is an AuraDisplay
     -- in image mode of its own (one application bar per slot button), shown by the game for exactly its count
-    -- (mw5: from 5 on). The icon has its own settings (MaelstromNumberOnly hides it, MaelstromStopPulse,
+    -- (mw5: from 5 on). The icon has its own settings (MaelstromLayout "bar" hides it, MaelstromStopPulse,
     -- MaelstromIconSize) and is no child of the button: it stays visible when the Gamepad UI option
     -- GamePadHideTimers makes the button invisible; it is shown with the active tracker (UpdateMaelstromIcon).
     MaelstromIcon = CreateFrame("Frame", "TotemTimers_MaelstromIcon", UIParent)
@@ -273,11 +273,30 @@ local function GetMaelstromPreview()
     return preview
 end
 
--- the stack icon is shown while the tracker is active, unless hidden by its setting (MaelstromNumberOnly); while
--- the options are open the preview replaces it
+-- Maelstrom tracker enabled (talent and options, set by ConfigEnhanceCDs); the layout setting MaelstromLayout
+-- decides what is shown: "both" (bar + stack icon), "bar" (bar only), "icon" (stack icon only, in the place of the
+-- bar, the button isn't activated), "gamepad" (neither, only the overlays of the Gamepad UI's Lightning Bolt
+-- buttons, GamePad/GamePadActionButtons.lua, which need the tracker enabled in every layout)
+local maelstromEnabled = false
+local MAELSTROM_LAYOUTS = { both = true, bar = true, icon = true, gamepad = true }
+
+local function GetMaelstromLayout()
+    local layout = TotemTimers.ActiveProfile.MaelstromLayout
+    return MAELSTROM_LAYOUTS[layout] and layout or "both"
+end
+
+TotemTimers.GetMaelstromLayout = GetMaelstromLayout
+
+function TotemTimers.IsMaelstromEnabled()
+    return maelstromEnabled
+end
+
+-- the stack icon is shown while the tracker is enabled with the layouts "both" and "icon"; while the options are
+-- open the preview replaces it
 function TotemTimers.UpdateMaelstromIcon()
     if not MaelstromIcon then return end
-    local shown = Maelstrom.active and not TotemTimers.ActiveProfile.MaelstromNumberOnly
+    local layout = GetMaelstromLayout()
+    local shown = maelstromEnabled and (layout == "both" or layout == "icon")
     MaelstromIcon:SetShown(shown)
     local previewShown = shown and TotemTimers.IsOptionsShown and TotemTimers.IsOptionsShown() or false
     MaelstromIcon:SetAlpha(previewShown and 0 or 1)
@@ -325,6 +344,7 @@ function TotemTimers.ConfigEnhanceCDs()
     ]==]
     FlameShockDuration:Deactivate()
     Maelstrom:Deactivate()
+    maelstromEnabled = false
     TotemTimers.UpdateMaelstromIcon()
 
     if role == 0 or not TotemTimers.ActiveProfile.EnhanceCDs then
@@ -399,12 +419,16 @@ function TotemTimers.ConfigEnhanceCDs()
     if AvailableSpells[SpellIDs.FlameShock] and TotemTimers.ActiveProfile.EnhanceCDsFlameShockDuration_Specialization[role] then
         FlameShockDuration:Activate()
     end
-    UpdateGamePadButtons()
 
     if TotemTimers.AvailableTalents.Maelstrom and TotemTimers.ActiveProfile.EnhanceCDsMaelstrom then
-        Maelstrom:Activate()
+        maelstromEnabled = true
+        local layout = GetMaelstromLayout()
+        if layout == "both" or layout == "bar" then
+            Maelstrom:Activate()
+        end
     end
     TotemTimers.UpdateMaelstromIcon()
+    UpdateGamePadButtons()
 
     --[==[
     for i=1,#CDSpells[role] do
@@ -547,9 +571,24 @@ function TotemTimers.LayoutEnhanceCDs()
     local iconWidth = msWidth * 0.75 * (TotemTimers.ActiveProfile.MaelstromIconSize or 1)
     MaelstromIcon:SetSize(iconWidth, iconWidth / 2)
     MaelstromIcon:ClearAllPoints()
-    MaelstromIcon:SetPoint("BOTTOM", Maelstrom.timerBars[1], "TOP", 0, -iconWidth / 2 * 0.15)
+    local iconOnly = maelstromEnabled and GetMaelstromLayout() == "icon"
+    if not iconOnly then
+        MaelstromIcon:SetPoint("BOTTOM", Maelstrom.timerBars[1], "TOP", 0, -iconWidth / 2 * 0.15)
+    end
 
-    if FlameShockDuration.active and Maelstrom.active then
+    if iconOnly then
+        -- the icon alone in the place of the bar: above the Flame Shock timer, otherwise centered on the anchor
+        if FlameShockDuration.active then
+            local halfSpacing = TotemTimers.ActiveProfile.CooldownSpacing / 2
+            MaelstromIcon:SetPoint("BOTTOM", TotemTimers_EnhanceCDsFrame, "CENTER", 0, halfSpacing)
+            FlameShockDuration.button:SetPoint("TOPLEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, -halfSpacing)
+        else
+            MaelstromIcon:SetPoint("CENTER", TotemTimers_EnhanceCDsFrame, "CENTER")
+            FlameShockDuration.button:SetPoint("LEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, 0)
+        end
+        -- the inactive button keeps a position (its bar isn't shown)
+        Maelstrom.button:SetPoint("LEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -msWidth / 2, 0)
+    elseif FlameShockDuration.active and Maelstrom.active then
         local halfSpacing = TotemTimers.ActiveProfile.CooldownSpacing / 2
         Maelstrom.button:SetPoint("BOTTOMLEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -msWidth / 2, halfSpacing)
         FlameShockDuration.button:SetPoint("TOPLEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, -halfSpacing)
@@ -610,6 +649,7 @@ function TotemTimers.DeactivateEnhanceCDs()
     ]==]
     FlameShockDuration:Deactivate()
     Maelstrom:Deactivate()
+    maelstromEnabled = false
     TotemTimers.UpdateMaelstromIcon()
     UpdateGamePadButtons()
 end

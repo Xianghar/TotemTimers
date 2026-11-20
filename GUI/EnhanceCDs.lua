@@ -492,17 +492,94 @@ TotemTimers.options.args.enhancecds.args.options.args.MaelstromStopPulse = {
     end,
 }
 
-TotemTimers.options.args.enhancecds.args.options.args.MaelstromNumberOnly = {
+-- layout of the tracker, the entries are pictures instead of text, composed by the ImageSelect widget from the
+-- tracker's own textures (units: the widget scales them): a small Maelstrom bar (the Maelstrom icon at its left, 5
+-- stacks as number) and/or the 5 stacks icon (mw5), for "gamepad" the connected controller
+-- (CONTROLLER_TEXTURES) and the Lightning Bolt icon
+local LAYOUT_WIDTH, LAYOUT_HEIGHT = 40, 20
+local LAYOUT_BAR_WIDTH, LAYOUT_BAR_HEIGHT = 36, 6
+local LIGHTNING_BAR = "Interface/AddOns/TotemTimers/textures/lightning_bar"
+local MAELSTROM_ICON = "Interface/AddOns/TotemTimers/textures/mw5"
+
+-- the bar with the Maelstrom icon at its left and "5" in its center, top: its top edge
+local function AddLayoutBar(entry, top)
+    local left = (LAYOUT_WIDTH - LAYOUT_BAR_WIDTH) / 2
+    table.insert(entry.layers, { texture = LIGHTNING_BAR, left = left, top = top,
+        width = LAYOUT_BAR_WIDTH, height = LAYOUT_BAR_HEIGHT })
+    local icon = C_Spell.GetSpellTexture(SpellIDs.Maelstrom)
+    if icon then
+        table.insert(entry.layers, { texture = icon, left = left, top = top,
+            width = LAYOUT_BAR_HEIGHT, height = LAYOUT_BAR_HEIGHT })
+    end
+    table.insert(entry.texts, { text = "5", left = left, top = top + 0.5,
+        width = LAYOUT_BAR_WIDTH, height = LAYOUT_BAR_HEIGHT - 1 })
+end
+
+-- the stack icon like above the tracker's bar: 75% of the bar's width, 2:1, reaching 15% into the bar
+local function AddLayoutIcon(entry, barTop)
+    local width = LAYOUT_BAR_WIDTH * 0.75
+    local height = width / 2
+    table.insert(entry.layers, { texture = MAELSTROM_ICON, left = (LAYOUT_WIDTH - width) / 2,
+        top = barTop - height * 0.85, width = width, height = height })
+end
+
+-- controller pictures by type (GamePad.GetControllerType); the PNGs are Kenney's Input Prompts icons (CC0)
+local CONTROLLER_TEXTURES = {
+    dualsense = "Interface/AddOns/TotemTimers/textures/controller_playstation5.png",
+    dualshock4 = "Interface/AddOns/TotemTimers/textures/controller_playstation4.png",
+    -- Switch 2 Pro Controller picture, also for the Switch 1 Pro Controller (both Nintendo, "switch")
+    switch = "Interface/AddOns/TotemTimers/textures/controller_switch_pro.png",
+    xbox = "Interface/AddOns/TotemTimers/textures/controller_xboxone.png",
+}
+
+local function NewLayoutEntry(tooltip)
+    return { width = LAYOUT_WIDTH, height = LAYOUT_HEIGHT, layers = {}, texts = {}, tooltip = tooltip }
+end
+
+TotemTimers.options.args.enhancecds.args.options.args.MaelstromLayout = {
     order = 42,
-    type = "toggle",
-    name = L["Show Number Only"],
-    desc = L["MaelstromNumberOnlyDesc"],
+    type = "select",
+    -- a row of large picture buttons instead of a dropdown (GUI/ImageSelect.lua)
+    dialogControl = "TotemTimers-ImageSelect",
+    width = "full",
+    name = L["Layout"],
+    desc = L["MaelstromLayoutDesc"],
+    values = function()
+        local barTop = LAYOUT_HEIGHT - LAYOUT_BAR_HEIGHT - 1
+        local both = NewLayoutEntry(L["MaelstromLayoutBothDesc"])
+        AddLayoutIcon(both, barTop)
+        AddLayoutBar(both, barTop)
+
+        local bar = NewLayoutEntry(L["MaelstromLayoutBarDesc"])
+        AddLayoutBar(bar, (LAYOUT_HEIGHT - LAYOUT_BAR_HEIGHT) / 2)
+
+        local icon = NewLayoutEntry(L["MaelstromLayoutIconDesc"])
+        table.insert(icon.layers, { texture = MAELSTROM_ICON, left = 0, top = 0,
+            width = LAYOUT_WIDTH, height = LAYOUT_HEIGHT })
+
+        -- the picture of the connected controller's type (GamePad/GamePad.lua), the Xbox controller for all others
+        -- and without a controller
+        local lightningBolt = C_Spell.GetSpellTexture(SpellIDs.LightningBolt)
+        local function GamePadEntry(controllerType, tooltip)
+            local entry = NewLayoutEntry(tooltip)
+            table.insert(entry.layers, { texture = CONTROLLER_TEXTURES[controllerType] or CONTROLLER_TEXTURES.xbox,
+                left = 1, top = 1, width = 18, height = 18 })
+            if lightningBolt then
+                table.insert(entry.layers, { texture = lightningBolt, left = 21, top = 1, width = 18, height = 18 })
+            end
+            return entry
+        end
+        local controllerType = TotemTimers.GetControllerType and TotemTimers.GetControllerType() or "xbox"
+        return { both = both, bar = bar, icon = icon,
+            gamepad = GamePadEntry(controllerType, L["MaelstromLayoutGamePadDesc"]) }
+    end,
+    sorting = { "both", "bar", "icon", "gamepad" },
     set = function(info, val)
-        TotemTimers.ActiveProfile.MaelstromNumberOnly = val
-        TotemTimers.ProcessSetting("MaelstromNumberOnly")
+        TotemTimers.ActiveProfile.MaelstromLayout = val
+        TotemTimers.ProcessSetting("MaelstromLayout")
     end,
     get = function(info)
-        return TotemTimers.ActiveProfile.MaelstromNumberOnly
+        return TotemTimers.ActiveProfile.MaelstromLayout or "both"
     end,
 }
 
@@ -522,27 +599,6 @@ TotemTimers.options.args.enhancecds.args.options.args.MaelstromIconSize = {
     end,
     get = function(info)
         return TotemTimers.ActiveProfile.MaelstromIconSize or 1
-    end,
-}
-
-local PowerSurgeName = SpellOptionName(SpellIDs.PowerSurge)
-
-TotemTimers.options.args.enhancecds.args.options.args.ps = {
-    order = 50,
-    type = "header",
-    name = PowerSurgeName,
-}
-
-TotemTimers.options.args.enhancecds.args.options.args.psenable = {
-    order = 51,
-    type = "toggle",
-    name = L["Enable"],
-    set = function(info, val)
-        TotemTimers.ActiveProfile.PowerSurge = val
-        TotemTimers.ProcessSetting("PowerSurge")
-    end,
-    get = function(info)
-        return TotemTimers.ActiveProfile.PowerSurge
     end,
 }
 

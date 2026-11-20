@@ -24,7 +24,8 @@ local SpellIDs = TotemTimers.SpellIDs
 -- - Flame Shock, while the Flame Shock timer (CombatCDs.lua) is active: two AuraDisplays on the target show the
 --   player's Flame Shock debuff, one its remaining time (swipe and time like the enchant buttons), the other a green
 --   tint over the icon. CombatCDs.lua calls GamePad.UpdateActionButtons when the timer is (de)activated.
--- - Lightning Bolt: two AuraDisplays on the player's Maelstrom Weapon buff, one shows the stacks (like the shield
+-- - Lightning Bolt (while the Maelstrom tracker is enabled, with option GamePadTimers or Maelstrom layout "gamepad"):
+--   two AuraDisplays on the player's Maelstrom Weapon buff, one shows the stacks (like the shield
 --   charges), the other the action bar's proc glow around the button from TotemTimers.MaelstromMaxStacks stacks on
 --   (AuraDisplay glow mode, the game decides when to glow, the stacks are never read in Lua).
 local SHIELD_SLOT = "shield"
@@ -123,7 +124,12 @@ local function CreateMaelstromDisplays(button)
 end
 
 local function UpdateMaelstromButton(button, name)
-    local show = name and IsSpellName(name, SpellIDs.LightningBolt) or false
+    -- while the Maelstrom tracker is enabled (CombatCDs.lua), with option GamePadTimers like the other overlays, with
+    -- layout "gamepad" (the tracker only on these buttons) always
+    local enabled = TotemTimers.IsMaelstromEnabled and TotemTimers.IsMaelstromEnabled()
+    local shown = GamePad.actionOverlaysShown
+        or (TotemTimers.GetMaelstromLayout and TotemTimers.GetMaelstromLayout() == "gamepad")
+    local show = enabled and shown and name and IsSpellName(name, SpellIDs.LightningBolt) or false
     local displays = maelstromDisplays[button]
     if show and not displays then
         displays = CreateMaelstromDisplays(button)
@@ -330,12 +336,14 @@ end
 
 local function UpdateActionButton(button)
     local covered = barIcons[button] and barIcons[button]:IsShown()
-    local spell = GamePad.actionOverlaysShown and not covered and GetActionSpell(button.action)
+    local spell = GamePad.actionButtonsActive and not covered and GetActionSpell(button.action)
     local name = spell and C_Spell.GetSpellName(spell)
     if IsSecret(name) then name = nil end
-    UpdateShieldButton(button, name)
-    UpdateWeaponButton(button, name)
-    UpdateFlameShockButton(button, name)
+    -- the timer overlays follow option GamePadTimers, Maelstrom decides itself (layout "gamepad" ignores the option)
+    local timerName = GamePad.actionOverlaysShown and name or nil
+    UpdateShieldButton(button, timerName)
+    UpdateWeaponButton(button, timerName)
+    UpdateFlameShockButton(button, timerName)
     UpdateMaelstromButton(button, name)
 end
 

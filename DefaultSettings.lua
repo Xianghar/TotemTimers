@@ -4,10 +4,10 @@ local _, TotemTimers = ...
 
 local SpellIDs = TotemTimers.SpellIDs
 local SpellNames = TotemTimers.SpellNames
-local Version = 11.6
+local Version = 11.8
 
 TotemTimers.DefaultGlobalSettings = {
-	Version = 11.6,
+	Version = 11.8,
     Profiles = {},
     Sink = {
         sink20OutputSink="Default",
@@ -184,15 +184,6 @@ TotemTimers.DefaultProfile = {
                 text = "Maelstrom",
                 enabled = true,
             },
-            PowerSurge = {
-                r = 1,
-                g = 0,
-                b = 0,
-                a = 1,
-                sound = "",
-                text = "Power Surge",
-                enabled = true,
-            },
             Weapon = {
                 r = 1,
                 g = 0,
@@ -319,7 +310,7 @@ TotemTimers.DefaultProfile = {
         MouseoverAlpha = 1,
         EnhanceCDsOOCAlpha = 0.4,
         CDTimersOnButtons = true,
-        FlameShockDurationOnTop = false,
+        FlameShockDurationOnTop = true,
         EnhanceCDsClickthrough = false,
         EnhanceCDsFlameShockDuration = true,
         EnhanceCDsFlameShockDuration_Specialization = {true, true, true},
@@ -328,11 +319,10 @@ TotemTimers.DefaultProfile = {
         EnhanceCDsMaelstrom = true,
         MaelstromSize = 2,
         MaelstromStopPulse = false,
-        MaelstromNumberOnly = false,
+        -- "both" (bar + stack icon), "bar" (bar only), "icon" (stack icon only, in the place of the bar)
+        MaelstromLayout = "both",
         MaelstromIconSize = 1,
         OverlayGlow = true,
-        PowerSurge = true,
-        PowerSurgeOverlay = true,
         EnhanceCDsOneRow = false,
 
 
@@ -477,6 +467,25 @@ local SettingsConverters = {
     [11.5] = function()
         for k,profile in pairs(TotemTimers_Profiles) do
             profile.TimeStyle = "m-mm:ss-s"
+        end
+        TotemTimers_GlobalSettings.Version = 11.6
+    end,
+    -- the Maelstrom option "number only" became the layout setting MaelstromLayout ("bar": without the stack icon)
+    [11.6] = function()
+        for k,profile in pairs(TotemTimers_Profiles) do
+            if profile.MaelstromNumberOnly then profile.MaelstromLayout = "bar" end
+            profile.MaelstromNumberOnly = nil
+        end
+        TotemTimers_GlobalSettings.Version = 11.7
+    end,
+    -- "Flame Shock on top" (FlameShockDurationOnTop) is on by default now, also for existing profiles; the Power Surge
+    -- options were removed (no Power Surge in WoW Forever)
+    [11.7] = function()
+        for k,profile in pairs(TotemTimers_Profiles) do
+            profile.FlameShockDurationOnTop = true
+            profile.PowerSurge = nil
+            profile.PowerSurgeOverlay = nil
+            if profile.Warnings then profile.Warnings.PowerSurge = nil end
         end
         TotemTimers_GlobalSettings.Version = Version
     end,
@@ -676,8 +685,8 @@ end
     "EnhanceCDsOOCAlpha", "CDTimersOnButtons", "EnhanceCDsClickthrough",
     "FlameShockDurationOnTop", "EnhanceCDsFlameShockDuration", "EnhanceCDsFlameShockDuration_Specialization",
     "FlameShockDurationSize", "FlameShockDurationStopPulse",
-    "EnhanceCDsMaelstrom", "MaelstromSize", "MaelstromStopPulse", "MaelstromNumberOnly", "MaelstromIconSize",
-    "OverlayGlow", "PowerSurge", "PowerSurgeOverlay",
+    "EnhanceCDsMaelstrom", "MaelstromSize", "MaelstromStopPulse", "MaelstromLayout", "MaelstromIconSize",
+    "OverlayGlow",
     "LongCooldownSpells", "LongCooldownsStopPulse",
 }
 

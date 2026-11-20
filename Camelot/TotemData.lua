@@ -69,14 +69,11 @@ TotemTimers.SpellIDs = {
     AncestralGuidance = 409324,
     WayOfEarth = 408531,
     Maelstrom = 408498,
-    PowerSurge = 415100,
     HealingRain = 415236,
     EarthShockTank = 408681,
     Riptide = 408521,
     FeralSpirit = 440580,
 
-    PowerSurgeBuffDps = 415105,
-    PowerSurgeBuffHeal = 468526,
 
     TotemicRecall = 36936,
     TotemicCall = 437009, -- Season of Discovery rune id
@@ -447,13 +444,4 @@ TotemTimers.MaelstromSpells = {
     SpellIDs.ChainLightning,
     SpellIDs.LavaBurst,
     SpellIDs.LesserHealingWave,
-}
-
-
-TotemTimers.PowerSurgeSpellsDps = {
-    SpellIDs.LavaBurst,
-    SpellIDs.ChainLightning,
-}
-TotemTimers.PowerSurgeSpellsHeal = {
-    SpellIDs.ChainHeal,
 }
