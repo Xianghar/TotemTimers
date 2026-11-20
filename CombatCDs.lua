@@ -94,7 +94,9 @@ function TotemTimers.CreateEnhanceCDs()
 
     FlameShockDuration = XiTimers:new(1)
     TotemTimers.FlameShockDuration = FlameShockDuration
-    FlameShockDuration.button:Disable()
+    -- not disabled: a disabled button receives no drags, the combat cooldowns couldn't be moved by it (leftclick
+    -- casts Flame Shock; secure action buttons act on key down, see the Maelstrom button)
+    FlameShockDuration.button:RegisterForClicks("AnyDown")
     FlameShockDuration.button.icons[1]:SetVertexColor(1,1,1)
     FlameShockDuration.button.bar:SetStatusBarColor(1,0.2,0.2,0.8)
 
