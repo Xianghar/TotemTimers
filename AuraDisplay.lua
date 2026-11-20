@@ -157,6 +157,10 @@ function AuraDisplay:GetConfig()
         -- the glow's outset follows the height of the region, a new size rebuilds the container
         config.glowHeight = math.floor(self.glow.region:GetHeight() + 0.5)
     end
+    if self.image then
+        -- the mask's margin follows the width of the region
+        config.imageWidth = math.floor(self.image.region:GetWidth() + 0.5)
+    end
     if timer then
         config.showBar = not timer.timerOnButton or timer.forceBar or false
         config.showSwirl = not config.showBar or timer.showCooldown or false
@@ -176,7 +180,7 @@ function AuraDisplay:GetConfig()
 end
 
 local configKeys = { "timeShown", "timeStyle", "showBar", "showSwirl", "texture", "barColor", "backgroundColor", "font", "textColor",
-    "dotColor", "glowHeight" }
+    "dotColor", "glowHeight", "imageWidth" }
 
 local function ConfigSignature(config)
     local parts = {}
@@ -464,9 +468,9 @@ function AuraDisplay:InitImageButton(button, frameLevel, regions)
     pcall(button.EnableMouseMotion, button, false)
 
     local bar = CreateFrame("StatusBar", nil, button)
-    bar:SetAllPoints(button)
     bar:SetStatusBarTexture("Interface/Buttons/WHITE8X8")
     bar:SetStatusBarColor(0, 0, 0, 0)
+    bar:SetAllPoints(button)
     button:SetApplicationBar(bar, {
         minApplications = count,
         maxApplications = image.exact and count + 1 or count,
@@ -474,7 +478,7 @@ function AuraDisplay:InitImageButton(button, frameLevel, regions)
     })
 
     local texture = bar:CreateTexture(nil, "OVERLAY")
-    texture:SetAllPoints(bar)
+    texture:SetAllPoints(button)
     texture:SetTexture(image.texture)
     regions.bar = bar
     regions.image = texture
@@ -483,8 +487,10 @@ function AuraDisplay:InitImageButton(button, frameLevel, regions)
         pcall(function()
             local mask = bar:CreateMaskTexture()
             mask:SetTexture("Interface/Buttons/WHITE8X8", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+            -- the mask reaches a bar width beyond the bar, so it never has zero width (a zero width mask leaves the
+            -- image faintly visible): with the bar full it lies completely right of the image
             mask:SetPoint("TOPLEFT", bar:GetStatusBarTexture(), "TOPRIGHT")
-            mask:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT")
+            mask:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT", (image.region:GetWidth() or 0) * 1.1, 0)
             texture:AddMaskTexture(mask)
             regions.mask = mask
         end)

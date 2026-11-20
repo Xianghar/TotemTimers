@@ -571,6 +571,9 @@ function TotemTimers.LayoutEnhanceCDs()
     local iconWidth = msWidth * 0.75 * (TotemTimers.ActiveProfile.MaelstromIconSize or 1)
     MaelstromIcon:SetSize(iconWidth, iconWidth / 2)
     MaelstromIcon:ClearAllPoints()
+    -- displays whose look depends on these sizes (glow outset, mask margin) are rebuilt if they changed
+    for _, display in pairs(Maelstrom.iconDisplays or {}) do display:ScheduleBuild() end
+    if Maelstrom.glowDisplay then Maelstrom.glowDisplay:ScheduleBuild() end
     local iconOnly = maelstromEnabled and GetMaelstromLayout() == "icon"
     if not iconOnly then
         MaelstromIcon:SetPoint("BOTTOM", Maelstrom.timerBars[1], "TOP", 0, -iconWidth / 2 * 0.15)
