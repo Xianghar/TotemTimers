@@ -86,22 +86,6 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
                                     end
                                     control:CallMethod("OnShow")]])
 
-        parent:SetAttribute("_onenter", [[ if self:GetAttribute("OpenMenu") == "mouseover" then
-                                                  self:ChildUpdate("show", true)
-                                              end ]])
-
-        parent:SetAttribute("_onleave", [[
-            if not self:IsUnderMouse(true) then
-                owner:ChildUpdate("show", false)
-            end]])
-
-        parent:WrapScript(parent, "OnClick", [[ if button == self:GetAttribute("OpenMenu") then
-                                                       control:ChildUpdate("show", true)
-                                                   elseif button == "close" or button == "Button5" then
-                                                       control:ChildUpdate("show", false)
-                                                   end
-                                                 ]])
-
         b:SetAttribute("_onhide", [[self:ClearBindings() self:GetParent():SetAttribute("open", false)]])
         b:SetAttribute("_onleave", [[ if not self:GetParent():IsUnderMouse(true) then self:GetParent():ChildUpdate("show", false) end]])
         b:SetAttribute("_onenter", [[ self:GetParent():ChildUpdate("show", true) ]]) -- bugfix mists 5.5.4
@@ -196,8 +180,43 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
                                                     self:GetParent():ChildUpdate("show", false)
                                                 end]])
         end
-            
+
 	end
+
+    -- scripts of the parent (one menu per parent), set once: a wrap per menu button would run once per button
+    for i, b in ipairs(self.buttons) do
+        parent:SetFrameRef("ttmenubutton" .. i, b)
+    end
+    parent:SetAttribute("ttmenubuttons", #self.buttons)
+
+    parent:SetAttribute("_onenter", [[ if self:GetAttribute("OpenMenu") == "mouseover" then
+                                              self:ChildUpdate("show", true)
+                                          end ]])
+
+    parent:SetAttribute("_onleave", [[
+        if not self:IsUnderMouse(true) then
+            owner:ChildUpdate("show", false)
+        end]])
+
+    -- a menu opened by rightclick is closed by another rightclick (open: one of its buttons is shown; decided once,
+    -- showing a button can show the others, e.g. the gamepad navigation)
+    parent:WrapScript(parent, "OnClick", [[ if button == self:GetAttribute("OpenMenu") then
+                                                   local show = true
+                                                   if button == "RightButton" then
+                                                       for i = 1, self:GetAttribute("ttmenubuttons") or 0 do
+                                                           local mb = self:GetFrameRef("ttmenubutton" .. i)
+                                                           if mb and mb:IsShown() and not mb:GetAttribute("alwaysshow") then
+                                                               show = false
+                                                               break
+                                                           end
+                                                       end
+                                                   end
+                                                   control:ChildUpdate("show", show)
+                                               elseif button == "close" or button == "Button5" then
+                                                   control:ChildUpdate("show", false)
+                                               end
+                                             ]])
+
 	if withExtra then
         local extra = table.remove(self.buttons)
         extra:SetAttribute("*type1", nil)

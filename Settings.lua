@@ -277,18 +277,28 @@ SettingsFunctions = {
     end,
 
     OpenOnRightclick = function(value, Timers)
+        -- rightclick destroys the totem unless the menus open on rightclick (the click would also destroy it: the
+        -- menu's OnClick wrap doesn't stop the click's action), then middleclick destroys it; otherwise middleclick
+        -- casts Totemic Recall
+        local alwaysVisible = TotemTimers.ActiveProfile.MenusAlwaysVisible
+        local rightclickMenu = value and not alwaysVisible
+        local recall = not rightclickMenu
         for i = 1, 4 do
-            if value and not TotemTimers.ActiveProfile.MenusAlwaysVisible then
-                Timers[i].button:SetAttribute("OpenMenu", "RightButton")
-                Timers[i].button:SetAttribute("*type3", "destroytotem")
-                Timers[i].button:SetAttribute("*totem-slot", Timers[i].nr)
-            else
-                Timers[i].button:SetAttribute("OpenMenu", "mouseover")
-                Timers[i].button:SetAttribute("*type2", "destroytotem")
-                Timers[i].button:SetAttribute("*totem-slot2", Timers[i].nr)
-                Timers[i].button:SetAttribute("type3", "spell")
-                Timers[i].button:SetAttribute("spell3", SpellIDs.TotemicRecall)
+            local button = Timers[i].button
+            if not alwaysVisible then
+                button:SetAttribute("OpenMenu", rightclickMenu and "RightButton" or "mouseover")
             end
+            -- the secure action looks up prefix..name..suffix, "*"..name..suffix, prefix..name.."*", "*"..name.."*"
+            -- and name; "*totem-slot*" matches all buttons and modifiers ("*totem-slot" matches none of them)
+            button:SetAttribute("*totem-slot*", Timers[i].nr)
+            button:SetAttribute("*totem-slot", nil)
+            button:SetAttribute("*totem-slot2", nil)
+            button:SetAttribute("*type3", recall and "spell" or "destroytotem")
+            button:SetAttribute("*spell3", recall and SpellIDs.TotemicRecall or nil)
+            -- unmodified attributes take precedence over the "*" ones, clear the ones set by former versions
+            button:SetAttribute("type3", nil)
+            button:SetAttribute("spell3", nil)
+            button:SetAttribute("*type2", not rightclickMenu and "destroytotem" or nil)
         end
         if TotemTimers_MultiSpell then
             if value and not TotemTimers.ActiveProfile.MenusAlwaysVisible then
