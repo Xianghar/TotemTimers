@@ -141,18 +141,13 @@ L["WeaponDesc"] = "Shows the remaining time of your weapon buffs. Leftclick cast
 
 L["Color"] = "Color" -- Requires localization
 L["disabled warnings desc"] = "Even if a tracker is disabled, its warnings of expired buffs will still be shown" -- Requires localization
-L["EarthShield warnings"] = "EarthShield warnings" -- Requires localization
-L["Maelstrom notification"] = "Maelstrom notification" -- Requires localization
 L["Messages"] = "Messages" -- Requires localization
-L["Shield expiration warnings"] = "Shield expiration warnings" -- Requires localization
 L["Show warnings of disabled trackers"] = "Show warnings of disabled trackers" -- Requires localization
 L["Sound"] = "Sound" -- Requires localization
 L["Totem Desctruction Desc"] = "Warning if a totem is destroyed before it is expired." -- Requires localization
 L["Totem Destruction Message"] = "Totem Destruction Message" -- Requires localization
 L["Totem Expiration Desc"] = "Warning after a totem expires." -- Requires localization
 L["Totem Expiration Message"] = "Totem Expiration Message" -- Requires localization
-L["Totem Expiration Warning"] = "Totem Expiration Warning" -- Requires localization
-L["Totem Warning Desc"] = "Warns 10 secs before a totem expires." -- Requires localization
 L["Warnings"] = "Warnings" -- Requires localization
 L["Weapon buff warnings"] = "Weapon buff warnings" -- Requires localization
 

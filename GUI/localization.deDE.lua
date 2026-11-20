@@ -154,18 +154,13 @@ L["Shows shield charges in place of the timer"] = "Zeigt die Aufladungen des Sch
 
 L["Color"] = "Farbe"
 L["disabled warnings desc"] = "Auch wenn ein Tracker deaktiviert wurde, wird vor dem Auslaufen des zugehörigen Zaubers gewarnt"
-L["EarthShield warnings"] = "Erdschildauslauf"
-L["Maelstrom notification"] = "5 Mahlstrom-Stacks"
 L["Messages"] = "Warnungen"
-L["Shield expiration warnings"] = "Schildauslauf"
 L["Show warnings of disabled trackers"] = "Deaktivierte Tracker warnen trotzdem"
 L["Sound"] = true
 L["Totem Desctruction Desc"] = "Warnt, wenn ein Totem vor Ablauf zerstört wurde."
 L["Totem Destruction Message"] = "Totem zerstört."
 L["Totem Expiration Desc"] = "Warnt, wenn ein Totem abläuft."
 L["Totem Expiration Message"] = "Bei Totemablauf"
-L["Totem Expiration Warning"] = "Vor Totemauslauf"
-L["Totem Warning Desc"] = "Warnt 10 Sekunden, bevor ein Totem abläuft."
 L["Warnings"] = "Warnungen"
 L["Weapon buff warnings"] = "Waffenbuffauslauf"
 

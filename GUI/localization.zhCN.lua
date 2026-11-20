@@ -141,18 +141,13 @@ L["WeaponDesc"] = "显示武器剩余增益时间.左键点击施放选择的武
 
 L["Color"] = "颜色"
 L["disabled warnings desc"] = "即使追踪禁用, 到期增益警告还是会显示"
-L["EarthShield warnings"] = "大地之盾警告"
-L["Maelstrom notification"] = "漩涡武器提醒"
 L["Messages"] = "信息"
-L["Shield expiration warnings"] = "护盾到期警告"
 L["Show warnings of disabled trackers"] = "禁用追踪显示警告"
 L["Sound"] = "声音"
 L["Totem Desctruction Desc"] = "警告如果图腾在到期前被销毁."
 L["Totem Destruction Message"] = "图腾销毁信息"
 L["Totem Expiration Desc"] = "图腾到期之后警告."
 L["Totem Expiration Message"] = "图腾到期信息"
-L["Totem Expiration Warning"] = "图腾到期警告"
-L["Totem Warning Desc"] = "在图腾10秒到期前警告."
 L["Warnings"] = "警告设置"
 L["Weapon buff warnings"] = "武器增益警告"
 

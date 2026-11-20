@@ -141,18 +141,13 @@ L["WeaponDesc"] = "오른쪽 클릭을 통해 시전할 버프를 선택하고, 
 
 L["Color"] = "색상"
 L["disabled warnings desc"] = "추적기를 사용하지 않아도, 버프 만료 및 사라짐 경고를 표시합니다."
-L["EarthShield warnings"] = "대지의 보호막 경고"
-L["Maelstrom notification"] = "소용돌이치는 무기 경고"
 L["Messages"] = "메시지"
-L["Shield expiration warnings"] = "보호막 만료 경고"
 L["Show warnings of disabled trackers"] = "사용하지 않는 추적기 경고 표시"
 L["Sound"] = "효과음"
 L["Totem Desctruction Desc"] = "토템 만료전 파괴시 경고합니다."
 L["Totem Destruction Message"] = "토템 파괴 메시지"
 L["Totem Expiration Desc"] = "토템 만료시 경고합니다."
 L["Totem Expiration Message"] = "토템 만료 메시지"
-L["Totem Expiration Warning"] = "토템 만료 경고"
-L["Totem Warning Desc"] = "토템 만료 10초전 경고합니다."
 L["Warnings"] = "경고"
 L["Weapon buff warnings"] = "무기 버프 경고"
 

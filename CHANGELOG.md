@@ -1,5 +1,10 @@
 # TotemTimers
 
+## 20.19
+- Fixed destroying totems on right/middle click depending how totem menus are opened
+- Fixed Flame Shock timer not movable
+- Removed settings for warnings, that are not available any more
+
 ## 20.18
 - Added Flame Shock duration timer
 - Added Maelstrom Weapon tracker

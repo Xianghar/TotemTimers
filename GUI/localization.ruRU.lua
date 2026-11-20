@@ -141,18 +141,13 @@ L["WeaponDesc"] = "Отображать остаток времени ваших
 
 L["Color"] = "Цвет"
 L["disabled warnings desc"] = "Сообщения об истечении эффектов будут отображаться, даже если отслеживание отключено."
-L["EarthShield warnings"] = "Сообщения о щите земли"
-L["Maelstrom notification"] = "Сообщения о Водовороте"
 L["Messages"] = "Сообщения"
-L["Shield expiration warnings"] = "Сообщения о спадении щита"
 L["Show warnings of disabled trackers"] = "Вывод предупреждений отключенных отслеживаний"
 L["Sound"] = "Звук"
 L["Totem Desctruction Desc"] = "Сообщать если тотем был уничтожен до его истечения."
 L["Totem Destruction Message"] = "Сообщения об уничтожении тотема"
 L["Totem Expiration Desc"] = "Сообщать после истечения тотема."
 L["Totem Expiration Message"] = "Сообщения об исчезании тотемов"
-L["Totem Expiration Warning"] = "Предупреждения об исчезании тотемов"
-L["Totem Warning Desc"] = "Предупреждать за 10 секунд до исчезания тотема."
 L["Warnings"] = "Предупреждение"
 L["Weapon buff warnings"] = "Сообщения об усилениях оружия"
 

@@ -141,18 +141,13 @@ L["WeaponDesc"] = "Indique le temps restant de votre améliorations d'armes. Cli
 
 L["Color"] = "Couleur"
 L["disabled warnings desc"] = "Même si un traqueur est désactivé, ses avertissements de buffs expiré sera toujours affiché"
-L["EarthShield warnings"] = "Bouclier de terre Avertissements"
-L["Maelstrom notification"] = "Maelstrom annonce"
 L["Messages"] = true
-L["Shield expiration warnings"] = "Bouclier signal d'expiration"
 L["Show warnings of disabled trackers"] = "Affiche les avertissements du Traqueur"
 L["Sound"] = "Son"
 L["Totem Desctruction Desc"] = "Signale si un totem est détruit avant qu'il ne soit expiré."
 L["Totem Destruction Message"] = "Totem détruits."
 L["Totem Expiration Desc"] = "Avertit si un totem expire."
 L["Totem Expiration Message"] = "Totem expiration du message"
-L["Totem Expiration Warning"] = "Totem expiration de l'alerte"
-L["Totem Warning Desc"] = "Avertit 10 secondes avant l'expiration d'un totem."
 L["Warnings"] = "Alerte"
 L["Weapon buff warnings"] = "Buff arme alerte"
 

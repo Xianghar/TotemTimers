@@ -172,18 +172,13 @@ L["Shows shield charges in place of the timer"] = true
 
 L["Color"] = true
 L["disabled warnings desc"] = "Even if a tracker is disabled, its warnings of expired buffs will still be shown"
-L["EarthShield warnings"] = true
-L["Maelstrom notification"] = true
 L["Messages"] = true
-L["Shield expiration warnings"] = true
 L["Show warnings of disabled trackers"] = true
 L["Sound"] = true
 L["Totem Desctruction Desc"] = "Warning if a totem is destroyed before it is expired."
 L["Totem Destruction Message"] = true
 L["Totem Expiration Desc"] = "Warning after a totem expires."
 L["Totem Expiration Message"] = true
-L["Totem Expiration Warning"] = true
-L["Totem Warning Desc"] = "Warns 10 secs before a totem expires."
 L["Warnings"] = true
 L["Weapon buff warnings"] = true
 
