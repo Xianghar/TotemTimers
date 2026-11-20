@@ -148,7 +148,7 @@ TotemTimers.options.args.timers = {
             type = "select",
             name = L["Time Style"],
             desc = L["Sets the format in which times are displayed"],
-            values = {["mm:ss"] = "mm:ss", ["m-mm:ss-s"] = "m > mm:ss > s", ["m-s"] = "m > s", blizz = L["Blizz Style"], },
+            values = {["mm:ss"] = "mm:ss (2:05)", ["m-mm:ss-s"] = "m > mm:ss > ss (10m > 2:05 > 45)", ["m-s"] = "m > ss (3m > 45)", blizz = L["Blizz Style"], },
             set = function(info, val)
                         TotemTimers.ActiveProfile.TimeStyle = val  TotemTimers.ProcessSetting("TimeStyle")
                         TotemTimers.ActiveProfile.TimeStyle = val  TotemTimers.ProcessSetting("TimeStyle")
