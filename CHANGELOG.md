@@ -2,7 +2,8 @@
 
 ## 20.18
 - Added Flame Shock duration timer
-- 
+- Added Maelstrom Weapon tracker
+- Added time style "m > s"
 
 ## 20.17
 - Some smaller bugfixes

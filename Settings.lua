@@ -941,30 +941,22 @@ end
         end
     end
 
-    -- the pulse at 5 stacks and the number-only display need the stack count, which can be secret (the stacks
-    -- are always shown on the bar now)
-    --[==[
-    if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_BURNING_CRUSADE then
-
-        SettingsFunctions.MaelstromStopPulse = function(value)
-            TotemTimers.Maelstrom.StopPulseOn5 = value
-        end
-
-        SettingsFunctions.MaelstromStopPulse = function(value)
-            TotemTimers.Maelstrom.StopPulseOn5 = value
-        end
-
-        SettingsFunctions.MaelstromNumberOnly = function(value)
-            if value then
-                TotemTimers.Maelstrom.timerBars[1].time:Show()
-            else
-                TotemTimers.Maelstrom.timerBars[1].time:Hide()
-            end
-            TotemTimers.Maelstrom.NumberOnly = value
-        end
-
+    -- the Maelstrom stack icon above the bar (CombatCDs.lua), settings of its own (the stacks are always shown on
+    -- the bar): MaelstromNumberOnly hides it, MaelstromStopPulse stops the pulse at 5 stacks, MaelstromIconSize
+    -- scales it
+    SettingsFunctions.MaelstromNumberOnly = function(value)
+        if TotemTimers.UpdateMaelstromIcon then TotemTimers.UpdateMaelstromIcon() end
     end
-    ]==]
+
+    SettingsFunctions.MaelstromStopPulse = function(value)
+        if TotemTimers.SetMaelstromIconPulse then TotemTimers.SetMaelstromIconPulse(not value) end
+    end
+
+    SettingsFunctions.MaelstromIconSize = function(value)
+        if TotemTimers.Maelstrom and TotemTimers.LayoutEnhanceCDs then
+            TotemTimers.LayoutEnhanceCDs()
+        end
+    end
 
     --[[SettingsFunctions.LongCooldownsStopPulse = function(value, Timers)
         for _, timer in pairs(TotemTimers.LongCooldowns) do

@@ -16,6 +16,13 @@ function TotemTimers.OrderCDs(role)
     end
 end
 
+-- option name of a spell: the spell name, its ID if the game doesn't know the spell (yet) (AceConfig rejects nil names)
+local function SpellOptionName(spell)
+    return function()
+        return SpellNames[spell] or C_Spell.GetSpellName(spell) or tostring(spell)
+    end
+end
+
 local function changeOrder(spell, dir, role)
     role = tonumber(role)
     for i = 1, TotemTimers.num_CD_Spells[role] do
@@ -214,7 +221,7 @@ TotemTimers.options.args.enhancecds = {
                 flameshockheader = {
                     order = 30,
                     type = "header",
-                    name = SpellNames[SpellIDs.FlameShock],
+                    name = SpellOptionName(SpellIDs.FlameShock),
                 },
                 FlameShockDuration = {
                     order = 31,
@@ -370,7 +377,7 @@ for spec = 1, 3 do
         TotemTimers.options.args.enhancecds.args[tostring(spec)].args[tostring(index)] = {
             order = 10 + index,
             type = "toggle",
-            name = SpellNames[spell],
+            name = SpellOptionName(spell),
             width = "normal",
             set = function(info, val)
                 TotemTimers.ActiveProfile.EnhanceCDs_Spells[spec][index] = val
@@ -404,7 +411,7 @@ if (TotemTimers.LongCooldownSpells) then
         TotemTimers.options.args.enhancecds.args["4"].args[tostring(spellID)] = {
             order = i,
             type = "toggle",
-            name = SpellNames[spellID],
+            name = SpellOptionName(spellID),
             set = function(info, val)
                 TotemTimers.ActiveProfile.LongCooldownSpells[spellID] = val
                 TotemTimers.ProcessSetting("LongCooldowns")
@@ -432,7 +439,7 @@ TotemTimers.options.args.enhancecds.args.options.args.OverlayGlow = {
 }
 
 
-local MaelstromName = C_Spell.GetSpellName(SpellIDs.Maelstrom)
+local MaelstromName = SpellOptionName(SpellIDs.Maelstrom)
 
 TotemTimers.options.args.enhancecds.args.options.args.MaelstromHeader = {
     order = 40,
@@ -475,7 +482,7 @@ TotemTimers.options.args.enhancecds.args.options.args.MaelstromStopPulse = {
     order = 43,
     type = "toggle",
     name = L["Stop Pulse Animation"],
-    desc = L["Large animation on 5 stacks"],
+    desc = L["MaelstromStopPulseDesc"],
     set = function(info, val)
         TotemTimers.ActiveProfile.MaelstromStopPulse = val
         TotemTimers.ProcessSetting("MaelstromStopPulse")
@@ -493,16 +500,32 @@ TotemTimers.options.args.enhancecds.args.options.args.MaelstromNumberOnly = {
     set = function(info, val)
         TotemTimers.ActiveProfile.MaelstromNumberOnly = val
         TotemTimers.ProcessSetting("MaelstromNumberOnly")
-        if TotemTimers.Maelstrom.active then
-            TotemTimers.MaelstromEvent(TotemTimers.Maelstrom.button, "UNIT_AURA")
-        end
     end,
     get = function(info)
         return TotemTimers.ActiveProfile.MaelstromNumberOnly
     end,
 }
 
-local PowerSurgeName = C_Spell.GetSpellName(SpellIDs.PowerSurge)
+-- size of the stack icon above the bar, relative to the bar (1 = 75% of its width)
+TotemTimers.options.args.enhancecds.args.options.args.MaelstromIconSize = {
+    order = 45,
+    type = "range",
+    name = L["Icon Size"],
+    desc = L["MaelstromIconSizeDesc"],
+    min = 0.5,
+    max = 2,
+    step = 0.05,
+    isPercent = true,
+    set = function(info, val)
+        TotemTimers.ActiveProfile.MaelstromIconSize = val
+        TotemTimers.ProcessSetting("MaelstromIconSize")
+    end,
+    get = function(info)
+        return TotemTimers.ActiveProfile.MaelstromIconSize or 1
+    end,
+}
+
+local PowerSurgeName = SpellOptionName(SpellIDs.PowerSurge)
 
 TotemTimers.options.args.enhancecds.args.options.args.ps = {
     order = 50,

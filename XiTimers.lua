@@ -106,6 +106,17 @@ local function TimeStyleRules(rounding)
             tests = { [44.2] = "45", [60] = "60", [60.5] = "1:01", [125] = "2:05", [599] = "9:59", [600] = "10m",
                 [630] = "11m" },
         },
+        -- minutes with "m" from 60 seconds (rounded up), seconds without suffix below
+        ["m-s"] = {
+            breakpoints = {
+                { threshold = 0, step = 1, rounding = rounding.Up, format = "%d" },
+                { threshold = 59.001, step = 1, rounding = rounding.Up, format = "%dm", components = {
+                    { div = 60, step = 1, rounding = rounding.Up },
+                } },
+            },
+            tests = { [44.2] = "45", [0.3] = "1", [59] = "59", [59.5] = "1m", [60] = "1m", [61] = "2m",
+                [125] = "3m", [600] = "10m" },
+        },
         -- "blizz" on Gamepad UI buttons: like the game's style (seconds, from 60 seconds minutes rounded up), but the
         -- seconds without "s"
         ["blizz-pad"] = {
@@ -140,7 +151,7 @@ local function GetTimeStyleFormatter(style)
 end
 
 -- time style of all duration texts (setting TimeStyle, default "m-mm:ss-s"): "blizz" (game style, 5m / 45),
--- "mm:ss" or "m-mm:ss-s"
+-- "mm:ss", "m-mm:ss-s" or "m-s" (5m / 45)
 XiTimers.TimeStyle = "m-mm:ss-s"
 local timeBindings = setmetatable({}, { __mode = "k" })
 

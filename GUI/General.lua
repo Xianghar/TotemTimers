@@ -118,7 +118,7 @@ TotemTimers.options = {
                     type = "select",
                     name = L["Time Style"],
                     desc = L["Sets the format in which times are displayed"],
-                    values = {["mm:ss"] = "mm:ss", ["m-mm:ss-s"] = "m > mm:ss > s", blizz = L["Blizz Style"], },
+                    values = {["mm:ss"] = "mm:ss", ["m-mm:ss-s"] = "m > mm:ss > s", ["m-s"] = "m > s", blizz = L["Blizz Style"], },
                     set = function(info, val)
                         TotemTimers.ActiveProfile.TimeStyle = val
                         TotemTimers.ProcessSetting("TimeStyle")
@@ -388,7 +388,48 @@ ACR:RegisterOptionsTable("TotemTimers", TotemTimers.options)
 local ACD = LibStub("AceConfigDialog-3.0")
 local frame, categoryID = ACD:AddToBlizOptions("TotemTimers", "TotemTimers", nil, "general")
 
+-- whether the options are open (own AceConfig window or a panel in the game's settings); on changes
+-- TotemTimers.OptionsShownChanged(shown) is called, e.g. for the Maelstrom icon preview (CombatCDs.lua)
+local guiPanels = {}
+local optionsShown = false
+
+local function UpdateOptionsShown()
+    local shown = ACD.OpenFrames["TotemTimers"] ~= nil
+    for panel in pairs(guiPanels) do
+        if panel:IsVisible() then shown = true end
+    end
+    if shown ~= optionsShown then
+        optionsShown = shown
+        if TotemTimers.OptionsShownChanged then TotemTimers.OptionsShownChanged(shown) end
+    end
+end
+
+-- the window closes through AceGUI's OnClose callback (clears OpenFrames) on hiding, checked on the next frame
+local function DeferUpdateOptionsShown()
+    C_Timer.After(0, UpdateOptionsShown)
+end
+
+function TotemTimers.IsOptionsShown()
+    return optionsShown
+end
+
+hooksecurefunc(ACD, "Open", function(self, appName)
+    if appName ~= "TotemTimers" then return end
+    local widget = ACD.OpenFrames["TotemTimers"]
+    -- AceGUI recycles its frames, each is hooked once
+    if widget and widget.frame and not widget.frame.ttOptionsHooked then
+        widget.frame.ttOptionsHooked = true
+        widget.frame:HookScript("OnHide", DeferUpdateOptionsShown)
+        widget.frame:HookScript("OnShow", DeferUpdateOptionsShown)
+    end
+    DeferUpdateOptionsShown()
+end)
+
 function TotemTimers.HookGUIFrame(frame, categoryID)
+    guiPanels[frame] = true
+    frame:HookScript("OnShow", DeferUpdateOptionsShown)
+    frame:HookScript("OnHide", DeferUpdateOptionsShown)
+
     frame:SetScript("OnEvent", function(self)
         -- entering combat: the options window (/tt) and the settings panel are closed
         ACD:Close("TotemTimers")

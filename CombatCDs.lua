@@ -28,7 +28,7 @@ local CDSpells = TotemTimers.CombatCooldownSpells
 ]==]
 
 local FlameShockDuration = null
-local Maelstrom --, MaelstromButton, MaelstromIcon
+local Maelstrom, MaelstromIcon --, MaelstromButton
 -- stacks of a full Maelstrom bar (like the old tracker: Lightning Bolt/Chain Lightning are instant at 5)
 local MAELSTROM_MAX_STACKS = 5
 TotemTimers.MaelstromMaxStacks = MAELSTROM_MAX_STACKS -- also the glow of the Gamepad UI's Lightning Bolt buttons
@@ -181,15 +181,16 @@ function TotemTimers.CreateEnhanceCDs()
     Maelstrom.button.icons[1]:SetAllPoints(Maelstrom.button)
     Maelstrom.Update = function() end
 
+    local spellIDs = {}
+    for _, id in pairs(TotemTimers.MaelstromAuraSpells or {}) do
+        spellIDs[id] = true
+    end
+
     local msDisplay = TotemTimers.AuraDisplay:new(Maelstrom.button)
     if msDisplay then
         msDisplay.iconAboveBar = true
         msDisplay.maxApplications = MAELSTROM_MAX_STACKS
         msDisplay:SetTimeShown(false)
-        local spellIDs = {}
-        for _, id in pairs(TotemTimers.MaelstromAuraSpells or {}) do
-            spellIDs[id] = true
-        end
         msDisplay:AddSlot("maelstrom", spellIDs, 2)
         Maelstrom.auraDisplay = msDisplay
 
@@ -205,46 +206,104 @@ function TotemTimers.CreateEnhanceCDs()
         end
     end
 
-
-
-    -- the large stack icon above the bar (textures/mw<stacks>), its pulse at 5 and 10 stacks, the warning and the
-    -- glow of the Lightning Bolt/Chain Lightning buttons need the stack count, which can be secret
-    --[==[
-    Maelstrom.animation.icon:SetTexture("Interface/AddOns/TotemTimers/textures/mw5")
-    Maelstrom.animation.button:SetSize(72,36)
-
+    -- the large stack icon above the bar: textures/mw<n> for n stacks (the images add a bolt per stack, mw5 adds the
+    -- emblem), from 5 stacks on mw5 with a slight pulse. The stacks can be secret, so each image is an AuraDisplay
+    -- in image mode of its own (one application bar per slot button), shown by the game for exactly its count
+    -- (mw5: from 5 on). The icon has its own settings (MaelstromNumberOnly hides it, MaelstromStopPulse,
+    -- MaelstromIconSize) and is no child of the button: it stays visible when the Gamepad UI option
+    -- GamePadHideTimers makes the button invisible; it is shown with the active tracker (UpdateMaelstromIcon).
     MaelstromIcon = CreateFrame("Frame", "TotemTimers_MaelstromIcon", UIParent)
     TotemTimers.MaelstromIcon = MaelstromIcon
-    Maelstrom.ChainOOCAlpha = TotemTimers.MaelstromIcon
-
-    MaelstromIcon.icon = MaelstromIcon:CreateTexture(nil, "ARTWORK")
-    MaelstromIcon.icon:SetAllPoints(MaelstromIcon)
-    MaelstromIcon:SetFrameLevel(Maelstrom.button:GetFrameLevel() + 2)
-
-    MaelstromIcon:ClearAllPoints()
-    MaelstromIcon:SetWidth(100)
-    MaelstromIcon:SetHeight(50)
-
-    for _, icon in pairs({MaelstromIcon.icon, Maelstrom.timerBars[1].time}) do
-        icon.AnimGroup = icon:CreateAnimationGroup()
-        icon.AnimGroup:SetLooping("REPEAT")
-        local scale = icon.AnimGroup:CreateAnimation("Scale")
-        scale:SetDuration(0.4)
-        scale:SetScale(1.05,1.05)
-        scale:SetOrder(1)
-        scale:SetSmoothing("IN_OUT")
-        scale = icon.AnimGroup:CreateAnimation("Scale")
-        scale:SetDuration(0.4)
-        scale:SetScale(0.95,0.95)
-        scale:SetOrder(2)
-        scale:SetSmoothing("IN_OUT")
+    MaelstromIcon:SetSize(100, 50)
+    MaelstromIcon:SetFrameStrata(Maelstrom.button:GetFrameStrata())
+    MaelstromIcon:SetFrameLevel(Maelstrom.button:GetFrameLevel())
+    MaelstromIcon:Hide()
+    Maelstrom.iconDisplays = {}
+    for count = 1, MAELSTROM_MAX_STACKS do
+        local last = count == MAELSTROM_MAX_STACKS
+        local display = TotemTimers.AuraDisplay:new(MaelstromIcon, "player", {
+            image = {
+                region = MaelstromIcon,
+                texture = "Interface/AddOns/TotemTimers/textures/mw" .. count,
+                applications = count,
+                exact = not last,
+                pulse = last,
+            },
+        })
+        if display then
+            display:AddSlot("maelstrom" .. count, spellIDs, 3 + count)
+            Maelstrom.iconDisplays[count] = display
+        end
     end
+    TotemTimers.SetMaelstromIconPulse(not TotemTimers.ActiveProfile.MaelstromStopPulse)
 
-    Maelstrom.animation.AnchoredButton = MaelstromIcon
-    ]==]
+    -- the warning and the glow of the Lightning Bolt/Chain Lightning buttons need the stack count in Lua, which can
+    -- be secret (the Gamepad UI's Lightning Bolt buttons show stacks and glow with AuraDisplays)
 end
 
 table.insert(TotemTimers.Modules, TotemTimers.CreateEnhanceCDs)
+
+-- preview of the stack icon while the options are open: the 5 stacks image (with its pulse) over the icon, so
+-- size changes are seen directly; the real icon is made invisible meanwhile. A plain frame of its own (the aura
+-- displays only show what the game decides), created on first use.
+local maelstromPreview
+
+local function GetMaelstromPreview()
+    if maelstromPreview then return maelstromPreview end
+    local preview = CreateFrame("Frame", nil, UIParent)
+    preview:SetAllPoints(MaelstromIcon)
+    preview:SetFrameStrata(MaelstromIcon:GetFrameStrata())
+    preview:SetFrameLevel(MaelstromIcon:GetFrameLevel() + 10)
+    preview:Hide()
+    local texture = preview:CreateTexture(nil, "OVERLAY")
+    texture:SetAllPoints(preview)
+    texture:SetTexture("Interface/AddOns/TotemTimers/textures/mw" .. MAELSTROM_MAX_STACKS)
+    -- the same pulse as the image mode of AuraDisplay
+    local pulse = preview:CreateAnimationGroup()
+    pulse:SetLooping("BOUNCE")
+    local scale = pulse:CreateAnimation("Scale")
+    scale:SetTarget(texture)
+    scale:SetScaleFrom(1, 1)
+    scale:SetScaleTo(1.06, 1.06)
+    scale:SetOrigin("CENTER", 0, 0)
+    scale:SetDuration(0.4)
+    scale:SetSmoothing("IN_OUT")
+    preview.pulse = pulse
+    maelstromPreview = preview
+    return preview
+end
+
+-- the stack icon is shown while the tracker is active, unless hidden by its setting (MaelstromNumberOnly); while
+-- the options are open the preview replaces it
+function TotemTimers.UpdateMaelstromIcon()
+    if not MaelstromIcon then return end
+    local shown = Maelstrom.active and not TotemTimers.ActiveProfile.MaelstromNumberOnly
+    MaelstromIcon:SetShown(shown)
+    local previewShown = shown and TotemTimers.IsOptionsShown and TotemTimers.IsOptionsShown() or false
+    MaelstromIcon:SetAlpha(previewShown and 0 or 1)
+    if previewShown or maelstromPreview then
+        local preview = GetMaelstromPreview()
+        preview:SetShown(previewShown)
+        if previewShown and not TotemTimers.ActiveProfile.MaelstromStopPulse then
+            preview.pulse:Play()
+        else
+            preview.pulse:Stop()
+        end
+    end
+end
+
+TotemTimers.OptionsShownChanged = function(shown)
+    TotemTimers.UpdateMaelstromIcon()
+end
+
+-- pulse of the mw5 image (setting MaelstromStopPulse)
+function TotemTimers.SetMaelstromIconPulse(pulse)
+    if not Maelstrom or not Maelstrom.iconDisplays then return end
+    for _, display in pairs(Maelstrom.iconDisplays) do
+        display:SetImagePulse(pulse)
+    end
+    TotemTimers.UpdateMaelstromIcon()
+end
 
 -- the Gamepad UI buttons with Flame Shock show its duration while the Flame Shock timer is active
 -- (GamePad/GamePadActionButtons.lua, loaded later)
@@ -266,7 +325,7 @@ function TotemTimers.ConfigEnhanceCDs()
     ]==]
     FlameShockDuration:Deactivate()
     Maelstrom:Deactivate()
-    --MaelstromIcon:Hide()
+    TotemTimers.UpdateMaelstromIcon()
 
     if role == 0 or not TotemTimers.ActiveProfile.EnhanceCDs then
         UpdateGamePadButtons()
@@ -345,6 +404,7 @@ function TotemTimers.ConfigEnhanceCDs()
     if TotemTimers.AvailableTalents.Maelstrom and TotemTimers.ActiveProfile.EnhanceCDsMaelstrom then
         Maelstrom:Activate()
     end
+    TotemTimers.UpdateMaelstromIcon()
 
     --[==[
     for i=1,#CDSpells[role] do
@@ -481,6 +541,14 @@ function TotemTimers.LayoutEnhanceCDs()
     -- over the whole bar
     Maelstrom.button:SetHitRectInsets(0, msHeight - msWidth, 0, 0)
 
+    -- the stack icon above the bar (centered over button + bar, the hidden timer bar spans both; the images are
+    -- 2:1 with the bolts in their lower half, so the icon reaches a little into the bar's top); its size setting
+    -- MaelstromIconSize scales it (1 = 75% of the bar's width)
+    local iconWidth = msWidth * 0.75 * (TotemTimers.ActiveProfile.MaelstromIconSize or 1)
+    MaelstromIcon:SetSize(iconWidth, iconWidth / 2)
+    MaelstromIcon:ClearAllPoints()
+    MaelstromIcon:SetPoint("BOTTOM", Maelstrom.timerBars[1], "TOP", 0, -iconWidth / 2 * 0.15)
+
     if FlameShockDuration.active and Maelstrom.active then
         local halfSpacing = TotemTimers.ActiveProfile.CooldownSpacing / 2
         Maelstrom.button:SetPoint("BOTTOMLEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -msWidth / 2, halfSpacing)
@@ -542,6 +610,7 @@ function TotemTimers.DeactivateEnhanceCDs()
     ]==]
     FlameShockDuration:Deactivate()
     Maelstrom:Deactivate()
+    TotemTimers.UpdateMaelstromIcon()
     UpdateGamePadButtons()
 end
 

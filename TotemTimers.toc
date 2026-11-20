@@ -59,7 +59,7 @@ GUI\localization.[TextLocale].lua [AllowLoadTextLocale deDE, esES, esMX, frFR, k
 GUI\General.lua
 GUI\Timers.lua
 GUI\Trackers.lua
-#GUI\EnhanceCDs.lua
+GUI\EnhanceCDs.lua
 GUI\Messages.lua
 GUI\Totems.lua
 GUI\Sets.lua

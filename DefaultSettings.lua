@@ -329,6 +329,7 @@ TotemTimers.DefaultProfile = {
         MaelstromSize = 2,
         MaelstromStopPulse = false,
         MaelstromNumberOnly = false,
+        MaelstromIconSize = 1,
         OverlayGlow = true,
         PowerSurge = true,
         PowerSurgeOverlay = true,
@@ -675,7 +676,7 @@ end
     "EnhanceCDsOOCAlpha", "CDTimersOnButtons", "EnhanceCDsClickthrough",
     "FlameShockDurationOnTop", "EnhanceCDsFlameShockDuration", "EnhanceCDsFlameShockDuration_Specialization",
     "FlameShockDurationSize", "FlameShockDurationStopPulse",
-    "EnhanceCDsMaelstrom", "MaelstromSize", "MaelstromStopPulse", "MaelstromNumberOnly",
+    "EnhanceCDsMaelstrom", "MaelstromSize", "MaelstromStopPulse", "MaelstromNumberOnly", "MaelstromIconSize",
     "OverlayGlow", "PowerSurge", "PowerSurgeOverlay",
     "LongCooldownSpells", "LongCooldownsStopPulse",
 }

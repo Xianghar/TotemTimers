@@ -208,7 +208,13 @@ L["Mouseover Opacity"] = true
 L["Mouseover Opacity Desc"] = "Opacity of all buttons while the mouse is over none of them (out of combat only). Hovering any button shows all of them fully opaque. 1 = off"
 L["Show OmniCC counters"] = true
 L["Spells"] = true
-L["MaelstromNumberOnlyDesc"] = "Show number instead of lightning bolts"
+L["MaelstromNumberOnlyDesc"] = "Hides the lightning bolt icon above the bar, the stacks are only shown as a number on the bar"
+L["Show Number Only"] = true
+L["Stop Pulse Animation"] = true
+L["MaelstromStopPulseDesc"] = "The lightning bolt icon doesn't pulse at 5 stacks"
+L["Icon Size"] = true
+L["Size"] = true
+L["MaelstromIconSizeDesc"] = "Size of the lightning bolt icon above the bar"
 
 L["Arena"] = true
 L["Battleground"] = true

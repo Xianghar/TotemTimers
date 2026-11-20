@@ -73,14 +73,16 @@ local function IsAuraContainerAvailable()
     return C_AddOns.IsAddOnLoaded("Blizzard_AuraContainer")
 end
 
--- always shown frame outside the aura containers that runs the glow animations (see InitGlowButton)
-local glowAnimator = CreateFrame("Frame", nil, UIParent)
-glowAnimator:SetSize(1, 1)
-glowAnimator:SetPoint("TOPLEFT")
-local glowAnimations = setmetatable({}, { __mode = "k" })
+-- always shown frame outside the aura containers that runs the animations of the glow and image modes (see
+-- InitGlowButton, InitImageButton): animations below a frame with secret visibility stop while it is hidden and
+-- can't be restarted there
+local animator = CreateFrame("Frame", nil, UIParent)
+animator:SetSize(1, 1)
+animator:SetPoint("TOPLEFT")
+local animations = setmetatable({}, { __mode = "k" })
 -- hiding the UI (UIParent) stops the animations
-glowAnimator:SetScript("OnShow", function()
-    for animation in pairs(glowAnimations) do
+animator:SetScript("OnShow", function()
+    for animation in pairs(animations) do
         animation:Play()
     end
 end)
@@ -105,6 +107,9 @@ end)
 --   tint, maskAtlas, maskInset: dot mode with a tint over the dot region (see above)
 --   glow: { region = region, minApplications = n }: glow mode, a glow around the region while the aura has at least
 --     n stacks (see InitGlowButton)
+--   image: { region = region, texture = path, applications = n, exact = bool, pulse = bool }: image mode, the
+--     texture over the region while the aura has n stacks (exact) or at least n stacks, optionally pulsing (see
+--     InitImageButton)
 function AuraDisplay:new(parent, unit, options)
     if not IsAuraContainerAvailable() then return end
     local display = setmetatable({}, AuraDisplay)
@@ -121,6 +126,7 @@ function AuraDisplay:new(parent, unit, options)
     display.swipeInset = options and options.swipeInset or 0
     display.forGamePad = options and options.forGamePad or false
     display.glow = options and options.glow
+    display.image = options and options.image
     display.dotColor = { 1, 1, 1, 1 }
     display.unit = unit or "player"
     -- slot definitions in the order they were added
@@ -214,9 +220,9 @@ function AuraDisplay:Build()
         for key, regions in pairs(self.regions) do
             pcall(old.SetAuraSlotEnabled, old, key, false)
             -- the glow animation runs on a frame outside the container (see InitGlowButton)
-            if regions.glowAnimation then
-                regions.glowAnimation:Stop()
-                glowAnimations[regions.glowAnimation] = nil
+            if regions.animation then
+                regions.animation:Stop()
+                animations[regions.animation] = nil
             end
         end
         self.container = nil
@@ -335,13 +341,13 @@ end
 -- of the sheet is made of textures of its own (fixed tex coords, cut into three parts for wide regions, see
 -- CreateGlowFrame; only the first frame visible by default: without animation
 -- the glow is a static frame), and the frames are stepped through by alpha animations of an always shown frame
--- outside the aura containers (glowAnimator), which keep running while the glow is hidden.
+-- outside the aura containers (animator), which keep running while the glow is hidden.
 local GLOW_ATLAS = "UI-HUD-ActionBar-Proc-Loop-Flipbook"
 local GLOW_ROWS, GLOW_COLUMNS, GLOW_FRAMES, GLOW_LOOP = 6, 5, 30, 1
 
 -- steps through the frames: frame i (all its textures) is shown from i/GLOW_FRAMES of the loop for one frame's time
 local function CreateGlowAnimation(frames)
-    local animation = glowAnimator:CreateAnimationGroup()
+    local animation = animator:CreateAnimationGroup()
     animation:SetLooping("REPEAT")
     animation:SetToFinalAlpha(true)
     local step = GLOW_LOOP / GLOW_FRAMES
@@ -436,13 +442,102 @@ function AuraDisplay:InitGlowButton(button, frameLevel, regions)
     local ok, animation = pcall(CreateGlowAnimation, frames)
     if ok then
         animation:Play()
-        glowAnimations[animation] = true
-        regions.glowAnimation = animation
+        animations[animation] = true
+        regions.animation = animation
+    end
+end
+
+-- image mode: the slot button covers the region and shows the texture over it depending on the stacks, which can be
+-- secret, so the game decides: an invisible application bar is shown from n stacks on (minApplications), the image
+-- is its child. For exactly n stacks the bar runs from n (empty) to n + 1 (full) and the image is masked to the
+-- empty part of the bar (mask from the right end of the bar's fill texture to the bar's right end): with n stacks
+-- the image is shown in full, from n + 1 stacks the mask has no area left. Should the mask not be possible, the
+-- image is shown from n stacks on (cumulative images, like the Maelstrom textures, still look right then).
+-- pulse: a slight scaling pulse, run by the animator (keeps running while the image is hidden).
+function AuraDisplay:InitImageButton(button, frameLevel, regions)
+    local image = self.image
+    local count = image.applications
+    button:ClearAllPoints()
+    button:SetAllPoints(image.region)
+    button:SetFrameLevel(frameLevel)
+    pcall(button.SetMouseClickEnabled, button, false)
+    pcall(button.EnableMouseMotion, button, false)
+
+    local bar = CreateFrame("StatusBar", nil, button)
+    bar:SetAllPoints(button)
+    bar:SetStatusBarTexture("Interface/Buttons/WHITE8X8")
+    bar:SetStatusBarColor(0, 0, 0, 0)
+    button:SetApplicationBar(bar, {
+        minApplications = count,
+        maxApplications = image.exact and count + 1 or count,
+        interpolation = Enum.StatusBarInterpolation.Immediate,
+    })
+
+    local texture = bar:CreateTexture(nil, "OVERLAY")
+    texture:SetAllPoints(bar)
+    texture:SetTexture(image.texture)
+    regions.bar = bar
+    regions.image = texture
+
+    if image.exact then
+        pcall(function()
+            local mask = bar:CreateMaskTexture()
+            mask:SetTexture("Interface/Buttons/WHITE8X8", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+            mask:SetPoint("TOPLEFT", bar:GetStatusBarTexture(), "TOPRIGHT")
+            mask:SetPoint("BOTTOMRIGHT", bar, "BOTTOMRIGHT")
+            texture:AddMaskTexture(mask)
+            regions.mask = mask
+        end)
+    end
+
+    if image.pulse then
+        local ok, animation = pcall(function()
+            local group = animator:CreateAnimationGroup()
+            group:SetLooping("BOUNCE")
+            local scale = group:CreateAnimation("Scale")
+            scale:SetTarget(texture)
+            scale:SetScaleFrom(1, 1)
+            scale:SetScaleTo(1.06, 1.06)
+            scale:SetOrigin("CENTER", 0, 0)
+            scale:SetDuration(0.4)
+            scale:SetSmoothing("IN_OUT")
+            return group
+        end)
+        if ok then
+            regions.animation = animation
+            if self.imagePulse ~= false then
+                animation:Play()
+                animations[animation] = true
+            end
+        end
+    end
+end
+
+-- image mode: turns the pulse of the image on or off (the animation runs outside the container, so this needs no
+-- rebuild and works in combat)
+function AuraDisplay:SetImagePulse(pulse)
+    pulse = pulse and true or false
+    self.imagePulse = pulse
+    for _, regions in pairs(self.regions) do
+        local animation = regions.animation
+        if animation and self.image then
+            if pulse then
+                animation:Play()
+                animations[animation] = true
+            else
+                animation:Stop()
+                animations[animation] = nil
+            end
+        end
     end
 end
 
 -- runs inside AddAuraSlot, the only point where the slot button can be set up
 function AuraDisplay:InitSlotButton(button, frameLevel, regions)
+    if self.image then
+        self:InitImageButton(button, frameLevel, regions)
+        return
+    end
     if self.glow then
         self:InitGlowButton(button, frameLevel, regions)
         return
