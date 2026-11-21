@@ -2,6 +2,7 @@
 
 ## 20.21
 - Don't update spells while zoning again
+- Added round glows for round buttons in the gamepad UI
 
 ## 20.20
 - Another attempt at fixing the multicast spells getting the wrong totems.

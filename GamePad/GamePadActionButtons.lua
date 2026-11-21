@@ -30,7 +30,7 @@ local SpellIDs = TotemTimers.SpellIDs
 --   (AuraDisplay glow mode, the game decides when to glow, the stacks are never read in Lua).
 local SHIELD_SLOT = "shield"
 local MAELSTROM_SLOT = "maelstrom"
--- Maelstrom displays by Gamepad UI button, { count = AuraDisplay, glow = AuraDisplay }
+-- Maelstrom displays by Gamepad UI button and shape (round: true/false), { count = AuraDisplay, glow = AuraDisplay }
 local maelstromDisplays = {}
 local FLAMESHOCK_SLOT = "flameshock"
 local FLAMESHOCK_TINT = { 0, 1, 0, 0.3 } -- like the player's range tint (SetupTimers.lua)
@@ -102,7 +102,9 @@ local function UpdateShieldButton(button, name)
     end
 end
 
-local function CreateMaelstromDisplays(button)
+-- the glow's shape is fixed when the slot buttons are built, so each shape has its own displays (round: the own round
+-- glow, see AuraDisplay.CreateRoundGlow)
+local function CreateMaelstromDisplays(button, round)
     local spells = {}
     for _, id in pairs(TotemTimers.MaelstromAuraSpells or {}) do
         spells[id] = true
@@ -110,7 +112,7 @@ local function CreateMaelstromDisplays(button)
     local level = math.max(GetOverlayLevel(button) - button:GetFrameLevel(), 2)
     local displays = {}
     displays.glow = TotemTimers.AuraDisplay:new(button, "player", {
-        glow = { region = button, minApplications = TotemTimers.MaelstromMaxStacks or 5 },
+        glow = { region = button, minApplications = TotemTimers.MaelstromMaxStacks or 5, round = round },
     })
     if displays.glow then
         displays.glow:AddSlot(MAELSTROM_SLOT, spells, level)
@@ -130,14 +132,18 @@ local function UpdateMaelstromButton(button, name)
     local shown = GamePad.actionOverlaysShown
         or (TotemTimers.GetMaelstromLayout and TotemTimers.GetMaelstromLayout() == "gamepad")
     local show = enabled and shown and name and IsSpellName(name, SpellIDs.LightningBolt) or false
-    local displays = maelstromDisplays[button]
-    if show and not displays then
-        displays = CreateMaelstromDisplays(button)
-        maelstromDisplays[button] = displays
+    local round = not (button.SquareMask and button.SquareMask:IsShown())
+    local byShape = maelstromDisplays[button]
+    if show and not (byShape and byShape[round]) then
+        byShape = byShape or {}
+        byShape[round] = CreateMaelstromDisplays(button, round)
+        maelstromDisplays[button] = byShape
     end
-    if displays then
+    if not byShape then return end
+    for shape, displays in pairs(byShape) do
+        local enabled = show and shape == round
         for _, display in pairs(displays) do
-            display:SetSlotEnabled(MAELSTROM_SLOT, show)
+            display:SetSlotEnabled(MAELSTROM_SLOT, enabled)
         end
     end
 end
@@ -240,11 +246,20 @@ local function GetWeaponOverlay(button)
     return overlay
 end
 
-local function SetGlow(frame, shown)
+-- frame: the glow frame over a Gamepad UI button or bar slot; round: the button is round (own round glow, see
+-- AuraDisplay.CreateRoundGlow, created on first use), otherwise the action bar's square spell alert
+local function SetGlow(frame, shown, round)
+    if shown and round and not frame.roundGlow and TotemTimers.AuraDisplay then
+        frame.roundGlow = TotemTimers.AuraDisplay.CreateRoundGlow(frame)
+    end
+    -- the shape can change while glowing: the other glow off
+    local roundShown = shown and round and frame.roundGlow ~= nil
+    if frame.roundGlow then frame.roundGlow:SetShown(roundShown) end
+    shown = shown and not roundShown
     if ActionButtonSpellAlertManager then
         if shown then
             ActionButtonSpellAlertManager:ShowAlert(frame)
-        else
+        elseif ActionButtonSpellAlertManager:HasAlert(frame) then
             ActionButtonSpellAlertManager:HideAlert(frame)
         end
     elseif ActionButton_ShowOverlayGlow then
@@ -260,9 +275,10 @@ local weaponGlowNames = NO_GLOW_NAMES
 
 local function UpdateWeaponGlow(overlay)
     local glow = overlay.enchantName and (weaponGlowAll or weaponGlowNames[overlay.enchantName]) and true or false
-    if glow ~= overlay.glowing then
+    if glow ~= overlay.glowing or overlay.round ~= overlay.glowRound then
         overlay.glowing = glow
-        SetGlow(overlay.glow, glow)
+        overlay.glowRound = overlay.round
+        SetGlow(overlay.glow, glow, overlay.round)
     end
 end
 
@@ -274,9 +290,10 @@ function GamePad.UpdateWeaponSlotGlow()
     local glow = GamePad.timersShown and (weaponGlowAll or next(weaponGlowNames) ~= nil) or false
     for _, slot in pairs(barIcons) do
         local shown = glow and weapon ~= nil and slot.timer == weapon
-        if shown ~= slot.glowing then
+        if shown ~= slot.glowing or slot.round ~= slot.glowRound then
             slot.glowing = shown
-            SetGlow(slot.glow, shown)
+            slot.glowRound = slot.round
+            SetGlow(slot.glow, shown, slot.round)
         end
     end
 end
