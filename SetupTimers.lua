@@ -325,26 +325,10 @@ end
             end
             UpdateRangeDots(self)
 
-            local lastTotem = TotemTimers.GetBaseSpellID(activeProfile.LastTotems[self.nr])
-
+            -- totem of the button (saved, from the multicast slot, or the first of the menu when the element was
+            -- just learned) and the element's empty multicast slots
             if not self.timers[1] then
-                if not lastTotem or not AvailableSpells[lastTotem] then
-                    --[[when switching specs this part gets executed several times, once for switching and then for each talent (because of events fired)
-                        so totems from talents are sometimes not available at this point.
-                        lasttotem is saved and restored if not nil so that talent totems aren't replaced when switching specs ]]
-                    for k, v in pairs(TotemData) do
-                        if AvailableSpells[k] and v.element == self.nr then
-                            self.button:SetAttribute("*spell1", k)
-                            self.button.icon:SetTexture((C_Spell.GetSpellTexture(k)))
-                            break
-                        end
-                    end
-                    -- restore saved totem if not nil
-                    activeProfile.LastTotems[self.nr] = lastTotem or activeProfile.LastTotems[self.nr]
-                else
-                    self.button:SetAttribute("*spell1", lastTotem)
-                    self.button.icon:SetTexture((C_Spell.GetSpellTexture(lastTotem)))
-                end
+                TotemTimers.UpdateTimerTotem(self)
             end
         end
 
@@ -404,14 +388,17 @@ end
             -- puts the timer's totem into the multicast slot of the active multicast spell (unless disabled for the
             -- timer), whatever changed the totem (totem sets, gamepad, ...); out of combat only, in combat only the
             -- secure "multispell" action of the menu buttons (rightclick, gamepad wheel assign) can do it
+            -- not while the totems are loaded (TotemTimers.UpdateTimerTotem writes only empty slots) and not for
+            -- another rank of the same totem (rank updates of the button aren't a change of the totem)
             tt.button.SyncMultiCastSlot = function(self, spell)
-                if InCombatLockdown() or not (TotemTimers_MultiSpell and TotemTimers_MultiSpell.active) then return end
+                if TotemTimers.LoadingTotems or InCombatLockdown()
+                        or not (TotemTimers_MultiSpell and TotemTimers_MultiSpell.active) then return end
                 local mspell = self:GetAttribute("mspell")
                 if not mspell or self:GetAttribute("mspelldisabled" .. mspell) then return end
                 local action = self:GetAttribute("action" .. mspell)
                 if not action then return end
                 local _, current = GetActionInfo(action)
-                if current ~= spell then
+                if not current or C_Spell.GetSpellName(current) ~= C_Spell.GetSpellName(spell) then
                     SetMultiCastSpell(action, spell)
                 end
             end
@@ -878,34 +865,127 @@ function TotemTimers.SetCastButtonSpells()
     end
 end
 
--- makes sure, totems assigned to timer buttons are available spells
--- replaces totem with first in menu in necessary
-local function SanitizeTotem(spellID, timer)
-    if not spellID then
-        return timer.actionBar.buttons[1]:GetAttribute("*spell1")
-    else
-        local baseSpellID = TotemTimers.GetBaseSpellID(spellID)
-        if not AvailableSpells[baseSpellID] or not TotemData[baseSpellID] then
-            TotemTimers.AddDebug("Replace "..(spellID or "").." - "..(baseSpellID or "") .. " - "..(timer.actionBar.buttons[1]:GetAttribute("*spell1") or ""))
-            return timer.actionBar.buttons[1]:GetAttribute("*spell1")
-        end
-        -- spell data not ready (e.g. during a loading screen): keep the totem instead of removing it
-        return TotemTimers.UpdateSpellRank(spellID) or spellID
-    end
-end
-TotemTimers.SanitizeTotem = SanitizeTotem
+-- Totems of the timer buttons (and, only where needed, of the multicast slots):
+-- * a timer takes the totem of the active multicast spell's slot of its element (the game saves those); if the
+--   timer's element is excluded from that multicast spell (slot intentionally empty) or there is no multicast
+--   spell, it keeps its totem, after loading the one from the saved settings (LastTotems)
+-- * an invalid totem (unknown spell, other element, saved data broken) is replaced: by the timer's own totem, the
+--   saved one, or as a last resort the first totem of the menu (also when the first totem of an element is learned)
+-- * a multicast slot is only written when it is empty but not supposed to be (not excluded): it gets the timer's
+--   totem (new multicast spell learned, element learned after the multicast spell)
+-- Out of combat only (the spell and talent events wait for the end of combat, see TotemTimers.lua).
 
-local function SanitizeActiveTotems()
-    for i = 1,4 do
-        local timer = XiTimers.timers[i]
-        local spellID = timer.button:GetAttribute("*spell1")
-        local newSpellID = SanitizeTotem(spellID, timer)
-        if spellID ~= newSpellID then
-            timer.button:SetAttribute("*spell1", newSpellID)
+local function IsValidTotem(spell, timer)
+    if (type(spell) ~= "number" and type(spell) ~= "string") or (issecretvalue and issecretvalue(spell)) then
+        return false
+    end
+    local base = TotemTimers.GetBaseSpellID(spell)
+    local data = base and TotemData[base]
+    return data and AvailableSpells[base] and data.element == timer.nr and not data.isOverride and true or false
+end
+
+-- totems are stored as spell IDs; the saved settings can hold names (defaults): highest known rank of it
+local function ToSpellID(spell)
+    if type(spell) == "string" then
+        local base = TotemTimers.GetBaseSpellID(spell)
+        if type(base) ~= "number" then return nil end
+        return C_Spell.GetSpellIDForSpellIdentifier(spell) or base
+    end
+    return spell
+end
+
+-- first totem of the timer's menu (by the menu order of the profile), or any known totem of the element
+local function GetFirstMenuTotem(timer)
+    local profile = TotemTimers.ActiveProfile
+    for _, spell in ipairs(profile.TotemOrder[timer.nr] or {}) do
+        if not profile.HiddenTotems[spell] and IsValidTotem(spell, timer) then
+            return TotemTimers.UpdateSpellRank(spell) or spell
+        end
+    end
+    for spell in pairs(TotemData) do
+        if IsValidTotem(spell, timer) then
+            return TotemTimers.UpdateSpellRank(spell) or spell
         end
     end
 end
-table.insert(TotemTimers.SpellUpdaters, SanitizeActiveTotems)
+
+-- true while the totems are loaded: the timer buttons don't put their totem into the multicast slot then
+-- (SyncMultiCastSlot), only empty slots are written here
+TotemTimers.LoadingTotems = false
+
+function TotemTimers.UpdateTimerTotem(timer)
+    if InCombatLockdown() or not timer.active then return end
+    local button = timer.button
+    local profile = TotemTimers.ActiveProfile
+    local multiSpell = TotemTimers_MultiSpell
+    local multiActive = multiSpell and multiSpell.active
+    local activeMSpell = multiActive and multiSpell:GetAttribute("*spell1")
+    local current = button:GetAttribute("*spell1")
+    local saved = ToSpellID(profile.LastTotems[timer.nr])
+
+    -- the multicast slots of the element of each known multicast spell
+    local slots = {}
+    if multiActive then
+        for mspell, action in pairs(TotemTimers.MultiCastActions[timer.nr] or {}) do
+            if AvailableSpells[mspell] then
+                local actionType, id = GetActionInfo(action)
+                slots[mspell] = {
+                    action = action,
+                    spell = actionType == "spell" and id or nil,
+                    disabled = profile.DisabledMultiSpells[TotemTimers.Specialization .. mspell .. timer.nr] and true or false,
+                }
+            end
+        end
+    end
+
+    local spell
+    local active = activeMSpell and slots[activeMSpell]
+    if active then
+        spell = active.disabled and saved or active.spell
+    end
+    if not IsValidTotem(spell, timer) then
+        spell = (IsValidTotem(current, timer) and current) or (IsValidTotem(saved, timer) and saved)
+                or GetFirstMenuTotem(timer)
+    end
+
+    -- a fallback for a saved totem that isn't known (yet, e.g. a talent totem while switching specs) keeps the
+    -- saved one in the settings
+    local savedRaw = profile.LastTotems[timer.nr]
+    local keepSaved = spell ~= current and not IsValidTotem(saved, timer) and savedRaw ~= nil
+            and not (active and not active.disabled and spell == active.spell)
+
+    TotemTimers.LoadingTotems = true
+    for mspell, slot in pairs(slots) do
+        button:SetAttribute("action" .. mspell, slot.action)
+        button:SetAttribute("mspelldisabled" .. mspell, slot.disabled)
+        if slot.disabled then
+            -- switching to this multicast spell keeps the timer's totem
+            button:SetAttribute("mspell" .. mspell, nil)
+        else
+            if not slot.spell and spell then
+                SetMultiCastSpell(slot.action, spell)
+                slot.spell = spell
+            end
+            button:SetAttribute("mspell" .. mspell, IsValidTotem(slot.spell, timer) and slot.spell or spell)
+        end
+    end
+    if spell and spell ~= current then
+        button:SetAttribute("*spell1", spell)
+        if keepSaved then profile.LastTotems[timer.nr] = savedRaw end
+    end
+    TotemTimers.LoadingTotems = false
+end
+
+function TotemTimers.UpdateTimerTotems()
+    if InCombatLockdown() then return end
+    for i = 1, 4 do
+        TotemTimers.UpdateTimerTotem(XiTimers.timers[i])
+    end
+    if TotemTimers_MultiSpell and TotemTimers_MultiSpell.active then
+        TotemTimers_MultiSpell:UpdateTexture()
+    end
+end
+table.insert(TotemTimers.SpellUpdaters, TotemTimers.UpdateTimerTotems)
 
 -- party changed: class colors of the party dots
 TotemTimers.UpdateParty = function()

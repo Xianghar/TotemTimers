@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.20
+- Another attempt at fixing the multicast spells getting the wrong totems.
+
 ## 20.19
 - Fixed destroying totems on right/middle click depending how totem menus are opened
 - Fixed Flame Shock timer not movable

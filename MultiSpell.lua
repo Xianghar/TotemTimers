@@ -186,8 +186,6 @@ function TotemTimers.MultiSpellActivate()
             TotemTimers.SetMultiCastSpells()
             mb.active = true
             TotemTimers.SetMultiCastConfig()
-            --trigger Childupdate("mspell")
-            mb:SetAttribute("*spell1", mb:GetAttribute("*spell1"))
             mb:SetAttribute("active", true)
         end
 
@@ -226,44 +224,13 @@ end
 
 table.insert(TotemTimers.SpellUpdaters, TotemTimers.SetMultiCastSpells)
 
+-- totems of the timer buttons from the multicast slots of the active multicast spell, empty slots that aren't
+-- excluded filled from the timers (TotemTimers.UpdateTimerTotems, SetupTimers.lua; it is a spell updater itself)
 function TotemTimers.SetMultiCastConfig()
     if not mb.active then
         return
     end
-    for i = 1, 4 do
-        local actions = TotemTimers.MultiCastActions[XiTimers.timers[i].nr]
-        local timer = XiTimers.timers[i]
-        local button = timer.button
-
-        for mspell, action in pairs(actions) do
-
-            button:SetAttribute("action" .. mspell, action)
-
-            local disabled = TotemTimers.ActiveProfile.DisabledMultiSpells[TotemTimers.Specialization .. mspell .. XiTimers.timers[i].nr]
-            button:SetAttribute("mspelldisabled" .. mspell, disabled)
-
-            local spellID, sanitizedSpellID
-
-            if disabled then
-                SetMultiCastSpell(action, nil)
-            else
-                _, spellID = GetActionInfo(action)
-                -- an empty slot is only filled with the first totem of the menu on login; later (zoning, spell and
-                -- talent updates) the multicast actions can read empty for a moment, the slot and the timer's
-                -- totem are kept then
-                if spellID or not TotemTimers_IsSetUp then
-                    sanitizedSpellID = TotemTimers.SanitizeTotem(spellID, timer)
-                end
-                if sanitizedSpellID then
-                    XiTimers.timers[i].button:SetAttribute("mspell" .. mspell, sanitizedSpellID)
-                    SetMultiCastSpell(action, sanitizedSpellID)
-                end
-            end
-            TotemTimers.AddDebug("ms: "..mspell.." - "..action.." - "..tostring(spellID or nil).." - "..tostring(sanitizedSpellID or nil))
-        end
-    end
-    mb:UpdateTexture()
+    TotemTimers.UpdateTimerTotems()
+    --trigger Childupdate("mspell"): the timers take the totem of the active multicast spell
     mb:SetAttribute("*spell1", mb:GetAttribute("*spell1"))
 end
-
-table.insert(TotemTimers.SpellUpdaters, TotemTimers.SetMultiCastConfig)
