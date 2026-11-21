@@ -826,123 +826,99 @@ end
 
 
 
-    --[[SettingsFunctions.CooldownSpacing = function(value, Timers)
-        for _, t in pairs({ TotemTimers.EnhanceCDs, TotemTimers.LongCooldowns }) do
-            for k, v in pairs(t) do
-                v:SetSpacing(value)
-            end
+    -- combat cooldowns (CombatCDs.lua): the cooldown buttons (TotemTimers.EnhanceCDs), the Flame Shock timer and the
+    -- Maelstrom tracker. Settings are applied in any order, so those changing sizes or positions lay out again.
+    local function LayoutCombatCDs()
+        if TotemTimers.LayoutEnhanceCDs and TotemTimers.FlameShockDuration then
+            TotemTimers.LayoutEnhanceCDs()
         end
     end
 
+    -- all buttons of the combat cooldowns
+    local function CombatCDTimers()
+        local timers = {}
+        for _, timer in pairs(TotemTimers.EnhanceCDs or {}) do table.insert(timers, timer) end
+        if TotemTimers.FlameShockDuration then table.insert(timers, TotemTimers.FlameShockDuration) end
+        if TotemTimers.Maelstrom then table.insert(timers, TotemTimers.Maelstrom) end
+        return timers
+    end
+
+    SettingsFunctions.CooldownSpacing = function(value, Timers)
+        for _, timer in pairs(TotemTimers.EnhanceCDs or {}) do
+            timer:SetSpacing(value)
+        end
+        LayoutCombatCDs()
+    end
+
+    -- the size of the cooldown buttons (the Flame Shock timer and the Maelstrom tracker have size settings of their own)
     SettingsFunctions.EnhanceCDsSize = function(value)
-        for _, t in pairs({ TotemTimers.EnhanceCDs, TotemTimers.LongCooldowns }) do
-            for _, timer in pairs(t) do
-                timer:SetScale(value / 36)
-            end
+        for _, timer in pairs(TotemTimers.EnhanceCDs or {}) do
+            timer:SetScale(value / 36)
         end
-        TotemTimers.FlameShockDuration:SetScale(value / 36)
-        if TotemTimers.Maelstrom then
-            TotemTimers.Maelstrom:SetScale(value / 36)
-        end
-        --TotemTimers.LayoutEnhanceCDs()
-        --TotemTimers.LayoutLongCooldowns()
+        LayoutCombatCDs()
     end
 
     SettingsFunctions.FlameShockDurationSize = function(value)
+        if not TotemTimers.FlameShockDuration then return end
         TotemTimers.FlameShockDuration.size = value
+        LayoutCombatCDs()
     end
 
-    SettingsFunctions.FlameShockDurationStopPulse = function(value)
-        TotemTimers.FlameShockDuration.StopPulse = value
-    end]]
+    SettingsFunctions.FlameShockDurationOnTop = function(value)
+        LayoutCombatCDs()
+    end
 
-    --[[SettingsFunctions.EnhanceCDsMaelstromHeight =
-        function(value, Timers)
-            TotemTimers.maelstrom:SetHeight(value)
-            TotemTimers.maelstrom.background:SetHeight(value)
-            TotemTimers.maelstrombutton:SetHeight(value)
-            TotemTimers.maelstrom.icon:SetWidth(value)
-            TotemTimers.maelstrom.icon:SetHeight(value)
-            Timers[21]:SetScale(value/36)
-            Timers[21]:SetTimeHeight(value)
-            Timers[21].timerBars[1]:SetScale(36/value)
-            local font = TotemTimers.maelstrom.text:GetFont()
-            local outline
-            if Timers[9].timerOnButton then outline = "OUTLINE" end
-            TotemTimers.maelstrom.text:SetFont(font, value, outline)
-            local font, value = _G["XiTimers_TimerBar17_1Time"]:GetFont()
-            _G["XiTimers_TimerBar17_1Time"]:SetFont(font, value, outline)
-            TotemTimers.LayoutEnhanceCDs()
-        end, --]]
+    SettingsFunctions.EnhanceCDsOneRow = function(value)
+        LayoutCombatCDs()
+    end
 
-    --[[SettingsFunctions.CDTimersOnButtons = function(value, Timers)
-        for _, t in pairs({ TotemTimers.EnhanceCDs, TotemTimers.LongCooldowns }) do
-            for _, timer in pairs(t) do
-                timer.timerOnButton = value
-                if timer.timers[1] then
-                    timer:ShowTimer()
-                end
+    -- the time of the cooldowns on the buttons or on a timer bar below them
+    SettingsFunctions.CDTimersOnButtons = function(value, Timers)
+        for _, timer in pairs(TotemTimers.EnhanceCDs or {}) do
+            timer.timerOnButton = value
+            if timer.timers[1] then
+                timer:ShowTimer()
             end
+            timer:SetTimerBarPos(timer.timerBarPos)
         end
-        --TotemTimers.ProcessSetting("EnhanceCDsMaelstromHeight")
-    end]]
-
-    --[[SettingsFunctions.EnhanceCDsOOCAlpha = function(value)
-        for _, t in pairs({ TotemTimers.EnhanceCDs, TotemTimers.LongCooldowns }) do
-            for _, timer in pairs(t) do
-                timer.OOCAlpha = value
-            end
-        end
-        if TotemTimers.Maelstrom then TotemTimers.Maelstrom.OOCAlpha = value end
-        TotemTimers.FlameShockDuration.OOCAlpha = value
-        XiTimers.invokeOOCFader()
+        LayoutCombatCDs()
     end
 
     SettingsFunctions.HideEnhanceCDsOOC = function(value)
-        for _, t in pairs({ TotemTimers.EnhanceCDs, TotemTimers.LongCooldowns }) do
-            for _, timer in pairs(t) do
-                timer.HideOOC = value
-                timer.button:SetAttribute("HideOOC", value)
-            end
+        if InCombatLockdown() then return end
+        for _, timer in pairs(CombatCDTimers()) do
+            timer.HideOOC = value
+            timer.button:SetAttribute("HideOOC", value)
         end
-        TotemTimers.FlameShockDuration.HideOOC = value
-        TotemTimers.FlameShockDuration.button:SetAttribute("HideOOC", value)
-
-        if TotemTimers.Maelstrom then
-            TotemTimers.Maelstrom.HideOOC = value
-            TotemTimers.Maelstrom.button:SetAttribute("HideOOC", value)
+        if TotemTimers.ConfigEnhanceCDs and TotemTimers.FlameShockDuration then
+            TotemTimers.ConfigEnhanceCDs()
+            LayoutCombatCDs()
         end
-
-        TotemTimers.ConfigEnhanceCDs()
     end
 
+    -- the cooldown buttons pulse when the cooldown is over
     SettingsFunctions.EnhanceCDsStopPulse = function(value, Timers)
-        for _, timer in pairs(TotemTimers.EnhanceCDs) do
+        for _, timer in pairs(TotemTimers.EnhanceCDs or {}) do
             timer.StopPulse = value
         end
     end
 
     SettingsFunctions.EnhanceCDs_Clickthrough = function(value)
-        for _, t in pairs({ TotemTimers.EnhanceCDs, TotemTimers.LongCooldowns }) do
-            for _, timer in pairs(t) do
-                timer.button:EnableMouse(not value)
-            end
+        if InCombatLockdown() then return end
+        for _, timer in pairs(CombatCDTimers()) do
+            timer.button:EnableMouse(not value)
         end
-        if TotemTimers.Maelstrom then
-            TotemTimers.Maelstrom.button:EnableMouse(not value)
-            TotemTimers.MaelstromButton:EnableMouse(not value)
-        end
-    end]]
+    end
 
-    -- out-of-combat opacity of the combat cooldowns: the Flame Shock timer and the Maelstrom tracker (its stack icon
-    -- follows the tracker's button, CombatCDs.lua), faded by XiTimers' out-of-combat fader
+    -- out-of-combat opacity of the combat cooldowns (the Maelstrom stack icon follows the tracker's button,
+    -- CombatCDs.lua), faded by XiTimers' out-of-combat fader
     SettingsFunctions.EnhanceCDsOOCAlpha = function(value)
-        if TotemTimers.FlameShockDuration then TotemTimers.FlameShockDuration.OOCAlpha = value end
-        if TotemTimers.Maelstrom then TotemTimers.Maelstrom.OOCAlpha = value end
+        for _, timer in pairs(CombatCDTimers()) do
+            timer.OOCAlpha = value
+        end
         XiTimers.invokeOOCFader()
     end
 
-    -- combat cooldowns: for now only the Flame Shock duration timer (CombatCDs.lua)
     SettingsFunctions.EnhanceCDs = function(value)
         if not TotemTimers.ActivateEnhanceCDs then return end
         if value then

@@ -1,6 +1,7 @@
 if select(2,UnitClass("player")) ~= "SHAMAN" then return end
 
--- For now only the Flame Shock duration timer and the Maelstrom tracker are active, everything else is commented out.
+-- Combat cooldowns: a row (or two) of cooldown buttons of the spells of the specialization
+-- (TotemTimers.CombatCooldownSpells), the Flame Shock duration timer and the Maelstrom tracker.
 
 local _, TotemTimers = ...
 
@@ -8,24 +9,41 @@ local SpellIDs = TotemTimers.SpellIDs
 local SpellTextures = TotemTimers.SpellTextures
 local SpellNames = TotemTimers.SpellNames
 local AvailableSpells = TotemTimers.AvailableSpells
---local FlameShockID = SpellIDs.FlameShock
---local FlameShockName = SpellNames[SpellIDs.FlameShock]
 
---[==[
 local cds = {}
 TotemTimers.EnhanceCDs = cds
-]==]
 
 local role = 2
 
---[==[
-local function NoUpdate()
-end
-
-local ShieldName = SpellNames[SpellIDs.LightningShield]
-
 local CDSpells = TotemTimers.CombatCooldownSpells
-]==]
+
+-- number of cooldown spells per specialization (also the bound of the order changes in the options)
+local numCDSpells = {}
+local maxCDSpells = 0
+for spec, spells in pairs(CDSpells) do
+    numCDSpells[spec] = #spells
+    maxCDSpells = math.max(maxCDSpells, #spells)
+end
+TotemTimers.num_CD_Spells = numCDSpells
+
+-- order of the cooldown buttons of a specialization (indices into CDSpells[spec]): the saved order
+-- (EnhanceCDs_Order) without indices beyond the spell list and duplicates, missing indices appended; saved back
+local function GetCDOrder(spec)
+    local saved = TotemTimers.ActiveProfile.EnhanceCDs_Order[spec] or {}
+    local order, seen = {}, {}
+    for i = 1, #saved do
+        local index = saved[i]
+        if type(index) == "number" and index >= 1 and index <= (numCDSpells[spec] or 0) and not seen[index] then
+            seen[index] = true
+            order[#order + 1] = index
+        end
+    end
+    for index = 1, numCDSpells[spec] or 0 do
+        if not seen[index] then order[#order + 1] = index end
+    end
+    TotemTimers.ActiveProfile.EnhanceCDs_Order[spec] = order
+    return order
+end
 
 local FlameShockDuration = null
 local Maelstrom, MaelstromIcon --, MaelstromButton
@@ -33,64 +51,56 @@ local Maelstrom, MaelstromIcon --, MaelstromButton
 local MAELSTROM_MAX_STACKS = 5
 TotemTimers.MaelstromMaxStacks = MAELSTROM_MAX_STACKS -- also the glow of the Gamepad UI's Lightning Bolt buttons
 
---[==[
-local CenterProcAnchor = CreateFrame("Frame", "CenterProcAnchor", UIParent)
-TotemTimers.EnhanceCDsCenterProcAnchor = CenterProcAnchor
-CenterProcAnchor:Hide()
-CenterProcAnchor:SetSize(130,65)
-CenterProcAnchor:Show()
-
-local LeftProcAnchor = CreateFrame("Frame", "LeftProcAnchor", UIParent)
-TotemTimers.EnhanceCDsLeftProcAnchor = LeftProcAnchor
-LeftProcAnchor:Hide()
-LeftProcAnchor:SetSize(65, 130)
-
-
-
-local RightProcAnchor = CreateFrame("Frame", nil, UIParent)
-TotemTimers.EnhanceCDsRightProcAnchor = RightProcAnchor
-RightProcAnchor:Hide()
-RightProcAnchor:SetSize(65, 130)
-
-
+-- a spell dragged (shift + drag from another cooldown button, or from the spell book) onto a cooldown button swaps
+-- the two buttons (secure _onreceivedrag: kind "spell", the cursor info's spell ID is the fourth value)
 local function ChangeCDOrder(self, _, _, spell)
-    if InCombatLockdown() then return end
-    if not spell then return end
+    if InCombatLockdown() or not spell or not CDSpells[role] then return end
 
     local spell1 = TotemTimers.GetBaseSpellID(spell)
-    local spell2 = TotemTimers.GetBaseSpellID(self:GetAttribute("spell1"))
+    local spell2 = self.cdspell and TotemTimers.GetBaseSpellID(self.cdspell)
 
+    local order = GetCDOrder(role)
     local orderIndex1, orderIndex2
-
-    for orderIndex, spellIndex in pairs(TotemTimers.ActiveProfile.EnhanceCDs_Order[TotemTimers.Specialization]) do
-        if CDSpells[role][spellIndex] == spell1 then orderIndex1 = orderIndex end
-        if CDSpells[role][spellIndex] == spell2 then orderIndex2 = orderIndex end
+    for orderIndex, spellIndex in ipairs(order) do
+        local cdspell = cds[spellIndex] and cds[spellIndex].button.cdspell
+        if cdspell and TotemTimers.GetBaseSpellID(cdspell) == spell1 then orderIndex1 = orderIndex end
+        if cdspell and TotemTimers.GetBaseSpellID(cdspell) == spell2 then orderIndex2 = orderIndex end
     end
 
-    if orderIndex1 and orderIndex2 then
-        TotemTimers.ActiveProfile.EnhanceCDs_Order[role][orderIndex1], TotemTimers.ActiveProfile.EnhanceCDs_Order[role][orderIndex2] =
-            TotemTimers.ActiveProfile.EnhanceCDs_Order[role][orderIndex2], TotemTimers.ActiveProfile.EnhanceCDs_Order[role][orderIndex1]
+    if orderIndex1 and orderIndex2 and orderIndex1 ~= orderIndex2 then
+        order[orderIndex1], order[orderIndex2] = order[orderIndex2], order[orderIndex1]
+        if TotemTimers.OrderCDs then TotemTimers.OrderCDs(tostring(role)) end
+        TotemTimers.LayoutEnhanceCDs()
     end
-
-    TotemTimers.LayoutEnhanceCDs()
 end
-]==]
 
 function TotemTimers.CreateEnhanceCDs()
-    --[==[
-    for i = 1,12 do
-        cds[i] = XiTimers:new(1)
-        cds[i].events = {"SPELL_UPDATE_COOLDOWN"}
-        cds[i].dontFlash = true
-        cds[i].button.anchorframe = TotemTimers_EnhanceCDsFrame
-        cds[i].button:SetAttribute("*type*", "spell")
-        cds[i].reverseAlpha = true
-        cds[i].alpha = 0.7
-        cds[i].button.icons[1]:SetAlpha(1)
-        cds[i].button:SetScript("OnEvent", TotemTimers.EnhanceCDEvents)
-        cds[i].button:RegisterForClicks("LeftButtonUp", "RightButtonUp", "MiddleButtonUp")
+    -- cooldown buttons, as many as the longest spell list; the spells are assigned by ConfigEnhanceCDs
+    for i = 1, maxCDSpells do
+        local cd = XiTimers:new(1)
+        cds[i] = cd
+        cd.dontFlash = true
+        cd.button.anchorframe = TotemTimers_EnhanceCDsFrame
+        cd.button:SetAttribute("*type*", "spell")
+        -- the icon is dimmed while the spell is on cooldown
+        cd.reverseAlpha = true
+        cd.alpha = 0.7
+        cd.showCooldown = true
+        cd.button.icons[1]:SetAlpha(1)
+        cd.button.cooldown.noCooldownCount = true
+        -- secure action buttons act on key down (CVar ActionButtonUseKeyDown), a button registered only for "Up"
+        -- clicks never casts
+        cd.button:RegisterForClicks("AnyDown")
+        cd.Activate = function(self)
+            XiTimers.Activate(self)
+            local handler = self.button:GetScript("OnEvent")
+            if handler then
+                handler(self.button, "SPELL_UPDATE_COOLDOWN")
+                handler(self.button, "PLAYER_TOTEM_UPDATE", FIRE_TOTEM_SLOT)
+            end
+            self:UpdateGCD()
+        end
     end
-    ]==]
 
     FlameShockDuration = XiTimers:new(1)
     TotemTimers.FlameShockDuration = FlameShockDuration
@@ -131,18 +141,18 @@ function TotemTimers.CreateEnhanceCDs()
     end
 
 
-    --[==[
-    for i=1,#cds do
-        cds[i].button:SetAttribute("_ondragstart",[[if IsShiftKeyDown() then
+    -- shift + drag picks the spell up (to drop it on another cooldown button: they swap places), a plain drag moves
+    -- the combat cooldowns
+    for i = 1, #cds do
+        cds[i].button:SetAttribute("_ondragstart", [[if IsShiftKeyDown() then
                                                     return "spell", self:GetAttribute("spell1")
                                               else control:CallMethod("StartMove") end]])
-        cds[i].button:SetAttribute("_onreceivedrag",[[ if kind == "spell" then
+        cds[i].button:SetAttribute("_onreceivedrag", [[ if kind == "spell" then
                                                    control:CallMethod("ChangeCDOrder", value, ...)
                                                     return "clear"
                                               end]])
         cds[i].button.ChangeCDOrder = ChangeCDOrder
     end
-    ]==]
 
 
     -- Maelstrom Weapon tracker: the stacks of the buff fill the bar and are shown on it. The buff can be secret,
@@ -350,15 +360,125 @@ local function UpdateGamePadButtons()
     end
 end
 
+local function IsSecret(value)
+    return issecretvalue and issecretvalue(value) or false
+end
+
+-- events of a cooldown button: the cooldown of its spell, and the game's proc glow of the spell.
+-- The cooldown can be secret, so the timer is started with a DurationObject of the cooldown and only the never
+-- secret isActive and isOnGCD flags of the cooldown info are read (like the Ankh tracker).
+local function CooldownEvent(self, event, spellID)
+    local spell = self.cdspell and SpellNames[self.cdspell]
+    if not spell then return end
+    if event == "SPELL_UPDATE_COOLDOWN" then
+        local info = C_Spell.GetSpellCooldown(spell)
+        if not info or not info.isActive then
+            self.timer:Stop(1)
+        elseif not info.isOnGCD and not self.timer.timers[1] then
+            local durObj = C_Spell.GetSpellCooldownDuration(spell, true)
+            if durObj then self.timer:Start(1, durObj) end
+        end
+    elseif event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" or event == "SPELL_ACTIVATION_OVERLAY_GLOW_HIDE" then
+        if not spellID or IsSecret(spellID) then return end
+        if C_Spell.GetSpellName(spellID) == spell then
+            if event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" then
+                self.timer:ShowOverlayGlow()
+            else
+                self.timer:HideOverlayGlow()
+            end
+        end
+    end
+end
+
+local COOLDOWN_EVENTS = {}
+for _, event in ipairs({ "SPELL_UPDATE_COOLDOWN", "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW", "SPELL_ACTIVATION_OVERLAY_GLOW_HIDE" }) do
+    if C_EventUtils.IsEventValid(event) then table.insert(COOLDOWN_EVENTS, event) end
+end
+
+-- the totem timer of the fire element (the timers 1-4 can be reordered, Settings.lua Order)
+local function GetFireTotemTimer()
+    for i = 1, 4 do
+        local timer = XiTimers.timers[i]
+        if timer and timer.nr == FIRE_TOTEM_SLOT then return timer end
+    end
+end
+
+-- Searing and Magma Totem have no cooldown: their buttons show the remaining time of the totem while it is the
+-- active fire totem. The totem data can be secret, so the time is taken from the fire totem timer (its totem,
+-- activeTotem, is also known in combat, see SetupTimers.lua TotemEvent), after it has handled the event; without an
+-- active fire totem timer the buttons show nothing.
+local function FireTotemEvent(self, event, slot)
+    if event ~= "PLAYER_TOTEM_UPDATE" or slot ~= FIRE_TOTEM_SLOT then return end
+    C_Timer.After(0, function()
+        local timer = self.timer
+        if not timer.active then return end
+        local fire = GetFireTotemTimer()
+        local durObj = fire and fire.active and fire.timers[1]
+        local totem = fire and fire.activeTotem
+        if durObj and totem and self.cdspell
+                and TotemTimers.GetBaseSpellID(totem) == TotemTimers.GetBaseSpellID(self.cdspell) then
+            if timer.timers[1] ~= durObj then timer:Start(1, durObj) end
+        elseif timer.timers[1] then
+            timer:Stop(1)
+        end
+    end)
+end
+
+-- spells cast by the right and middle button of the shock buttons
+local SHOCK_ALTERNATIVES = {
+    [SpellIDs.FlameShock] = { SpellIDs.EarthShock, SpellIDs.FrostShock },
+    [SpellIDs.EarthShock] = { SpellIDs.FlameShock, SpellIDs.FrostShock },
+}
+
+-- assigns the spell (from CombatCooldownSpells, nil: none) to a cooldown button
+local function SetCooldownSpell(cd, spell)
+    local button = cd.button
+    -- a timer of the previous spell
+    if cd.timers[1] then
+        cd.stopQuiet = true
+        cd:Stop(1)
+    end
+    if cd.HideOverlayGlow then cd:HideOverlayGlow() end
+    button.cdspell = spell
+    if not spell then return end
+
+    -- Way of Earth changes Earth Shock
+    if spell == SpellIDs.EarthShock and SpellIDs.WayOfEarth and SpellIDs.EarthShockTank
+            and AvailableSpells[SpellIDs.WayOfEarth] then
+        button.cdspell = SpellIDs.EarthShockTank
+    end
+    local isFireTotem = spell == SpellIDs.Searing or spell == SpellIDs.Magma
+
+    button.icons[1]:SetTexture(SpellTextures[spell])
+    local alternatives = SHOCK_ALTERNATIVES[spell]
+    button:SetAttribute("spell1", spell)
+    button:SetAttribute("spell2", alternatives and alternatives[1] or nil)
+    button:SetAttribute("spell3", alternatives and alternatives[2] or nil)
+    button:SetAttribute("orderspell", spell)
+    -- the highest known ranks
+    TotemTimers.UpdateRank(button)
+
+    -- totems have no range
+    cd.rangeCheck = not isFireTotem and SpellNames[spell] or nil
+    cd.manaCheck = SpellNames[spell]
+    cd.prohibitCooldown = false
+    cd.playerEvents = {}
+    if isFireTotem then
+        cd.events = { "PLAYER_TOTEM_UPDATE" }
+        button:SetScript("OnEvent", FireTotemEvent)
+    else
+        cd.events = { unpack(COOLDOWN_EVENTS) }
+        button:SetScript("OnEvent", CooldownEvent)
+    end
+end
+
 function TotemTimers.ConfigEnhanceCDs()
     role = TotemTimers.Specialization --GetSpecialization()
     if not role then role = 0 end
 
-    --[==[
-    for i=1,#cds do
+    for i = 1, #cds do
         cds[i]:Deactivate()
     end
-    ]==]
     FlameShockDuration:Deactivate()
     Maelstrom:Deactivate()
     maelstromEnabled = false
@@ -369,69 +489,10 @@ function TotemTimers.ConfigEnhanceCDs()
         return
     end
 
-    --[==[
-    if LE_EXPANSION_LEVEL_CURRENT > LE_EXPANSION_WRATH_OF_THE_LICH_KING and role == 2 then
-        for id, spell in ipairs(CDSpells[role]) do
-            if spell == SpellIDs.StormStrike or spell == SpellIDs.PrimalStrike then
-                if AvailableSpells[SpellIDs.StormStrike] then
-                    CDSpells[role][id] = SpellIDs.StormStrike
-                else
-                    CDSpells[role][id] = SpellIDs.PrimalStrike
-                end
-                break
-            end
-        end
+    local spells = CDSpells[role] or {}
+    for i = 1, #cds do
+        SetCooldownSpell(cds[i], spells[i])
     end
-
-    for i=1,#CDSpells[role] do
-        local spell = CDSpells[role][i]
-        local cd = cds[i]
-        cd.button.cdspell = spell
-        cd.button.icons[1]:SetTexture(SpellTextures[spell])
-        cd.button:SetAttribute("spell1", spell)
-        if spell == SpellIDs.FlameShock then
-            cd.button:SetAttribute("spell2", SpellIDs.EarthShock)
-            cd.button:SetAttribute("spell3", SpellIDs.FrostShock)
-        elseif spell == SpellIDs.EarthShock then
-            if SpellIDs.WayOfEarth and AvailableSpells[SpellIDs.WayOfEarth] then
-                cd.button.cdspell = SpellIDs.EarthShockTank
-            end
-            cd.button:SetAttribute("spell2", SpellIDs.FlameShock)
-            cd.button:SetAttribute("spell2", SpellIDs.FrostShock)
-        else
-		    cd.button:SetAttribute("spell2", nil)
-		end
-		cd.button:SetAttribute("spell3", nil)
-        cd.rangeCheck = SpellNames[CDSpells[role][i]]
-        cd.manaCheck = SpellNames[CDSpells[role][i]]
-        cd.Update = nil
-        cd.prohibitCooldown = false
-        cd.button:SetAttribute("orderspell", CDSpells[role][i])
-
-        cd.reverseAlpha = true
-        cd.Stop = nil
-
-        cd.events = {"SPELL_UPDATE_COOLDOWN"}
-        cd.playerEvents = {}
-
-        --cd.button.bar:SetStatusBarColor(0.6,0.6,1.0,0.5)
-
-        --[[if spell == SpellIDs.FlameShock or spell == SpellIDs.EarthShock then
-            cd.button:SetScript("OnEvent", TotemTimers.ShockEvent)
-            cd.playerEvents[1] = "UNIT_AURA"
-        else]]
-        if spell == SpellIDs.StormStrike then
-            cd.button:SetScript("OnEvent", TotemTimers.StormStrikeEvent)
-            cd.events[2] = "UNIT_AURA"
-            cd.events[3] = "PLAYER_TARGET_CHANGED"
-        elseif spell == SpellIDs.Searing or spell == SpellIDs.Magma then
-            cd.button:SetScript("OnEvent", TotemTimers.FireTotemEvent)
-            cd.events[2] = "PLAYER_TOTEM_UPDATE"
-        else
-            cd.button:SetScript("OnEvent", TotemTimers.EnhanceCDEvents)
-        end
-    end
-    ]==]
 
     if AvailableSpells[SpellIDs.FlameShock] and TotemTimers.ActiveProfile.EnhanceCDsFlameShockDuration_Specialization[role] then
         FlameShockDuration:Activate()
@@ -447,23 +508,13 @@ function TotemTimers.ConfigEnhanceCDs()
     TotemTimers.UpdateMaelstromIcon()
     UpdateGamePadButtons()
 
-    --[==[
-    for i=1,#CDSpells[role] do
-        if TotemTimers.ActiveProfile.EnhanceCDs_Spells[role][i] and AvailableSpells[cds[i].button.cdspell] then
+    local enabled = TotemTimers.ActiveProfile.EnhanceCDs_Spells[role] or {}
+    for i = 1, #spells do
+        if enabled[i] and AvailableSpells[spells[i]] then
             cds[i]:Activate()
         end
     end
-    ]==]
-
 end
-
---[==[
-local activeCDs = {}
-
-local function ConvertCoords(frame1, frame2)
-    return frame1:GetEffectiveScale()/frame2:GetEffectiveScale()
-end
-]==]
 
 
 -- side of the game's proc graphics frame at the screen center (SpellActivationOverlay.lua: 256 * 0.8)
@@ -482,30 +533,11 @@ local function SizeToWidthHeight(size)
     return width, height
 end
 
---local x = 0
-function TotemTimers.LayoutEnhanceCDs()
-    --wipe(activeCDs)
-    if role == 0 then return end
-
-    --[==[
-    for i=1,#CDSpells[role] do
-        if cds[TotemTimers.ActiveProfile.EnhanceCDs_Order[role][i]].active then
-            table.insert(activeCDs,cds[TotemTimers.ActiveProfile.EnhanceCDs_Order[role][i]])
-        end
-    end
-    for i=1,12 do
-        cds[i]:ClearAnchors()
-        cds[i].button:ClearAllPoints()
-    end
-    ]==]
-    FlameShockDuration.button:ClearAllPoints()
-    --[==[
-    if Maelstrom then Maelstrom.button:ClearAllPoints() end
-
+-- the cooldown buttons in one row centered on the anchor frame, or with more than 5 buttons (and not
+-- EnhanceCDsOneRow) in two rows; returns the top and bottom edge of the rows relative to the anchor frame's center
+local function LayoutCooldownRows(activeCDs)
+    local frame = TotemTimers_EnhanceCDsFrame
     local numActiveCDs = #activeCDs
-
-    if numActiveCDs == 0 then return end
-
     local topRow, bottomRow = numActiveCDs, 0
 
     if numActiveCDs > 5 and not TotemTimers.ActiveProfile.EnhanceCDsOneRow then
@@ -515,40 +547,63 @@ function TotemTimers.LayoutEnhanceCDs()
 
     local split = ceil(topRow / 2)
     if topRow % 2 == 0 then
-        activeCDs[split]:SetPoint("RIGHT", TotemTimers_EnhanceCDsFrame, "CENTER", -3, 0)
+        activeCDs[split]:SetPoint("RIGHT", frame, "CENTER", true)
     else
-        activeCDs[split]:SetPoint("CENTER", TotemTimers_EnhanceCDsFrame)
+        activeCDs[split]:SetPoint("CENTER", frame)
     end
 
-    for i=split-1, 1, -1 do
-        activeCDs[i]:Anchor(activeCDs[i+1], "RIGHT")
+    for i = split - 1, 1, -1 do
+        activeCDs[i]:Anchor(activeCDs[i + 1], "RIGHT")
     end
     for i = split + 1, topRow do
-        activeCDs[i]:Anchor(activeCDs[i-1], "LEFT")
+        activeCDs[i]:Anchor(activeCDs[i - 1], "LEFT")
     end
 
-    local bottomSplit
     if bottomRow > 0 then
-        bottomSplit = topRow + ceil(bottomRow / 2)
+        local bottomSplit = topRow + ceil(bottomRow / 2)
         if bottomRow == topRow then
             activeCDs[bottomSplit]:Anchor(activeCDs[split], "TOP")
+        elseif topRow % 2 == 0 then
+            activeCDs[bottomSplit]:Anchor(activeCDs[split], "TOPLEFT", "BOTTOM", true)
         else
-            if topRow %2 == 0 then
-                activeCDs[bottomSplit]:Anchor(activeCDs[split], "TOPLEFT", "BOTTOM", true)
-            else
-                activeCDs[bottomSplit]:Anchor(activeCDs[split], "TOPRIGHT", "BOTTOM", true)
-            end
+            activeCDs[bottomSplit]:Anchor(activeCDs[split], "TOPRIGHT", "BOTTOM", true)
         end
-        for i=bottomSplit-1, topRow+1, -1 do
-            activeCDs[i]:Anchor(activeCDs[i+1], "RIGHT")
+        for i = bottomSplit - 1, topRow + 1, -1 do
+            activeCDs[i]:Anchor(activeCDs[i + 1], "RIGHT")
         end
         for i = bottomSplit + 1, numActiveCDs do
-            activeCDs[i]:Anchor(activeCDs[i-1], "LEFT")
+            activeCDs[i]:Anchor(activeCDs[i - 1], "LEFT")
         end
     end
 
-    local spacing = TotemTimers.ActiveProfile.CooldownSpacing
-    ]==]
+    -- the buttons are 36 high, scaled by EnhanceCDsSize; their offsets (spacing, timer bars) are in their own scale
+    local cd = activeCDs[1]
+    local scale = cd.button:GetScale()
+    local topBorder, bottomBorder = cd:GetBorder("TOP"), cd:GetBorder("BOTTOM")
+    local top = (18 + topBorder) * scale
+    local bottom = -(18 + bottomBorder) * scale
+    if bottomRow > 0 then
+        bottom = bottom - (cd.spacing + topBorder + 36 + bottomBorder) * scale
+    end
+    return top, bottom
+end
+
+function TotemTimers.LayoutEnhanceCDs()
+    if role == 0 then return end
+
+    local activeCDs = {}
+    if CDSpells[role] then
+        for _, index in ipairs(GetCDOrder(role)) do
+            if cds[index] and cds[index].active then
+                table.insert(activeCDs, cds[index])
+            end
+        end
+    end
+    for i = 1, #cds do
+        cds[i]:ClearAnchors()
+        cds[i].button:ClearAllPoints()
+    end
+    FlameShockDuration.button:ClearAllPoints()
 
     local width, height = SizeToWidthHeight(FlameShockDuration.size)
 
@@ -557,24 +612,6 @@ function TotemTimers.LayoutEnhanceCDs()
     FlameShockDuration.button:SetSize(height, height)
     FlameShockDuration.button.icons[1]:SetAllPoints(FlameShockDuration.button)
 
-    --[==[
-    local fspoint, fsy = "BOTTOMLEFT", 0
-
-    if TotemTimers.ActiveProfile.FlameShockDurationOnTop then
-        fsy = 18 + spacing + activeCDs[1]:GetBorder("TOP")
-    else
-        fspoint = "TOPLEFT"
-        local border = spacing + activeCDs[1]:GetBorder("BOTTOM")
-        fsy = -18 - border
-        if bottomRow > 0 then
-            fsy = fsy - 36 - border
-        end
-    end
-
-    FlameShockDuration.button:SetPoint(fspoint, TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, fsy)
-    ]==]
-    -- without the cooldown buttons the Flame Shock timer and the Maelstrom tracker (each button + bar) are centered
-    -- on the anchor frame, with both active the Maelstrom tracker on top
     local msWidth, msHeight = SizeToWidthHeight(Maelstrom.size)
     Maelstrom.button:ClearAllPoints()
     Maelstrom:SetTimeWidth(msWidth)
@@ -607,64 +644,46 @@ function TotemTimers.LayoutEnhanceCDs()
         MaelstromIcon:SetPoint("BOTTOM", Maelstrom.timerBars[1], "TOP", 0, -iconWidth / 2 * 0.15)
     end
 
-    if iconOnly then
+    local frame = TotemTimers_EnhanceCDsFrame
+    local halfSpacing = TotemTimers.ActiveProfile.CooldownSpacing / 2
+
+    if #activeCDs > 0 then
+        -- the cooldown rows centered on the anchor frame; the Flame Shock timer above them (FlameShockDurationOnTop)
+        -- or below them, the Maelstrom tracker (bar or, with layout "icon", the stack icon) above everything
+        local spacing = TotemTimers.ActiveProfile.CooldownSpacing
+        local top, bottom = LayoutCooldownRows(activeCDs)
+        local y = top + spacing
+        if FlameShockDuration.active and TotemTimers.ActiveProfile.FlameShockDurationOnTop then
+            FlameShockDuration.button:SetPoint("BOTTOMLEFT", frame, "CENTER", -width / 2, y)
+            y = y + height + spacing
+        else
+            FlameShockDuration.button:SetPoint("TOPLEFT", frame, "CENTER", -width / 2, bottom - spacing)
+        end
+        if iconOnly then
+            MaelstromIcon:SetPoint("BOTTOM", frame, "CENTER", 0, y)
+        end
+        -- the inactive button (layout "icon") keeps a position (its bar isn't shown)
+        Maelstrom.button:SetPoint("BOTTOMLEFT", frame, "CENTER", -msWidth / 2, y)
+    elseif iconOnly then
+        -- without cooldown buttons the Flame Shock timer and the Maelstrom tracker (each button + bar) are centered
+        -- on the anchor frame, with both active the Maelstrom tracker on top
         -- the icon alone in the place of the bar: above the Flame Shock timer, otherwise centered on the anchor
         if FlameShockDuration.active then
-            local halfSpacing = TotemTimers.ActiveProfile.CooldownSpacing / 2
-            MaelstromIcon:SetPoint("BOTTOM", TotemTimers_EnhanceCDsFrame, "CENTER", 0, halfSpacing)
-            FlameShockDuration.button:SetPoint("TOPLEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, -halfSpacing)
+            MaelstromIcon:SetPoint("BOTTOM", frame, "CENTER", 0, halfSpacing)
+            FlameShockDuration.button:SetPoint("TOPLEFT", frame, "CENTER", -width / 2, -halfSpacing)
         else
-            MaelstromIcon:SetPoint("CENTER", TotemTimers_EnhanceCDsFrame, "CENTER")
-            FlameShockDuration.button:SetPoint("LEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, 0)
+            MaelstromIcon:SetPoint("CENTER", frame, "CENTER")
+            FlameShockDuration.button:SetPoint("LEFT", frame, "CENTER", -width / 2, 0)
         end
         -- the inactive button keeps a position (its bar isn't shown)
-        Maelstrom.button:SetPoint("LEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -msWidth / 2, 0)
+        Maelstrom.button:SetPoint("LEFT", frame, "CENTER", -msWidth / 2, 0)
     elseif FlameShockDuration.active and Maelstrom.active then
-        local halfSpacing = TotemTimers.ActiveProfile.CooldownSpacing / 2
-        Maelstrom.button:SetPoint("BOTTOMLEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -msWidth / 2, halfSpacing)
-        FlameShockDuration.button:SetPoint("TOPLEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, -halfSpacing)
+        Maelstrom.button:SetPoint("BOTTOMLEFT", frame, "CENTER", -msWidth / 2, halfSpacing)
+        FlameShockDuration.button:SetPoint("TOPLEFT", frame, "CENTER", -width / 2, -halfSpacing)
     else
-        Maelstrom.button:SetPoint("LEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -msWidth / 2, 0)
-        FlameShockDuration.button:SetPoint("LEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -width / 2, 0)
+        Maelstrom.button:SetPoint("LEFT", frame, "CENTER", -msWidth / 2, 0)
+        FlameShockDuration.button:SetPoint("LEFT", frame, "CENTER", -width / 2, 0)
     end
-
-    --[==[
-    local cprocy = 18 + spacing + activeCDs[1]:GetBorder("TOP")
-
-    if FlameShockDuration.active and TotemTimers.ActiveProfile.FlameShockDurationOnTop then
-        cprocy = cprocy + spacing + height
-    end
-
-    CenterProcAnchor:ClearAllPoints()
-    CenterProcAnchor:SetPoint("CENTER", TotemTimers_EnhanceCDsFrame, "CENTER", 0, cprocy + 12)
-
-    LeftProcAnchor:ClearAllPoints()
-    RightProcAnchor:ClearAllPoints()
-    if bottomRow == 0 then
-        LeftProcAnchor:SetPoint("RIGHT", activeCDs[1].button, "LEFT", LeftProcAnchor:GetWidth() / 3 * LeftProcAnchor:GetScale(), 0)
-        RightProcAnchor:SetPoint("LEFT", activeCDs[numActiveCDs].button, "RIGHT", -RightProcAnchor:GetWidth() / 3 * RightProcAnchor:GetScale(), 0)
-    end
-
-    if Maelstrom then
-        local msWidth, msHeight = SizeToWidthHeight(Maelstrom.size)
-        Maelstrom:SetTimeWidth(msWidth)
-        Maelstrom:SetTimeHeight(msHeight)
-        Maelstrom.button:SetSize(msHeight, msHeight)
-        Maelstrom.button.icons[1]:SetAllPoints(Maelstrom.button)
-        MaelstromButton:SetSize(msWidth, msHeight)
-        MaelstromIcon:SetSize(msWidth * 0.75, msWidth * 0.75 / 2)
-
-        local msy = 18 + spacing + activeCDs[1]:GetBorder("TOP")
-
-        if FlameShockDuration.active and TotemTimers.ActiveProfile.FlameShockDurationOnTop then
-            msy = msy + spacing + height
-        end
-
-        Maelstrom.button:SetPoint("BOTTOMLEFT", TotemTimers_EnhanceCDsFrame, "CENTER", -msWidth / 2, msy)
-        MaelstromIcon:SetPoint("CENTER", TotemTimers_EnhanceCDsFrame, "CENTER", 0, msy + 12)
-
-    end
-    ]==]
 end
 
 function TotemTimers.ActivateEnhanceCDs()
@@ -673,322 +692,12 @@ function TotemTimers.ActivateEnhanceCDs()
 end
 
 function TotemTimers.DeactivateEnhanceCDs()
-    --[==[
-    for k,v in pairs(cds) do
-        v:Deactivate()
+    for i = 1, #cds do
+        cds[i]:Deactivate()
     end
-    ]==]
     FlameShockDuration:Deactivate()
     Maelstrom:Deactivate()
     maelstromEnabled = false
     TotemTimers.UpdateMaelstromIcon()
     UpdateGamePadButtons()
 end
-
---[==[
-function TotemTimers.EnhanceCDEvents(self, event, spell)
-    local settings = TotemTimers.ActiveProfile
-
-    if event == "SPELL_UPDATE_COOLDOWN" then
-        local cdspell = self.cdspell
-        cdspell = SpellNames[cdspell]
-        -- the cooldown can be secret: only the never secret isActive and isOnGCD flags are read,
-        -- timer and swirl are driven by DurationObjects
-        local info = C_Spell.GetSpellCooldown(cdspell)
-        if not info or not info.isActive then
-            self.timer:Stop(1)
-        else
-            if info.isOnGCD then
-                self.timer:Stop(1)
-            else
-                self.timer:Start(1, C_Spell.GetSpellCooldownDuration(cdspell, true))
-            end
-            local durObj = C_Spell.GetSpellCooldownDuration(cdspell)
-            if durObj then self.cooldown:SetCooldownFromDurationObject(durObj) end
-        end
-    elseif event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" then
-        if spell == self.glowSpell then
-            self.timer:ShowOverlayGlow()
-        end
-    elseif event == "SPELL_ACTIVATION_OVERLAY_GLOW_HIDE" then
-        if spell == self.glowSpell then
-            self.timer:HideOverlayGlow()
-        end
-    end
-end
-
-
-function TotemTimers.FireTotemEvent(self,event,...)
-    local element = ...
-    if event == "PLAYER_TOTEM_UPDATE" then
-        if element == 1 then
-            local _, totem, startTime, duration, icon = GetTotemInfo(1)
-            if icon == self.icon:GetTexture() and duration > 0 then
-				self.icon:SetTexture(icon)
-                self.timer:Start(1, duration)
-            elseif self.timer.timers[1] > 0 then
-                self.timer:Stop(1)
-            end
-        end
-    else
-        -- TotemTimers.EnhanceCDEvents(self,event,...)
-    end
-end
-
-
-function TotemTimers.ShieldChargeEvent(self, event, ...)
-	if event == "UNIT_AURA" and select(1,...) =="player" then
-		local name,_,texture,count,_,duration,endtime = UnitAura("player", ShieldName)
-		if name then
-			if role == 1 then
-				self.timer:Start(1, count, 15)
-			else
-				self.timer:Start(1, endtime-GetTime(), duration)
-			end
-		elseif self.timer.timers[1]>0 then
-			self.timer:Stop(1)
-		end
-	elseif event ~= "SPELL_UPDATE_COOLDOWN" then
-        TotemTimers.EnhanceCDEvents(self,event,...)
-    end
-end
-]==]
-
-
---[==[
-local StormStrike = SpellNames[SpellIDs.StormStrike]
-
-function TotemTimers.StormStrikeEvent(self, event, unit, ...)
-    if (event == "UNIT_AURA" and unit == "target") or event == "PLAYER_TARGET_CHANGED" then
-        if UnitExists("target") then
-            for i = 1,40 do
-                local name,_,_,_,duration,endtime = UnitDebuff("target", i)
-                if name then
-                    if name == StormStrike then
-                        local timeleft = endtime - GetTime()
-                        self.timer:StartBarTimer(timeleft, duration)
-                        return
-                     end
-                else
-                    break
-                end
-            end
-        end
-        if self.timer.barTimer>0 then
-            self.timer:StopBarTimer()
-        end
-    else
-        TotemTimers.EnhanceCDEvents(self, event, unit, ...)
-    end
-end
-
-
-local Focused = 43339
-local ElementalFocus = 16164
-local ClearCasting = 16246
-local ShockBuffActive = {}
-function TotemTimers.ShockEvent(self, event, unit, ...)
-    if event == "UNIT_AURA" and unit == "player" then
-        for i = 1,40 do
-            local name,_,_,_,duration,endtime,_,_,_,spellID = UnitBuff("player", i)
-            if spellID then
-                if (spellID == Focused or spellID == ElementalFocus or spellID == ClearCasting) then
-                    if not ShockBuffActive[self.timer.nr] then
-                        ShockBuffActive[self.timer.nr] = true
-                        self.timer:ShowOverlayGlow()
-                    end
-                    return
-                 end
-            else
-                break
-            end
-        end
-        if ShockBuffActive[self.timer.nr] then
-            ShockBuffActive[self.timer.nr] = false
-            self.timer:HideOverlayGlow()
-        end
-    else
-        TotemTimers.EnhanceCDEvents(self, event, unit, ...)
-    end
-end
-
-
-local actionToButton = {}
-if _G["ActionButton_Update"] then
-    hooksecurefunc("ActionButton_Update", function(self)
-        if self.action then actionToButton[self.action] = self end
-    end)
-end
-
---[[local multiBarButtonNames = {
-    [3] = "MultiBarRightButton",
-    [4] = "MultiBarLeftButton",
-    [5] = "MultiBarBottomRightButton",
-    [6] = "MultiBarBottomLeftButton",
-}]]
-
-local function slotToButton(slot)
-    if _G["BT4Button"..slot] then
-        return _G["BT4Button"..slot]
-    end
-    if ElvUI then
-        return _G["ElvUI_Bar"..ceil(slot/12).."Button"..((slot - 1) % 12 + 1)]
-    end
-    return actionToButton[slot]
-    --[[if slot < 25 then
-        if floor(slot/12) == GetActionBarPage() - 1 then
-            return _G["ActionButton"..(slot % 12)]
-        end
-    elseif slot < 73 then
-        return _G[multiBarButtonNames[ceil(slot/12)]..(slot % 12)]
-    end]]
-end
-
-
-local function FindActionButtons(spellList)
-    local buttons = {}
-    for i = 1,#spellList do
-        local spell = spellList[i]
-        if AvailableSpells[spell] then
-            local spellName = SpellNames[spell]
-            local spellID = C_Spell.GetSpellIDForSpellIdentifier(spell)
-
-            local slots = C_ActionBar.FindSpellActionButtons(spellID);
-            if slots then
-                for slot = 1,#slots do
-                    local button = slotToButton(slots[slot])
-                    if button then
-                        table.insert(buttons, button)
-                    end
-                end
-            end
-            for cd = 1,#cds do
-                if cds[cd].button.cdspell == spell then
-                    table.insert(buttons, cds[cd].button)
-                end
-            end
-        end
-    end
-    return buttons
-end
-TotemTimers.FindActionButtons = FindActionButtons
-
-local ShowOverlayGlow
-local HideOverlayGlow
-
-if ActionButton_ShowOverlayGlow then
-    ShowOverlayGlow = ActionButton_ShowOverlayGlow
-    HideOverlayGlow = ActionButton_HideOverlayGlow
-elseif ActionButtonSpellAlertManager then
-    ShowOverlayGlow = function(button)
-        ActionButtonSpellAlertManager:ShowAlert(button)
-    end
-    HideOverlayGlow = function(button)
-        ActionButtonSpellAlertManager:HideAlert(button)
-    end
-end
-
-
-local function ShowButtonsOverlayGlow(buttonList)
-    for b = 1, #buttonList do
-        ShowOverlayGlow(buttonList[b])
-    end
-end
-TotemTimers.ShowButtonsOverlayGlow = ShowButtonsOverlayGlow
-
-local function HideButtonsOverlayGlow(buttonList)
-    for b = 1, #buttonList do
-        HideOverlayGlow(buttonList[b])
-    end
-end
-TotemTimers.HideButtonsOverlayGlow = HideButtonsOverlayGlow
-
-local maelstromSpells = TotemTimers.MaelstromSpells
-local maelstromSpellsButtons = nil
-
-local MaelstromName = C_Spell.GetSpellName(SpellIDs.Maelstrom)
-local lastMaelstromCount = 0
-
-function TotemTimers.MaelstromEvent(self)
-    local _,_,count = AuraUtil.FindAuraByName(MaelstromName, "player", "HELPFUL")
-    local numberOnly = Maelstrom.NumberOnly
-
-    if (not count or count < 5) and maelstromSpellsButtons and #maelstromSpellsButtons > 0 then
-        HideButtonsOverlayGlow(maelstromSpellsButtons)
-        maelstromSpellsButtons = nil
-        HideOverlayGlow(TotemTimers.MaelstromButton)
-    end
-
-    if not count then
-        Maelstrom:Stop(1)
-        Maelstrom.timerBars[1].time:SetText("")
-        Maelstrom.timerBars[1].time.AnimGroup:Stop()
-
-        if not numberOnly then
-            MaelstromIcon:Hide()
-            MaelstromIcon.icon:SetTexture(nil)
-            MaelstromIcon.icon.AnimGroup:Stop()
-        end
-    else
-        Maelstrom.timerBars[1].time:SetText(count)
-        Maelstrom:Start(1, count, 5)
-        --Maelstrom:SetBarColor(.6 + count * .04, .6 + count * .04, .8 + count * .04)
-        Maelstrom:SetBarColor(0, RAID_CLASS_COLORS.SHAMAN.g * 0.8 + count * .04, RAID_CLASS_COLORS.SHAMAN.b * 0.8 + count * .04)
-
-        local animate
-        if numberOnly then
-            MaelstromIcon:Hide()
-            MaelstromIcon.icon.AnimGroup:Stop()
-            animate = Maelstrom.timerBars[1].time
-        else
-            MaelstromIcon:Show()
-            MaelstromIcon.icon:SetTexture("Interface/AddOns/TotemTimers/textures/mw"..count) -- ..(count < 5 and "_"..count or ""))
-            animate = MaelstromIcon.icon
-            HideOverlayGlow(TotemTimers.MaelstromButton)
-        end
-
-
-        if count ~= 5 and count ~= 10 then
-            animate.AnimGroup:Stop()
-        else
-            animate.AnimGroup:Play()
-
-            if lastMaelstromCount < count then
-                XiTimers.PlayWarning(self, "Maelstrom")
-                if Maelstrom.StopPulseOn5 then
-                    Maelstrom.animation.icon:SetTexture("Interface/AddOns/TotemTimers/textures/mw"..count)
-                    Maelstrom.animation:Play()
-                end
-                if TotemTimers.ActiveProfile.OverlayGlow then
-                    maelstromSpellsButtons = FindActionButtons(maelstromSpells)
-                    ShowButtonsOverlayGlow(maelstromSpellsButtons)
-                end
-            end
-
-            if numberOnly then
-                ShowOverlayGlow(TotemTimers.MaelstromButton)
-            end
-        end
-
-        lastMaelstromCount = count
-    end
-end
-
-
-
-function gmb()
-    maelstromSpellsButtons = FindActionButtons(TotemTimers.MaelstromSpells)
-end
-
-function smb()
-    for b = 1, #maelstromSpellsButtons do
-        ShowOverlayGlow(maelstromSpellsButtons[b])
-    end
-end
-
-function hmb()
-    for b = 1, #maelstromSpellsButtons do
-        HideOverlayGlow(maelstromSpellsButtons[b])
-    end
-end
-]==]

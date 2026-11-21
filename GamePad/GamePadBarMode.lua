@@ -162,6 +162,10 @@ local function GetHideableButtons()
     if TotemTimers.FlameShockDuration then
         table.insert(list, { button = TotemTimers.FlameShockDuration.button })
     end
+    -- the combat cooldown buttons (CombatCDs.lua), their spells are on the Gamepad UI buttons
+    for _, cd in ipairs(TotemTimers.EnhanceCDs or {}) do
+        table.insert(list, { button = cd.button })
+    end
     return list
 end
 

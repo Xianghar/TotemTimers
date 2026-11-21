@@ -92,7 +92,7 @@ TotemTimers.options.args.enhancecds = {
                         TotemTimers.ActiveProfile.CDTimersOnButtons = val
                         TotemTimers.ProcessSetting("CDTimersOnButtons")
                         TotemTimers.LayoutEnhanceCDs()
-                        TotemTimers.LayoutLongCooldowns()
+                        if TotemTimers.LayoutLongCooldowns then TotemTimers.LayoutLongCooldowns() end
                     end,
                     get = function(info)
                         return TotemTimers.ActiveProfile.CDTimersOnButtons
@@ -158,7 +158,7 @@ TotemTimers.options.args.enhancecds = {
                         TotemTimers.ActiveProfile.EnhanceCDsSize = val
                         TotemTimers.ProcessSetting("EnhanceCDsSize")
                         TotemTimers.LayoutEnhanceCDs()
-                        TotemTimers.LayoutLongCooldowns()
+                        if TotemTimers.LayoutLongCooldowns then TotemTimers.LayoutLongCooldowns() end
                     end,
                     get = function(info)
                         return TotemTimers.ActiveProfile.EnhanceCDsSize
@@ -176,7 +176,7 @@ TotemTimers.options.args.enhancecds = {
                         TotemTimers.ActiveProfile.CooldownSpacing = val
                         TotemTimers.ProcessSetting("CooldownSpacing")
                         TotemTimers.LayoutEnhanceCDs()
-                        TotemTimers.LayoutLongCooldowns()
+                        if TotemTimers.LayoutLongCooldowns then TotemTimers.LayoutLongCooldowns() end
                     end,
                     get = function(info)
                         return TotemTimers.ActiveProfile.CooldownSpacing
@@ -207,14 +207,16 @@ TotemTimers.options.args.enhancecds = {
                     name = L["Demo"],
                     func = function()
                         local timer = nil
-                        for _, t in pairs(TotemTimers.EnhanceCDs) do
+                        for _, t in pairs(TotemTimers.EnhanceCDs or {}) do
                             if t.active then
                                 timer = t
                                 break
                             end
                         end
-                        timer.animation:SetTexture(timer.button.icons[1]:GetTexture())
-                        timer.animation:Play()
+                        if timer then
+                            timer.animation:SetTexture(timer.button.icons[1]:GetTexture())
+                            timer.animation:Play()
+                        end
                     end
                 },
 
@@ -257,19 +259,6 @@ TotemTimers.options.args.enhancecds = {
                         return TotemTimers.ActiveProfile.FlameShockDurationSize
                     end,
                 },
-                FlameShockStopPulse = {
-                    order = 33,
-                    type = "toggle",
-                    name = L["Stop Pulse Animation"],
-                    desc = L["Stop Pulse Desc"],
-                    set = function(info, val)
-                        TotemTimers.ActiveProfile.FlameShockDurationStopPulse = val
-                        TotemTimers.ProcessSetting("FlameShockDurationStopPulse")
-                    end,
-                    get = function(info)
-                        return TotemTimers.ActiveProfile.FlameShockDurationStopPulse
-                    end,
-                },
 
                 lc = {
                     order = 70,
@@ -295,7 +284,7 @@ TotemTimers.options.args.enhancecds = {
                     values = { vertical = L["vertical"], horizontal = L["horizontal"], },
                     set = function(info, val)
                         TotemTimers.ActiveProfile.LongCooldownsArrange = val
-                        TotemTimers.LayoutLongCooldowns()
+                        if TotemTimers.LayoutLongCooldowns then TotemTimers.LayoutLongCooldowns() end
                     end,
                     get = function(info)
                         return TotemTimers.ActiveProfile.LongCooldownsArrange
@@ -423,20 +412,6 @@ if (TotemTimers.LongCooldownSpells) then
         }
     end
 end
-
-
-TotemTimers.options.args.enhancecds.args.options.args.OverlayGlow = {
-    order = 9,
-    type = "toggle",
-    name = L["Overlay Glow"],
-    desc = L["Show an overlay glow for affected spells on your action bars for some procs like Maelstrom Weapon, supports default action bars and Bartender"],
-    set = function(info, val)
-        TotemTimers.ActiveProfile.OverlayGlow = val
-    end,
-    get = function(info)
-        return TotemTimers.ActiveProfile.OverlayGlow
-    end,
-}
 
 
 local MaelstromName = SpellOptionName(SpellIDs.Maelstrom)

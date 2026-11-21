@@ -4,10 +4,10 @@ local _, TotemTimers = ...
 
 local SpellIDs = TotemTimers.SpellIDs
 local SpellNames = TotemTimers.SpellNames
-local Version = 11.8
+local Version = 11.9
 
 TotemTimers.DefaultGlobalSettings = {
-	Version = 11.8,
+	Version = 11.9,
     Profiles = {},
     Sink = {
         sink20OutputSink="Default",
@@ -315,7 +315,6 @@ TotemTimers.DefaultProfile = {
         EnhanceCDsFlameShockDuration = true,
         EnhanceCDsFlameShockDuration_Specialization = {true, true, true},
         FlameShockDurationSize = 2,
-        FlameShockDurationStopPulse = false,
         EnhanceCDsMaelstrom = true,
         MaelstromSize = 2,
         -- "both" (bar + stack icon), "bar" (bar only), "icon" (stack icon only, in the place of the bar)
@@ -323,7 +322,6 @@ TotemTimers.DefaultProfile = {
         MaelstromIconSize = 1,
         -- the stack icon above the character (where the game shows proc graphics) instead of above the bar
         MaelstromIconAtCharacter = true,
-        OverlayGlow = true,
         EnhanceCDsOneRow = false,
 
 
@@ -489,6 +487,15 @@ local SettingsConverters = {
             if profile.Warnings then profile.Warnings.PowerSurge = nil end
             -- the Maelstrom option "stop pulse animation" was removed (mw5 always pulses)
             profile.MaelstromStopPulse = nil
+        end
+        TotemTimers_GlobalSettings.Version = 11.9
+    end,
+    -- the combat cooldown options "Overlay Glow" (glow of the action bar buttons) and the Flame Shock timer's "Stop
+    -- Pulse Animation" were removed, neither had an effect anymore
+    [11.8] = function()
+        for k,profile in pairs(TotemTimers_Profiles) do
+            profile.OverlayGlow = nil
+            profile.FlameShockDurationStopPulse = nil
         end
         TotemTimers_GlobalSettings.Version = Version
     end,
@@ -687,9 +694,8 @@ end
     "EnhanceCDsMaelstromHeight", "ShowOmniCCOnEnhanceCDs", "EnhanceCDsStopPulse",
     "EnhanceCDsOOCAlpha", "CDTimersOnButtons", "EnhanceCDsClickthrough",
     "FlameShockDurationOnTop", "EnhanceCDsFlameShockDuration", "EnhanceCDsFlameShockDuration_Specialization",
-    "FlameShockDurationSize", "FlameShockDurationStopPulse",
+    "FlameShockDurationSize",
     "EnhanceCDsMaelstrom", "MaelstromSize", "MaelstromLayout", "MaelstromIconSize", "MaelstromIconAtCharacter",
-    "OverlayGlow",
     "LongCooldownSpells", "LongCooldownsStopPulse",
 }
 
