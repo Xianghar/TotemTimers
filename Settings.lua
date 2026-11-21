@@ -905,10 +905,15 @@ end
         end
     end
 
-    -- the cooldown buttons pulse when the cooldown is over
+    -- the Stormstrike button pulses when its cooldown is over
     SettingsFunctions.EnhanceCDsStopPulse = function(value, Timers)
+        if TotemTimers.UpdateCDStopPulse then TotemTimers.UpdateCDStopPulse() end
+    end
+
+    -- the cooldown buttons with a reset glow pulse when the glow starts (CombatCDs.lua OnEarlyStop)
+    SettingsFunctions.EnhanceCDsResetPulse = function(value, Timers)
         for _, timer in pairs(TotemTimers.EnhanceCDs or {}) do
-            timer.StopPulse = value
+            timer.ResetPulse = value
         end
     end
 

@@ -636,8 +636,7 @@ function XiTimers:Stop(timer)
         end
         -- the warning point can't be detected for DurationObjects, so StopPulseAtWarning timers pulse on stop, too
         if self.StopPulse and timer == 1 then
-            self.animation:SetTexture(self.button.icons[1]:GetTexture())
-            self.animation:Play()
+            self:PlayStopPulse()
         end
     end
     self.stopQuiet = false
@@ -659,6 +658,14 @@ function XiTimers:Stop(timer)
         self.button:Hide()
     end
     -- self:SetOutOfRange(false)
+end
+
+-- the stop pulse with the button's icon, starting on the button or on the frame XiTimers.GetPulseAnchor(timer)
+-- returns (set by the addon, e.g. a Gamepad UI button while the timer button is hidden)
+function XiTimers:PlayStopPulse()
+    self.animation:SetTexture(self.button.icons[1]:GetTexture())
+    local anchor = XiTimers.GetPulseAnchor and XiTimers.GetPulseAnchor(self)
+    self.animation:Play(anchor)
 end
 
 -- global cooldown swipe on inactive timers (timer 1 not running), like on action buttons: the GCD of the spell the

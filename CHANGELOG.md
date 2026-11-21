@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.23
+- Stop pulse for Stormstrike
+
 ## 20.22
 - Combat cooldown buttons are back
 

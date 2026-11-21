@@ -430,12 +430,16 @@ local function SetResetGlow(button, duration)
 end
 
 -- the cooldown timer was stopped before its duration ran out (XiTimers:Stop, like the early expiration warnings):
--- the cooldown was reset, glow for the spells in RESET_GLOW
+-- the cooldown was reset, glow for the spells in RESET_GLOW, with option EnhanceCDsResetPulse also the stop pulse
+-- (unless the stop pulse option already played it on the stop)
 local function OnEarlyStop(timer)
     local button = timer.button
     local glow = button.cdspell and RESET_GLOW[button.cdspell]
     if glow and timer.active then
         SetResetGlow(button, glow)
+        if timer.ResetPulse and not timer.StopPulse then
+            timer:PlayStopPulse()
+        end
     end
 end
 
@@ -506,6 +510,18 @@ local SHOCK_ALTERNATIVES = {
     [SpellIDs.EarthShock] = { SpellIDs.FlameShock, SpellIDs.FrostShock },
 }
 
+-- option EnhanceCDsStopPulse: only the Stormstrike button pulses when its cooldown is over
+local function UpdateStopPulse(cd)
+    local profile = TotemTimers.ActiveProfile
+    cd.StopPulse = profile and profile.EnhanceCDsStopPulse and cd.button.cdspell == SpellIDs.StormStrike or false
+end
+
+function TotemTimers.UpdateCDStopPulse()
+    for _, cd in ipairs(cds) do
+        UpdateStopPulse(cd)
+    end
+end
+
 -- assigns the spell (from CombatCooldownSpells, nil: none) to a cooldown button
 local function SetCooldownSpell(cd, spell)
     local button = cd.button
@@ -522,6 +538,7 @@ local function SetCooldownSpell(cd, spell)
     end
     if cd.HideOverlayGlow then cd:HideOverlayGlow() end
     button.cdspell = spell
+    UpdateStopPulse(cd)
     if not spell then return end
 
     -- Way of Earth changes Earth Shock

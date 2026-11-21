@@ -501,8 +501,7 @@ TotemTimers.options.args.timers = {
             type = "execute",
             name = L["Demo"],
             func = function()
-                XiTimers.timers[1].animation:SetTexture(XiTimers.timers[1].button.icons[1]:GetTexture())
-                XiTimers.timers[1].animation:Play()
+                XiTimers.timers[1]:PlayStopPulse()
             end
         },
         macro = {

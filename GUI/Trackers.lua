@@ -146,8 +146,7 @@ TotemTimers.options.args.trackers = {
             type = "execute",
             name = L["Demo"],
             func = function()
-                XiTimers.timers[6].animation:SetTexture(XiTimers.timers[6].button.icons[1]:GetTexture())
-                XiTimers.timers[6].animation:Play()
+                XiTimers.timers[6]:PlayStopPulse()
             end
         },
         individual = {
@@ -314,8 +313,7 @@ TotemTimers.options.args.trackers = {
                             type = "execute",
                             name = L["Demo"],
                             func = function()
-                                TotemTimers.WeaponTracker.animation:SetTexture(TotemTimers.WeaponTracker.button.icons[1]:GetTexture())
-                                TotemTimers.WeaponTracker.animation:Play()
+                                TotemTimers.WeaponTracker:PlayStopPulse()
                             end
                         },
 

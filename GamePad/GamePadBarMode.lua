@@ -166,6 +166,23 @@ local function GetHideableButtons()
     return list
 end
 
+-- The stop pulse (XiTimers:PlayStopPulse) of a timer hidden by the option starts on the Gamepad UI button showing it
+-- instead: the bar slot overlay of the timer (totem timers, weapon tracker; Totemic Call: its d-pad slot), otherwise
+-- a visible Gamepad UI button with the spell of the timer's button (trackers, combat cooldowns).
+function XiTimers.GetPulseAnchor(timer)
+    local button = timer.button
+    if not hiddenTimerButtons[button] then return end
+    local isCall = timer == TotemTimers.TotemicCallTimer
+    for _, slot in pairs(GamePad.barIcons) do
+        if slot:IsVisible() and (slot.timer == timer or (isCall and slot.cooldownSpell == SpellIDs.TotemicCall)) then
+            return slot
+        end
+    end
+    local spell = button:GetAttribute("*spell1") or button:GetAttribute("spell1")
+    local name = spell and C_Spell.GetSpellName(spell)
+    return GamePad.FindActionButton and GamePad.FindActionButton(name)
+end
+
 -- out of combat only (mouse of secure buttons)
 local function SetTimersHidden(hide)
     hide = hide and true or false

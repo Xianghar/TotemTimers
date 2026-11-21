@@ -192,7 +192,7 @@ TotemTimers.options.args.enhancecds = {
                     order = 21,
                     type = "toggle",
                     name = L["Stop Pulse Animation"],
-                    desc = L["Stop Pulse Desc"],
+                    desc = L["CD Stop Pulse Desc"],
                     set = function(info, val)
                         TotemTimers.ActiveProfile.EnhanceCDsStopPulse = val
                         TotemTimers.ProcessSetting("EnhanceCDsStopPulse")
@@ -207,17 +207,30 @@ TotemTimers.options.args.enhancecds = {
                     name = L["Demo"],
                     func = function()
                         local timer = nil
+                        -- the Stormstrike button, the only one pulsing
                         for _, t in pairs(TotemTimers.EnhanceCDs or {}) do
-                            if t.active then
+                            if t.active and t.button.cdspell == TotemTimers.SpellIDs.StormStrike then
                                 timer = t
                                 break
                             end
                         end
                         if timer then
-                            timer.animation:SetTexture(timer.button.icons[1]:GetTexture())
-                            timer.animation:Play()
+                            timer:PlayStopPulse()
                         end
                     end
+                },
+                resetpulse = {
+                    order = 23,
+                    type = "toggle",
+                    name = L["Pulse On Reset"],
+                    desc = L["Pulse On Reset Desc"],
+                    set = function(info, val)
+                        TotemTimers.ActiveProfile.EnhanceCDsResetPulse = val
+                        TotemTimers.ProcessSetting("EnhanceCDsResetPulse")
+                    end,
+                    get = function(info)
+                        return TotemTimers.ActiveProfile.EnhanceCDsResetPulse
+                    end,
                 },
 
                 flameshockheader = {
@@ -334,8 +347,7 @@ TotemTimers.options.args.enhancecds = {
                             end
                         end
                         if timer then
-                            timer.animation:SetTexture(timer.button.icons[1]:GetTexture())
-                            timer.animation:Play()
+                            timer:PlayStopPulse()
                         end
                     end
                 },

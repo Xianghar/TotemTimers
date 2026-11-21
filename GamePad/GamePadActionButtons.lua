@@ -412,6 +412,25 @@ local function UpdateActionButton(button)
     UpdateMaelstromButton(button, name)
 end
 
+-- a visible Gamepad UI button (not covered by a bar slot overlay) whose action is the spell (name), for the stop
+-- pulse of hidden timers (GamePadBarMode.lua)
+function GamePad.FindActionButton(name)
+    local pageUnit = GamepadMainActionBarFrame and GamepadMainActionBarFrame.PageUnit
+    if not (name and pageUnit and pageUnit.actionBars) then return end
+    for _, bar in pairs(pageUnit.actionBars) do
+        for _, button in ipairs(bar.actionButtons or {}) do
+            if button:IsVisible() and button:GetEffectiveAlpha() > 0
+                    and not (barIcons[button] and barIcons[button]:IsShown()) then
+                local spell = GetActionSpell(button.action)
+                local spellName = spell and C_Spell.GetSpellName(spell)
+                if spellName and not IsSecret(spellName) and spellName == name then
+                    return button
+                end
+            end
+        end
+    end
+end
+
 function GamePad.UpdateActionButtons()
     local pageUnit = GamepadMainActionBarFrame and GamepadMainActionBarFrame.PageUnit
     if not (pageUnit and pageUnit.actionBars) then return end

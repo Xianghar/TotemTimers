@@ -37,6 +37,7 @@ TotemTimers.DefaultProfile = {
         StopPulse = false,
         TrackerStopPulse = false,
         EnhanceCDsStopPulse = false,
+        EnhanceCDsResetPulse = false,
         TimersOnButtons = false,
         LavaSurgeAura = true,
         LavaSurgeGlow = true,
@@ -693,7 +694,7 @@ end
 -- copy button in GUI/Profiles.lua
 --[[ local CDList = {
     "EnhanceCDs_Spells", "EnhanceCDs_Order", "EnhanceCDs", "EnhanceCDsSize", "EnhanceCDsOneRow",
-    "EnhanceCDsMaelstromHeight", "ShowOmniCCOnEnhanceCDs", "EnhanceCDsStopPulse",
+    "EnhanceCDsMaelstromHeight", "ShowOmniCCOnEnhanceCDs", "EnhanceCDsStopPulse", "EnhanceCDsResetPulse",
     "EnhanceCDsOOCAlpha", "CDTimersOnButtons", "EnhanceCDsClickthrough",
     "FlameShockDurationOnTop", "EnhanceCDsFlameShockDuration", "EnhanceCDsFlameShockDuration_Specialization",
     "FlameShockDurationSize", "FlameShockDurationGamePadOnly",

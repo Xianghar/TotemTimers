@@ -38,10 +38,13 @@ function XiTimersAnimations:new(AnchoredButton)
 	return self
 end
 
-function XiTimersAnimations:Play()
+-- anchor: frame the pulse starts on instead of the timer's button (e.g. a Gamepad UI button while the timer button
+-- is hidden, see XiTimers:PlayStopPulse)
+function XiTimersAnimations:Play(anchor)
+    anchor = anchor or self.AnchoredButton
     self.button:ClearAllPoints()
-    if self.AnchoredButton:IsVisible() then
-        self.button:SetPoint("CENTER", self.AnchoredButton)
+    if anchor:IsVisible() then
+        self.button:SetPoint("CENTER", anchor)
     else
         self.button:SetPoint("CENTER", UIParent)
     end
