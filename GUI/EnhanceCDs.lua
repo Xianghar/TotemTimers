@@ -186,7 +186,7 @@ TotemTimers.options.args.enhancecds = {
                 stoppulseheader = {
                     order = 20,
                     type = "header",
-                    name = "Stop Pulse",
+                    name = "Stormstrike Stop Pulse",
                 },
                 stoppulse = {
                     order = 21,
@@ -218,19 +218,6 @@ TotemTimers.options.args.enhancecds = {
                             timer:PlayStopPulse()
                         end
                     end
-                },
-                resetpulse = {
-                    order = 23,
-                    type = "toggle",
-                    name = L["Pulse On Reset"],
-                    desc = L["Pulse On Reset Desc"],
-                    set = function(info, val)
-                        TotemTimers.ActiveProfile.EnhanceCDsResetPulse = val
-                        TotemTimers.ProcessSetting("EnhanceCDsResetPulse")
-                    end,
-                    get = function(info)
-                        return TotemTimers.ActiveProfile.EnhanceCDsResetPulse
-                    end,
                 },
 
                 flameshockheader = {

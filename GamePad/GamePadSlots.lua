@@ -210,6 +210,24 @@ local function GetBarIcon(button, index)
     return slot
 end
 
+-- The game's button below a shown overlay is made invisible (alpha 0), so nothing of it sticks out (its range
+-- indicator, focus glows, cast animation); the overlay, its child, ignores the button's alpha. Only widget methods
+-- are called on the game's button, no fields are written (no taint), and SetAlpha works in combat. The game's
+-- gamepad bar code doesn't set the alpha of these buttons itself.
+local function SetButtonHidden(slot, hidden)
+    if (slot.buttonHidden or false) == hidden then return end
+    slot.buttonHidden = hidden
+    local button = slot.button
+    if hidden then
+        slot.buttonAlpha = button:GetAlpha()
+        slot:SetIgnoreParentAlpha(true)
+        button:SetAlpha(0)
+    else
+        button:SetAlpha(slot.buttonAlpha or 1)
+        slot:SetIgnoreParentAlpha(false)
+    end
+end
+
 -- shape of the slot (round or square), the gamepad buttons switch between their masks
 local function UpdateSlotShape(slot, button)
     local round = not (button.SquareMask and button.SquareMask:IsShown())
@@ -372,6 +390,7 @@ local function ShowSlot(bar, index, texture, timer, cooldownSpell, notTotem, spe
     end
     UpdateSlotDuration(slot)
     slot:Show()
+    SetButtonHidden(slot, true)
     GamePad.UpdateSlotManaColor(slot)
 end
 
@@ -392,6 +411,7 @@ function GamePad.UpdateBarIcons()
         slot.timer = nil
         slot.cooldownSpell = nil
         slot:Hide()
+        SetButtonHidden(slot, false)
     end
     wipe(activeIconSlots)
     local bar = GamePad.nav and GamePad.nav:GetAttribute("enabled") and GetLayerKeyBar()
