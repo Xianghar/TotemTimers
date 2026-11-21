@@ -57,6 +57,18 @@ function TotemTimers.IsZoning()
     return loadingScreen or GetTime() - loadingScreenEnd < ZONING_GRACE
 end
 
+-- the setup waits for the first PLAYER_ENTERING_WORLD and the first SPELLS_CHANGED (in either order): before the
+-- spell book is built, known spells can read unknown (IsPlayerSpell) and the setup would fall back to other spells;
+-- if SPELLS_CHANGED doesn't come, the setup runs SPELLS_FALLBACK_DELAY seconds after PLAYER_ENTERING_WORLD
+local SPELLS_FALLBACK_DELAY = 5
+local enteredWorld = false
+local spellsLoaded = false
+
+local function TrySetup()
+    if TotemTimers_IsSetUp or not (enteredWorld and spellsLoaded) then return end
+    TotemTimers.SetupGlobals()
+end
+
 local function TotemTimers_OnEvent(self, event, ...)
     if event == "PLAYER_ENTERING_WORLD" then
         TotemTimersFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
@@ -66,7 +78,17 @@ local function TotemTimers_OnEvent(self, event, ...)
             macrosLoaded = true
             TotemTimers.DeleteDuplicateMacros()
         end
-        TotemTimers.SetupGlobals()
+        enteredWorld = true
+        if not spellsLoaded then
+            C_Timer.After(SPELLS_FALLBACK_DELAY, function()
+                spellsLoaded = true
+                TrySetup()
+            end)
+        end
+        TrySetup()
+    elseif event == "SPELLS_CHANGED" and not TotemTimers_IsSetUp then
+        spellsLoaded = true
+        TrySetup()
     elseif event == "UPDATE_MACROS" then
         -- stays registered: the character macros can arrive in a later UPDATE_MACROS than
         -- the account macros; the duplicate check is cheap and finds nothing on later calls
@@ -124,6 +146,8 @@ end
 
 TotemTimersFrame:SetScript("OnEvent", TotemTimers_OnEvent)
 TotemTimersFrame:RegisterEvent("UPDATE_MACROS")
+-- before the setup only for its start (TrySetup), after it for the spell updates
+TotemTimersFrame:RegisterEvent("SPELLS_CHANGED")
 
 function TotemTimers.SetupGlobals()
 	if TotemTimers_IsSetUp then

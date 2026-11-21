@@ -230,7 +230,9 @@ SettingsFunctions = {
             -- update rank and set macro from attribute because of ft-1/ft-button
             TotemTimers.UpdateRank(button)
         elseif value then
+            local fallback = false
             if not C_Spell.GetSpellName(value) or not AvailableSpells[TotemTimers.GetBaseSpellID(value)] then
+                fallback = true
                 if AvailableSpells[SpellIDs.RockbiterWeapon] then
                     value = SpellIDs.RockbiterWeapon
                 elseif AvailableSpells[SpellIDs.FlametongueWeapon] then
@@ -239,8 +241,12 @@ SettingsFunctions = {
                     value = SpellIDs.RockbiterWeapon
                 end
             end
+            local saved = TotemTimers.ActiveProfile.LastWeaponEnchant
             button:SetAttribute("type1", "spell")
             button:SetAttribute("spell1", value)
+            -- the attribute change saves the fallback (SaveLastEnchant); a saved enchant that isn't known (yet: on
+            -- login the spells can read unknown) stays saved and is set again by the next spell update
+            if fallback then TotemTimers.ActiveProfile.LastWeaponEnchant = saved end
         end
     end,
 
@@ -252,10 +258,13 @@ SettingsFunctions = {
         if TotemTimers.ActiveProfile.WeaponMenuOnRightclick then
             type = "spell3"
         end
+        local saved = value
         if not C_Spell.GetSpellName(value) then
             value = SpellIDs.RockbiterWeapon
         end
         Timers[8].button:SetAttribute(type, value)
+        -- keep the saved enchant if the fallback was saved by the attribute change (SaveLastEnchant)
+        TotemTimers.ActiveProfile.LastWeaponEnchant2 = saved
     end,
 
     LastWeaponEnchant3 = function(value, Timers)

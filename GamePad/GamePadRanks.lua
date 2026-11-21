@@ -84,6 +84,12 @@ local function ReplaceLowerRanks()
     end
 end
 
+-- the setup can come later than the delay after PLAYER_ENTERING_WORLD (it waits for SPELLS_CHANGED), then the
+-- profile isn't selected yet and the login replacement runs after the setup
+hooksecurefunc(TotemTimers, "SetupGlobals", function()
+    if pendingAllRanks then C_Timer.After(1, ReplaceLowerRanks) end
+end)
+
 local rankFrame = CreateFrame("Frame")
 rankFrame:RegisterEvent("LEARNED_SPELL_IN_SKILL_LINE")
 rankFrame:RegisterEvent("PLAYER_ENTERING_WORLD")

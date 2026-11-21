@@ -913,8 +913,32 @@ end
 -- (SyncMultiCastSlot), only empty slots are written here
 TotemTimers.LoadingTotems = false
 
+-- while zoning (TotemTimers.IsZoning) the multicast slots can read empty: the timers then take their own or the
+-- saved totem, no slot is written, and the update is repeated once the zoning is over (after combat if needed)
+local zoningRetryPending = false
+local zoningRetryFrame = CreateFrame("Frame")
+zoningRetryFrame:SetScript("OnEvent", function(self)
+    self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+    TotemTimers.UpdateTimerTotems()
+end)
+
+local function RetryTimerTotemsAfterZoning()
+    if zoningRetryPending then return end
+    zoningRetryPending = true
+    C_Timer.After(1, function()
+        zoningRetryPending = false
+        if InCombatLockdown() then
+            zoningRetryFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+        else
+            TotemTimers.UpdateTimerTotems()
+        end
+    end)
+end
+
 function TotemTimers.UpdateTimerTotem(timer)
     if InCombatLockdown() or not timer.active then return end
+    local zoning = TotemTimers.IsZoning()
+    if zoning then RetryTimerTotemsAfterZoning() end
     local button = timer.button
     local profile = TotemTimers.ActiveProfile
     local multiSpell = TotemTimers_MultiSpell
@@ -925,7 +949,7 @@ function TotemTimers.UpdateTimerTotem(timer)
 
     -- the multicast slots of the element of each known multicast spell
     local slots = {}
-    if multiActive then
+    if multiActive and not zoning then
         for mspell, action in pairs(TotemTimers.MultiCastActions[timer.nr] or {}) do
             if AvailableSpells[mspell] then
                 local actionType, id = GetActionInfo(action)

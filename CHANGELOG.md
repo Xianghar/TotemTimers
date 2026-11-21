@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.21
+- Don't update spells while zoning again
+
 ## 20.20
 - Another attempt at fixing the multicast spells getting the wrong totems.
 
