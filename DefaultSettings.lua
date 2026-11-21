@@ -315,6 +315,8 @@ TotemTimers.DefaultProfile = {
         EnhanceCDsFlameShockDuration = true,
         EnhanceCDsFlameShockDuration_Specialization = {true, true, true},
         FlameShockDurationSize = 2,
+        -- the Flame Shock time only on the Gamepad UI's Flame Shock buttons, no timer button
+        FlameShockDurationGamePadOnly = false,
         EnhanceCDsMaelstrom = true,
         MaelstromSize = 2,
         -- "both" (bar + stack icon), "bar" (bar only), "icon" (stack icon only, in the place of the bar)
@@ -694,7 +696,7 @@ end
     "EnhanceCDsMaelstromHeight", "ShowOmniCCOnEnhanceCDs", "EnhanceCDsStopPulse",
     "EnhanceCDsOOCAlpha", "CDTimersOnButtons", "EnhanceCDsClickthrough",
     "FlameShockDurationOnTop", "EnhanceCDsFlameShockDuration", "EnhanceCDsFlameShockDuration_Specialization",
-    "FlameShockDurationSize",
+    "FlameShockDurationSize", "FlameShockDurationGamePadOnly",
     "EnhanceCDsMaelstrom", "MaelstromSize", "MaelstromLayout", "MaelstromIconSize", "MaelstromIconAtCharacter",
     "LongCooldownSpells", "LongCooldownsStopPulse",
 }

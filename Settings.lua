@@ -864,6 +864,15 @@ end
         LayoutCombatCDs()
     end
 
+    -- the Flame Shock time only on the Gamepad UI's Flame Shock buttons: the timer button is (de)activated
+    SettingsFunctions.FlameShockDurationGamePadOnly = function(value)
+        if InCombatLockdown() then return end
+        if TotemTimers.ConfigEnhanceCDs and TotemTimers.FlameShockDuration then
+            TotemTimers.ConfigEnhanceCDs()
+            LayoutCombatCDs()
+        end
+    end
+
     SettingsFunctions.FlameShockDurationOnTop = function(value)
         LayoutCombatCDs()
     end

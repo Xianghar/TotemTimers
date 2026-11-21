@@ -298,6 +298,20 @@ end
 
 TotemTimers.GetMaelstromLayout = GetMaelstromLayout
 
+-- Flame Shock timer enabled (spell known and enabled for the specialization, set by ConfigEnhanceCDs); with option
+-- FlameShockDurationGamePadOnly the timer button isn't activated and the time is only shown on the Gamepad UI's
+-- Flame Shock buttons (GamePad/GamePadActionButtons.lua, which need the timer enabled), like the Maelstrom layout
+-- "gamepad"
+local flameShockEnabled = false
+
+function TotemTimers.IsFlameShockEnabled()
+    return flameShockEnabled
+end
+
+function TotemTimers.IsFlameShockGamePadOnly()
+    return TotemTimers.ActiveProfile.FlameShockDurationGamePadOnly and true or false
+end
+
 function TotemTimers.IsMaelstromEnabled()
     return maelstromEnabled
 end
@@ -480,6 +494,7 @@ function TotemTimers.ConfigEnhanceCDs()
         cds[i]:Deactivate()
     end
     FlameShockDuration:Deactivate()
+    flameShockEnabled = false
     Maelstrom:Deactivate()
     maelstromEnabled = false
     TotemTimers.UpdateMaelstromIcon()
@@ -495,7 +510,10 @@ function TotemTimers.ConfigEnhanceCDs()
     end
 
     if AvailableSpells[SpellIDs.FlameShock] and TotemTimers.ActiveProfile.EnhanceCDsFlameShockDuration_Specialization[role] then
-        FlameShockDuration:Activate()
+        flameShockEnabled = true
+        if not TotemTimers.IsFlameShockGamePadOnly() then
+            FlameShockDuration:Activate()
+        end
     end
 
     if TotemTimers.AvailableTalents.Maelstrom and TotemTimers.ActiveProfile.EnhanceCDsMaelstrom then
@@ -696,6 +714,7 @@ function TotemTimers.DeactivateEnhanceCDs()
         cds[i]:Deactivate()
     end
     FlameShockDuration:Deactivate()
+    flameShockEnabled = false
     Maelstrom:Deactivate()
     maelstromEnabled = false
     TotemTimers.UpdateMaelstromIcon()

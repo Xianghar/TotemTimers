@@ -185,8 +185,12 @@ local function CreateFlameShockDisplays(button, round)
 end
 
 local function UpdateFlameShockButton(button, name)
-    local timer = TotemTimers.FlameShockDuration
-    local show = name and timer and timer.active and IsSpellName(name, SpellIDs.FlameShock) or false
+    -- while the Flame Shock timer is enabled (CombatCDs.lua), with option GamePadTimers like the other overlays, with
+    -- option FlameShockDurationGamePadOnly (the timer only on these buttons) always
+    local enabled = TotemTimers.IsFlameShockEnabled and TotemTimers.IsFlameShockEnabled()
+    local shown = GamePad.actionOverlaysShown
+        or (TotemTimers.IsFlameShockGamePadOnly and TotemTimers.IsFlameShockGamePadOnly())
+    local show = enabled and shown and name and IsSpellName(name, SpellIDs.FlameShock) or false
     local round = not (button.SquareMask and button.SquareMask:IsShown())
     local byShape = flameShockDisplays[button]
     if show and not (byShape and byShape[round]) then
@@ -356,11 +360,12 @@ local function UpdateActionButton(button)
     local spell = GamePad.actionButtonsActive and not covered and GetActionSpell(button.action)
     local name = spell and C_Spell.GetSpellName(spell)
     if IsSecret(name) then name = nil end
-    -- the timer overlays follow option GamePadTimers, Maelstrom decides itself (layout "gamepad" ignores the option)
+    -- the timer overlays follow option GamePadTimers, Flame Shock and Maelstrom decide themselves (their options to
+    -- show them only on the Gamepad UI buttons ignore it)
     local timerName = GamePad.actionOverlaysShown and name or nil
     UpdateShieldButton(button, timerName)
     UpdateWeaponButton(button, timerName)
-    UpdateFlameShockButton(button, timerName)
+    UpdateFlameShockButton(button, name)
     UpdateMaelstromButton(button, name)
 end
 

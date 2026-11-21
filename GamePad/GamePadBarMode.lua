@@ -156,12 +156,9 @@ local function GetHideableButtons()
     if TotemTimers.TotemicCallTimer then
         table.insert(list, { button = TotemTimers.TotemicCallTimer.button })
     end
-    -- the Flame Shock timer (CombatCDs.lua), shown on the Gamepad UI buttons of Flame Shock; its aura display is a
-    -- child of the button. The Maelstrom tracker isn't hidden: its layout setting (MaelstromLayout) decides where
-    -- it is shown, "gamepad" only on the Lightning Bolt buttons.
-    if TotemTimers.FlameShockDuration then
-        table.insert(list, { button = TotemTimers.FlameShockDuration.button })
-    end
+    -- The Flame Shock timer and the Maelstrom tracker aren't hidden: their own settings decide where they are shown
+    -- (FlameShockDurationGamePadOnly, MaelstromLayout "gamepad": only on the Gamepad UI buttons of Flame Shock and
+    -- Lightning Bolt).
     -- the combat cooldown buttons (CombatCDs.lua), their spells are on the Gamepad UI buttons
     for _, cd in ipairs(TotemTimers.EnhanceCDs or {}) do
         table.insert(list, { button = cd.button })

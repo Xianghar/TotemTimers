@@ -243,6 +243,19 @@ TotemTimers.options.args.enhancecds = {
                         return TotemTimers.ActiveProfile.FlameShockDurationOnTop
                     end,
                 },
+                FlameShockGamePadOnly = {
+                    order = 32.5,
+                    type = "toggle",
+                    name = L["Only On Gamepad Buttons"],
+                    desc = L["FlameShockGamePadOnlyDesc"],
+                    set = function(info, val)
+                        TotemTimers.ActiveProfile.FlameShockDurationGamePadOnly = val
+                        TotemTimers.ProcessSetting("FlameShockDurationGamePadOnly")
+                    end,
+                    get = function(info)
+                        return TotemTimers.ActiveProfile.FlameShockDurationGamePadOnly
+                    end,
+                },
                 FlameShockSize = {
                     order = 33,
                     type = "range",
