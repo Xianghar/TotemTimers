@@ -312,6 +312,48 @@ function GamePad.SetWeaponGlow(all, names)
     GamePad.UpdateWeaponSlotGlow()
 end
 
+-- Glow of a cooldown reset (CombatCDs.lua RESET_GLOW, e.g. Stormstrike): the buttons of the spells whose combat
+-- cooldown button glows after an early end of the cooldown glow too (with option GamePadTimers). The glow is shown on
+-- a frame of its own over the button, created out of combat (child of a protected button) for every button of such
+-- a spell, so it is available in combat.
+local RESET_GLOW_SPELLS = { SpellIDs.StormStrike }
+local resetGlowFrames = {} -- glow frame by Gamepad UI button
+
+local function UpdateResetGlow(button)
+    local frame = resetGlowFrames[button]
+    if not frame then return end
+    local names = TotemTimers.GetResetGlowNames and TotemTimers.GetResetGlowNames()
+    local glow = frame.spellName and names and names[frame.spellName] and true or false
+    local round = not (button.SquareMask and button.SquareMask:IsShown())
+    if glow ~= frame.glowing or round ~= frame.glowRound then
+        frame.glowing = glow
+        frame.glowRound = round
+        SetGlow(frame, glow, round)
+    end
+end
+
+local function UpdateResetGlowButton(button, name)
+    local isResetSpell = name and IsSpellName(name, unpack(RESET_GLOW_SPELLS)) or false
+    local frame = resetGlowFrames[button]
+    if isResetSpell and not frame and not InCombatLockdown() then
+        frame = CreateFrame("Frame", nil, button)
+        frame:SetAllPoints(button)
+        frame:SetFrameLevel(GetOverlayLevel(button) + 1)
+        frame:EnableMouse(false)
+        resetGlowFrames[button] = frame
+    end
+    if not frame then return end
+    frame.spellName = isResetSpell and name or nil
+    UpdateResetGlow(button)
+end
+
+-- called by CombatCDs.lua when a reset glow starts or ends
+function GamePad.UpdateResetGlows()
+    for button in pairs(resetGlowFrames) do
+        UpdateResetGlow(button)
+    end
+end
+
 -- DurationObject of the weapon tracker's timer of the enchant, nil if that enchant isn't on a weapon
 local function GetWeaponEnchantDuration(name)
     local weapon = TotemTimers.WeaponTracker
@@ -365,6 +407,7 @@ local function UpdateActionButton(button)
     local timerName = GamePad.actionOverlaysShown and name or nil
     UpdateShieldButton(button, timerName)
     UpdateWeaponButton(button, timerName)
+    UpdateResetGlowButton(button, timerName)
     UpdateFlameShockButton(button, name)
     UpdateMaelstromButton(button, name)
 end

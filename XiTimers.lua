@@ -501,7 +501,65 @@ function XiTimers:SetManaCheck(spell)
     end
 end
 
+-- A timer stopped before its sensor reported the end of its duration (XiTimers:Stop) has ended early: the early
+-- expiration warning plays and OnEarlyStop(timer) is called (for timers that react to it, e.g. the glow of a cooldown
+-- reset). Not if the duration would have ended within EARLY_STOP_MARGIN seconds anyway (e.g. the game reports the
+-- end of a cooldown a moment before the sensor): without secret values the remaining time is read; a secret one
+-- isn't compared in Lua, a second sensor keeps running on the duration instead and the early stop follows
+-- EARLY_STOP_MARGIN seconds later, unless that sensor reports the end first or the timer starts again.
+local EARLY_STOP_MARGIN = 0.5
+
+local function FireEarlyStop(self, timer, msg, spell, icon)
+    if msg then self:PlayWarning(msg, spell, icon) end
+    if self.OnEarlyStop then self:OnEarlyStop(timer) end
+end
+
+function XiTimers:EarlyStop(timer, durObj)
+    local msg = self.earlyExpirationMsgs[timer]
+    self.earlyExpirationMsgs[timer] = nil
+    if not msg and not self.OnEarlyStop then return end
+    local spell, icon = self.warningSpells[timer], self.warningIcons[timer]
+    if not durObj or type(durObj) ~= "userdata" and type(durObj) ~= "table" then
+        FireEarlyStop(self, timer, msg, spell, icon)
+        return
+    end
+    if not durObj:HasSecretValues() then
+        if durObj:GetRemainingDuration() >= EARLY_STOP_MARGIN then
+            FireEarlyStop(self, timer, msg, spell, icon)
+        end
+        return
+    end
+
+    self.earlyStopPending = self.earlyStopPending or {}
+    self.earlyStopSensors = self.earlyStopSensors or {}
+    local sensor = self.earlyStopSensors[timer]
+    if not sensor then
+        sensor = CreateExpirySensor()
+        sensor:SetScript("OnCooldownDone", function() self.earlyStopPending[timer] = nil end)
+        self.earlyStopSensors[timer] = sensor
+    end
+    local token = {}
+    self.earlyStopPending[timer] = token
+    sensor:SetCooldownFromDurationObject(durObj)
+    C_Timer.After(EARLY_STOP_MARGIN, function()
+        if self.earlyStopPending[timer] ~= token then return end
+        self.earlyStopPending[timer] = nil
+        sensor:Clear()
+        FireEarlyStop(self, timer, msg, spell, icon)
+    end)
+end
+
+-- a pending early stop (see EarlyStop) is dropped
+function XiTimers:CancelEarlyStop(timer)
+    if self.earlyStopPending and self.earlyStopPending[timer] then
+        self.earlyStopPending[timer] = nil
+        self.earlyStopSensors[timer]:Clear()
+    end
+end
+
 function XiTimers:Start(timer, durObj)
+    -- started again before a pending early stop of the previous duration fired
+    self:CancelEarlyStop(timer)
 	if self.timers[timer] then
         -- cleared before the sensor so a done event of the old duration doesn't stop the timer
         self.timers[timer] = nil
@@ -566,14 +624,12 @@ function XiTimers:Stop(timer)
     end
 	self.running = self.running - 1
 	if self.running < 0 then self.running = 0 end
+    local durObj = self.timers[timer]
 	self.timers[timer] = nil
 	local timerbar = self.timerBars[timer]
     if not self.stopQuiet then
         if not self.sensorExpired[timer] then
-            if self.earlyExpirationMsgs[timer] then
-                self:PlayWarning(self.earlyExpirationMsgs[timer], self.warningSpells[timer], self.warningIcons[timer])
-                self.earlyExpirationMsgs[timer] = nil
-            end
+            self:EarlyStop(timer, durObj)
         elseif self.expirationMsgs[timer] then
             self:PlayWarning(self.expirationMsgs[timer], self.warningSpells[timer], self.warningIcons[timer])
             self.expirationMsgs[timer] = nil

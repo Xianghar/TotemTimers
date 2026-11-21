@@ -378,6 +378,67 @@ local function IsSecret(value)
     return issecretvalue and issecretvalue(value) or false
 end
 
+-- Glow of a cooldown button: the game's proc glow of the spell (procGlow) and, for the spells in RESET_GLOW, a glow
+-- when the cooldown ends early (resetGlow: for RESET_GLOW seconds or until the spell goes on cooldown again). The
+-- glow is shown while either is on.
+local RESET_GLOW = {
+    [SpellIDs.StormStrike] = 3,
+}
+
+local function UpdateCooldownGlow(timer)
+    local button = timer.button
+    if button.procGlow or button.resetGlow then
+        timer:ShowOverlayGlow()
+    else
+        timer:HideOverlayGlow()
+    end
+end
+
+-- names of the spells whose reset glow is on, also shown on the Gamepad UI buttons of these spells
+-- (GamePad/GamePadActionButtons.lua, with option GamePadTimers)
+local resetGlowNames = {}
+
+function TotemTimers.GetResetGlowNames()
+    return resetGlowNames
+end
+
+local function UpdateResetGlowNames()
+    wipe(resetGlowNames)
+    for _, cd in ipairs(cds) do
+        local name = cd.button.resetGlow and cd.button.cdspell and SpellNames[cd.button.cdspell]
+        if name then resetGlowNames[name] = true end
+    end
+    local GamePad = TotemTimers.GamePad
+    if GamePad and GamePad.UpdateResetGlows then GamePad.UpdateResetGlows() end
+end
+
+local function SetResetGlow(button, duration)
+    -- a token per glow, so the end of an older one doesn't hide a newer one
+    local token = duration and {} or nil
+    button.resetGlow = token
+    UpdateCooldownGlow(button.timer)
+    UpdateResetGlowNames()
+    if token then
+        C_Timer.After(duration, function()
+            if button.resetGlow == token then
+                button.resetGlow = nil
+                UpdateCooldownGlow(button.timer)
+                UpdateResetGlowNames()
+            end
+        end)
+    end
+end
+
+-- the cooldown timer was stopped before its duration ran out (XiTimers:Stop, like the early expiration warnings):
+-- the cooldown was reset, glow for the spells in RESET_GLOW
+local function OnEarlyStop(timer)
+    local button = timer.button
+    local glow = button.cdspell and RESET_GLOW[button.cdspell]
+    if glow and timer.active then
+        SetResetGlow(button, glow)
+    end
+end
+
 -- events of a cooldown button: the cooldown of its spell, and the game's proc glow of the spell.
 -- The cooldown can be secret, so the timer is started with a DurationObject of the cooldown and only the never
 -- secret isActive and isOnGCD flags of the cooldown info are read (like the Ankh tracker).
@@ -390,16 +451,17 @@ local function CooldownEvent(self, event, spellID)
             self.timer:Stop(1)
         elseif not info.isOnGCD and not self.timer.timers[1] then
             local durObj = C_Spell.GetSpellCooldownDuration(spell, true)
-            if durObj then self.timer:Start(1, durObj) end
+            if durObj then
+                self.timer:Start(1, durObj)
+                -- on cooldown again: the glow of an early end ends
+                if self.resetGlow then SetResetGlow(self, nil) end
+            end
         end
     elseif event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" or event == "SPELL_ACTIVATION_OVERLAY_GLOW_HIDE" then
         if not spellID or IsSecret(spellID) then return end
         if C_Spell.GetSpellName(spellID) == spell then
-            if event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" then
-                self.timer:ShowOverlayGlow()
-            else
-                self.timer:HideOverlayGlow()
-            end
+            self.procGlow = event == "SPELL_ACTIVATION_OVERLAY_GLOW_SHOW" or nil
+            UpdateCooldownGlow(self.timer)
         end
     end
 end
@@ -452,6 +514,12 @@ local function SetCooldownSpell(cd, spell)
         cd.stopQuiet = true
         cd:Stop(1)
     end
+    cd:CancelEarlyStop(1)
+    button.procGlow = nil
+    if button.resetGlow then
+        button.resetGlow = nil
+        UpdateResetGlowNames()
+    end
     if cd.HideOverlayGlow then cd:HideOverlayGlow() end
     button.cdspell = spell
     if not spell then return end
@@ -480,9 +548,11 @@ local function SetCooldownSpell(cd, spell)
     if isFireTotem then
         cd.events = { "PLAYER_TOTEM_UPDATE" }
         button:SetScript("OnEvent", FireTotemEvent)
+        cd.OnEarlyStop = nil
     else
         cd.events = { unpack(COOLDOWN_EVENTS) }
         button:SetScript("OnEvent", CooldownEvent)
+        cd.OnEarlyStop = OnEarlyStop
     end
 end
 

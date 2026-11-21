@@ -16,7 +16,7 @@ TotemTimers.SpellIDs = {
     EarthBind = 2484, --
 
     Searing = 3599, --
-    FireNova = 1535, --
+    FireNova = 408341, --
     Magma = 8190, --
     FrostResistance = 8181, --
     Flametongue = 8227, --
@@ -142,9 +142,9 @@ TotemTimers.SpellIDs = {
 local SpellIDs = TotemTimers.SpellIDs
 
 TotemTimers.SpellIDsForceNames = {
-    [SpellIDs.WaterShield] = true,
+   --[[ [SpellIDs.WaterShield] = true,
     [SpellIDs.EarthShield] = true,
-    [SpellIDs.FireNova] = true,
+    [SpellIDs.FireNova] = true,]]
 }
 
 
@@ -266,7 +266,6 @@ TotemTimers.TotemCooldowns = {
         SpellIDs.ManaTide,
     },
     [FIRE_TOTEM_SLOT] = {
-        SpellIDs.FireNova,
     },
     [AIR_TOTEM_SLOT] = {
     },
@@ -375,10 +374,6 @@ TotemTimers.CombatCooldownSpells = {
         SpellIDs.StormStrike,
         SpellIDs.FlameShock,
         SpellIDs.EarthShock,
-        SpellIDs.MoltenBlast,
-        SpellIDs.LavaLash,
-        SpellIDs.LavaBurst,
-        SpellIDs.ChainLightning,
         SpellIDs.Searing,
         SpellIDs.Magma,
         SpellIDs.FireNova,
@@ -388,18 +383,14 @@ TotemTimers.CombatCooldownSpells = {
         SpellIDs.EarthShock,
         SpellIDs.ChainLightning,
         SpellIDs.LightningBolt,
-        SpellIDs.LavaBurst,
-        SpellIDs.LavaLash,
-        SpellIDs.MoltenBlast,
+        SpellIDs.Searing,
+        SpellIDs.Magma,
+        SpellIDs.FireNova,
     },
     [3] = {
         SpellIDs.FlameShock,
-        SpellIDs.ChainHeal,
-        SpellIDs.HealingRain,
+        SpellIDs.EarthShock,
         SpellIDs.Riptide,
-        SpellIDs.LavaLash,
-        SpellIDs.LavaBurst,
-        SpellIDs.MoltenBlast,
     },
 }
 

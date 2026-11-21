@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.22
+- Combat cooldown buttons are back
+
 ## 20.21
 - Don't update spells while zoning again
 - Added round glows for round buttons in the gamepad UI
