@@ -43,18 +43,35 @@ local duplicateMacroCheckNeeded = false
 local ZONING_GRACE = 3
 local loadingScreen = false
 local loadingScreenEnd = -ZONING_GRACE
+-- Between PLAYER_LEAVING_WORLD and PLAYER_ENTERING_WORLD the spell book and the action slots read incomplete
+-- (multicast slots empty, known totems unknown, the instance type wrong; PLAYER_TALENT_UPDATE fires in between with
+-- that data), from PLAYER_ENTERING_WORLD on everything reads right (and SPELLS_CHANGED follows). Spell and talent
+-- events in between are ignored (TotemTimers.IsLoadingWorld).
+local leftWorld = false
 local loadingFrame = CreateFrame("Frame")
 loadingFrame:RegisterEvent("LOADING_SCREEN_ENABLED")
 loadingFrame:RegisterEvent("LOADING_SCREEN_DISABLED")
+loadingFrame:RegisterEvent("PLAYER_LEAVING_WORLD")
+loadingFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 loadingFrame:SetScript("OnEvent", function(self, event)
-    loadingScreen = event == "LOADING_SCREEN_ENABLED"
-    if not loadingScreen then
-        loadingScreenEnd = GetTime()
+    if event == "PLAYER_LEAVING_WORLD" then
+        leftWorld = true
+    elseif event == "PLAYER_ENTERING_WORLD" then
+        leftWorld = false
+    else
+        loadingScreen = event == "LOADING_SCREEN_ENABLED"
+        if not loadingScreen then
+            loadingScreenEnd = GetTime()
+        end
     end
 end)
 
 function TotemTimers.IsZoning()
     return loadingScreen or GetTime() - loadingScreenEnd < ZONING_GRACE
+end
+
+function TotemTimers.IsLoadingWorld()
+    return leftWorld
 end
 
 -- the setup waits for the first PLAYER_ENTERING_WORLD and the first SPELLS_CHANGED (in either order): before the
@@ -130,7 +147,10 @@ local function TotemTimers_OnEvent(self, event, ...)
     elseif event == "SPELLS_CHANGED" or event == "CHARACTER_POINTS_CHANGED" or event == "PLAYER_TALENT_UPDATE"
             or event == "LEARNED_SPELL_IN_TAB" or event == "TRAIT_CONFIG_LIST_UPDATED" or event == "TRAIT_CONFIG_UPDATED" then
 
-        if InCombatLockdown() then
+        if leftWorld then
+            -- the spell book reads incomplete while loading the world: ignored, SPELLS_CHANGED follows after
+            -- PLAYER_ENTERING_WORLD
+        elseif InCombatLockdown() then
             updateAfterCombat = true
         else
             TotemTimers.ChangedTalents(true)

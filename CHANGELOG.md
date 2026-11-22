@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.24
+- Another go at zoning and logging in not changing multispell totems
+
 ## 20.23
 - Stop pulse for Stormstrike
 

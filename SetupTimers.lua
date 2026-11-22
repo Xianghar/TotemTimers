@@ -391,7 +391,8 @@ end
             -- not while the totems are loaded (TotemTimers.UpdateTimerTotem writes only empty slots) and not for
             -- another rank of the same totem (rank updates of the button aren't a change of the totem)
             tt.button.SyncMultiCastSlot = function(self, spell)
-                if TotemTimers.LoadingTotems or InCombatLockdown()
+                -- not while loading the world either: the slot can read empty and would be overwritten
+                if TotemTimers.LoadingTotems or InCombatLockdown() or TotemTimers.IsLoadingWorld()
                         or not (TotemTimers_MultiSpell and TotemTimers_MultiSpell.active) then return end
                 local mspell = self:GetAttribute("mspell")
                 if not mspell or self:GetAttribute("mspelldisabled" .. mspell) then return end
@@ -913,32 +914,13 @@ end
 -- (SyncMultiCastSlot), only empty slots are written here
 TotemTimers.LoadingTotems = false
 
--- while zoning (TotemTimers.IsZoning) the multicast slots can read empty: the timers then take their own or the
--- saved totem, no slot is written, and the update is repeated once the zoning is over (after combat if needed)
-local zoningRetryPending = false
-local zoningRetryFrame = CreateFrame("Frame")
-zoningRetryFrame:SetScript("OnEvent", function(self)
-    self:UnregisterEvent("PLAYER_REGEN_ENABLED")
-    TotemTimers.UpdateTimerTotems()
-end)
-
-local function RetryTimerTotemsAfterZoning()
-    if zoningRetryPending then return end
-    zoningRetryPending = true
-    C_Timer.After(1, function()
-        zoningRetryPending = false
-        if InCombatLockdown() then
-            zoningRetryFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
-        else
-            TotemTimers.UpdateTimerTotems()
-        end
-    end)
-end
+-- while loading the world (TotemTimers.IsLoadingWorld, between PLAYER_LEAVING_WORLD and PLAYER_ENTERING_WORLD) the
+-- multicast slots read empty and known totems can read unknown: nothing is done then (the SPELLS_CHANGED after
+-- PLAYER_ENTERING_WORLD updates the totems)
 
 function TotemTimers.UpdateTimerTotem(timer)
     if InCombatLockdown() or not timer.active then return end
-    local zoning = TotemTimers.IsZoning()
-    if zoning then RetryTimerTotemsAfterZoning() end
+    if TotemTimers.IsLoadingWorld() then return end
     local button = timer.button
     local profile = TotemTimers.ActiveProfile
     local multiSpell = TotemTimers_MultiSpell
@@ -949,7 +931,7 @@ function TotemTimers.UpdateTimerTotem(timer)
 
     -- the multicast slots of the element of each known multicast spell
     local slots = {}
-    if multiActive and not zoning then
+    if multiActive then
         for mspell, action in pairs(TotemTimers.MultiCastActions[timer.nr] or {}) do
             if AvailableSpells[mspell] then
                 local actionType, id = GetActionInfo(action)
