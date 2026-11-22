@@ -376,6 +376,9 @@ SettingsFunctions = {
         end
         -- the Totemic Call button is shown with the totem timers
         TotemTimers.UpdateTotemicCallButton()
+        -- the Gamepad UI bar slots are only set up for shown (activated) timers; ProcessAllSettings runs the settings
+        -- in no fixed order, so the GamePad setting can have applied before the timers were activated
+        if TotemTimers.GamePad and TotemTimers.GamePad.Apply then TotemTimers.GamePad.Apply() end
     end,
 
     TotemicCallButton = function(value, Timers)
