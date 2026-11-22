@@ -551,39 +551,29 @@ function TotemTimers:TotemEvent(event, arg1, arg2, arg3, ...)
             self.timer.pendingTotemTime = GetTime()
         end
     elseif event == "SPELL_UPDATE_COOLDOWN" then
-        --[[ -- SPELL_UPDATE_COOLDOWN
-        local spell = self:GetAttribute("*spell1")
-        if spell and (not self.timer.timerOnButton or self.timer.timers[1] <= 0) then
-            local cd = C_Spell.GetSpellCooldown(spell)
-            if cd.startTime and cd.duration then
-                CooldownFrame_Set(self.cooldown, cd.startTime, cd.duration, cd.enable)
-            end
-        end
-        if settings.ShowCooldowns then
-            for key, spell in pairs(Cooldowns[self.timer.nr]) do
-                local timerIndex = key + 1
-                if AvailableSpells[spell] then
-                    local cd = C_Spell.GetSpellCooldown(spell)
-                    if not cd.startTime and not cd.duration then
-                        self.timer:stop(timerIndex)
-                        return
-                    end
-                    if cd.duration == 0 then
-                        self.timer:Stop(timerIndex)
-                    elseif cd.duration > 2 then
-                        --and self.timer.timers[nr]<=0 then  -- update running cooldown timers for Ele T12-2pc
-                        self.timer:Start(timerIndex, cd.startTime + cd.duration - floor(GetTime()), cd.duration)
-                        self.timer.timerBars[timerIndex].icon:SetTexture(SpellTextures[spell])
-                    end
-                elseif self.timer.timers[timerIndex] > 0 then
-                    self.timer:Stop(timerIndex)
+        -- cooldowns of the element's totems (TotemCooldowns) as additional timer bars (timers 2 and up). The
+        -- cooldown can be secret: the bars run on DurationObjects, only the never secret isActive and isOnGCD
+        -- flags are read (like the combat cooldowns).
+        local timer = self.timer
+        local cooldowns = Cooldowns[timer.nr]
+        if not cooldowns then return end
+        for key, spellID in ipairs(cooldowns) do
+            local timerIndex = key + 1
+            local spell = settings.ShowCooldowns and AvailableSpells[spellID] and SpellNames[spellID]
+            local info = spell and C_Spell.GetSpellCooldown(spell)
+            if not info or not info.isActive then
+                if timer.timers[timerIndex] then
+                    timer.stopQuiet = true
+                    timer:Stop(timerIndex)
+                end
+            elseif not info.isOnGCD and not timer.timers[timerIndex] then
+                local durObj = C_Spell.GetSpellCooldownDuration(spell, true)
+                if durObj then
+                    timer:Start(timerIndex, durObj)
+                    timer.timerBars[timerIndex].icon:SetTexture(SpellTextures[spellID])
                 end
             end
-        else
-            for i = 2, self.timer.nrOfTimers do
-                self.timer:Stop(i)
-            end
-        end ]]
+        end
     elseif (event == "UNIT_SPELLCAST_SUCCEEDED" and arg3 == TotemicRecall)
             or event == "PLAYER_ENTERING_WORLD" then
         self.timer.stopQuiet = true

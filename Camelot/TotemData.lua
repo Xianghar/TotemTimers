@@ -259,7 +259,6 @@ end
 TotemTimers.TotemCooldowns = {
     [EARTH_TOTEM_SLOT] = {
         SpellIDs.EarthBind,
-        SpellIDs.Tremor,
         SpellIDs.Stoneclaw,
     },
     [WATER_TOTEM_SLOT] = {
@@ -268,6 +267,7 @@ TotemTimers.TotemCooldowns = {
     [FIRE_TOTEM_SLOT] = {
     },
     [AIR_TOTEM_SLOT] = {
+        SpellIDs.Grounding,
     },
 }
 
