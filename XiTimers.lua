@@ -507,7 +507,7 @@ end
 -- end of a cooldown a moment before the sensor): without secret values the remaining time is read; a secret one
 -- isn't compared in Lua, a second sensor keeps running on the duration instead and the early stop follows
 -- EARLY_STOP_MARGIN seconds later, unless that sensor reports the end first or the timer starts again.
-local EARLY_STOP_MARGIN = 0.5
+local EARLY_STOP_MARGIN = 0.2
 
 local function FireEarlyStop(self, timer, msg, spell, icon)
     if msg then self:PlayWarning(msg, spell, icon) end
