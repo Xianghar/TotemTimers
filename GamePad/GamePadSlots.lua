@@ -296,6 +296,90 @@ local function GetGCDDuration(spell)
     end
 end
 
+-- cooldowns of the element's totems (TotemTimers.TotemCooldowns, the timer's additional timers 2 and up, run with
+-- option ShowCooldowns) as up to two round mini icons with a swipe and without numbers: the first running cooldown
+-- between 1 and 2 o'clock, the second at 12 o'clock, sticking out of the slot like the active totem icon; shown with option
+-- GamePadTimers. The DurationObjects of the timer are handed on without being read.
+-- (in a do block, a field of GamePad: the main chunk is at Lua's limit of 200 locals)
+do
+    local COOLDOWN_ICON_SIZE = 0.4
+    local COOLDOWN_ICON_MASK_INSET = MASK_INSET * COOLDOWN_ICON_SIZE
+    -- the mini icons' centers lie on a circle around the slot's center (radius relative to the slot's size), at
+    -- positions on a clock: the first between 1 and 2 o'clock, the second at 12 o'clock
+    local COOLDOWN_ICON_RADIUS = 0.55
+    local CooldownIconAnchors = { 1.5, 12 }
+
+    local function CreateCooldownIcon(slot)
+        local icon = CreateFrame("Frame", nil, slot)
+        icon:SetFrameLevel(slot.active:GetFrameLevel())
+        icon.icon = icon:CreateTexture(nil, "ARTWORK")
+        icon.icon:SetAllPoints(icon)
+        icon.mask = icon:CreateMaskTexture()
+        icon.mask:SetAtlas("CircleMask", false, nil, nil, "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+        icon.mask:SetPoint("TOPLEFT", COOLDOWN_ICON_MASK_INSET, -COOLDOWN_ICON_MASK_INSET)
+        icon.mask:SetPoint("BOTTOMRIGHT", -COOLDOWN_ICON_MASK_INSET, COOLDOWN_ICON_MASK_INSET)
+        icon.icon:AddMaskTexture(icon.mask)
+        icon.cooldown = CreateFrame("Cooldown", nil, icon, "CooldownFrameTemplate")
+        icon.cooldown:SetPoint("TOPLEFT", COOLDOWN_ICON_MASK_INSET, -COOLDOWN_ICON_MASK_INSET)
+        icon.cooldown:SetPoint("BOTTOMRIGHT", -COOLDOWN_ICON_MASK_INSET, COOLDOWN_ICON_MASK_INSET)
+        icon.cooldown:SetSwipeTexture(CIRCLE_SWIPE)
+        icon.cooldown:SetSwipeColor(0, 0, 0, 0.8)
+        icon.cooldown:SetDrawEdge(false)
+        icon.cooldown:SetDrawBling(false)
+        icon.cooldown:SetHideCountdownNumbers(true)
+        -- the border above the swipe
+        local overlay = CreateFrame("Frame", nil, icon)
+        overlay:SetAllPoints(icon)
+        overlay:SetFrameLevel(icon.cooldown:GetFrameLevel() + 1)
+        icon.border = overlay:CreateTexture(nil, "ARTWORK")
+        icon.border:SetAtlas(ROUND_SLOT_BORDER)
+        icon.border:SetAllPoints(icon)
+        icon:Hide()
+        return icon
+    end
+
+    local function LayoutCooldownIcons(slot)
+        local width, height = slot:GetSize()
+        for i, icon in ipairs(slot.cooldownIcons) do
+            local angle = CooldownIconAnchors[i] / 12 * 2 * math.pi
+            icon:SetSize(width * COOLDOWN_ICON_SIZE, height * COOLDOWN_ICON_SIZE)
+            icon:ClearAllPoints()
+            icon:SetPoint("CENTER", slot, "CENTER", width * COOLDOWN_ICON_RADIUS * math.sin(angle),
+                    height * COOLDOWN_ICON_RADIUS * math.cos(angle))
+        end
+    end
+
+    function GamePad.UpdateSlotCooldownIcons(slot)
+        local timer = slot.timer
+        local cooldowns = timer and not slot.notTotem and GamePad.timersShown and TotemTimers.TotemCooldowns[timer.nr]
+        local shown = 0
+        if cooldowns then
+            for key, spell in ipairs(cooldowns) do
+                local durObj = timer.timers[key + 1]
+                if durObj and shown < #CooldownIconAnchors then
+                    shown = shown + 1
+                    if not slot.cooldownIcons then
+                        slot.cooldownIcons = {}
+                        for i = 1, #CooldownIconAnchors do slot.cooldownIcons[i] = CreateCooldownIcon(slot) end
+                        LayoutCooldownIcons(slot)
+                        slot:HookScript("OnSizeChanged", LayoutCooldownIcons)
+                    end
+                    local icon = slot.cooldownIcons[shown]
+                    icon.icon:SetTexture(C_Spell.GetSpellTexture(spell))
+                    icon.cooldown:SetCooldownFromDurationObject(durObj)
+                    icon:Show()
+                end
+            end
+        end
+        if slot.cooldownIcons then
+            for i = shown + 1, #slot.cooldownIcons do
+                slot.cooldownIcons[i].cooldown:Clear()
+                slot.cooldownIcons[i]:Hide()
+            end
+        end
+    end
+end
+
 -- without a duration the slot shows the global cooldown of its spell (slot.spell) like the game's buttons, swipe
 -- only (no time)
 local function UpdateSlotDuration(slot)
@@ -316,6 +400,7 @@ local function UpdateSlotDuration(slot)
     end
     slot.active:SetShown(GamePad.showActiveTotems and slot.timer and not slot.notTotem and durObj
             and IsOtherTotemActive(slot.timer) or false)
+    GamePad.UpdateSlotCooldownIcons(slot)
     if slot.timeBinding then
         if durObj then
             slot.timeBinding:SetDuration(durObj)
@@ -505,7 +590,14 @@ end
 local hookedTimers = {}
 local function HookTimers()
     local function TimerChanged(self, timer)
-        if timer == 1 then GamePad.UpdateBarDurations() end
+        if timer == 1 then
+            GamePad.UpdateBarDurations()
+        else
+            -- a cooldown of the element's totems (TotemCooldowns) started or ended
+            for _, slot in pairs(barIcons) do
+                if slot.timer == self and slot:IsShown() then GamePad.UpdateSlotCooldownIcons(slot) end
+            end
+        end
     end
     for i = 1, 4 do
         local timer = XiTimers.timers[i]

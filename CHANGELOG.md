@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.25
+- Added totem cooldowns back in
+
 ## 20.24
 - Another go at zoning and logging in not changing multispell totems
 
