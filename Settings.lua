@@ -349,12 +349,6 @@ SettingsFunctions = {
         end
     end,
 
-    Lock = function(value, Timers)
-        for k, v in pairs(Timers) do
-            v.locked = value
-        end
-    end,
-
     Show = function(value, Timers)
         if value then
             local activeTotems = {}
@@ -527,8 +521,10 @@ SettingsFunctions = {
         end
     end,
 
+    -- the positions of the active Edit Mode layout (EditMode.lua)
     FramePositions = function(value, Timers)
-        for name, pos in pairs(value) do
+        if InCombatLockdown() then return end
+        for name, pos in pairs(TotemTimers.GetLayoutPositions().FramePositions) do
             if _G[name] and pos and pos[1] then
                 _G[name]:ClearAllPoints()
                 _G[name]:SetPoint(pos[1], pos[2], pos[3], pos[4], pos[5])

@@ -159,8 +159,6 @@ local function TotemTimers_OnEvent(self, event, ...)
     elseif event == "UPDATE_BINDINGS" then
         ClearOverrideBindings(TotemTimersFrame)
         TotemTimers.InitializeBindings()
-    elseif event == "PLAYER_LOGOUT" then
-        TotemTimers.SaveFramePositions()
     end
 end
 
@@ -206,6 +204,7 @@ function TotemTimers.SetupGlobals()
 		TotemTimers.OrderTimers()
 		--TotemTimers_OrderTrackers()
 		TotemTimersFrame:Show()
+        TotemTimers.SetupEditMode()
 
         TotemTimers.InitSetButtons()
 
@@ -222,7 +221,6 @@ function TotemTimers.SetupGlobals()
 
 		local events = {
             "PLAYER_REGEN_ENABLED",
-            "PLAYER_LOGOUT",
             "UPDATE_BINDINGS",
             "LEARNED_SPELL_IN_TAB",
             "CHARACTER_POINTS_CHANGED",
@@ -245,13 +243,15 @@ function TotemTimers.SetupGlobals()
         TotemTimers.SetCastButtonSpells()
 
         XiTimers.invokeOOCFader()
-        TotemTimersFrame:SetScript("OnUpdate", XiTimers.UpdateTimers)
+        -- the timers are updated by a frame without parent: TotemTimersFrame is under UIParent (an Edit Mode anchor)
+        -- and stops its OnUpdate while the interface is hidden
+        local updateFrame = CreateFrame("Frame", "TotemTimers_UpdateFrame")
+        updateFrame:SetScript("OnUpdate", XiTimers.UpdateTimers)
 		TotemTimersFrame:EnableMouse(false)
         XiTimers.InitWarnings(TotemTimers.ActiveProfile.Warnings)
 
         -- TotemTimers.LayoutCrowdControl()
         --TotemTimers.ApplySkin()
-        XiTimers.SaveFramePositions = TotemTimers.SaveFramePositions
 	else
 		TotemTimersFrame:Hide()
 	end
@@ -498,28 +498,6 @@ function TotemTimers.ApplySkin(newSkin)
     end
 end
 
-
-function TotemTimers.SaveFramePositions()
-    for k,v in pairs(TotemTimers.ActiveProfile.FramePositions) do
-        if (_G[k]) then
-            local pos = {_G[k]:GetPoint()}
-            if not pos[1] then pos = nil end
-            if pos[2] then pos[2] = pos[2]:GetName() end
-            TotemTimers.ActiveProfile.FramePositions[k] = pos
-        end
-    end
-    for i = 1, #XiTimers.timers do
-        local timer = XiTimers.timers[i]
-        if timer.savePos and timer.button:GetNumPoints()>0 then
-            local pos = {timer.button:GetPoint(1)}
-            if not pos[1] then pos = nil
-            elseif pos[2] then
-                pos[2] = pos[2]:GetName()
-            end
-            TotemTimers.ActiveProfile.TimerPositions[timer.nr] = pos
-        end
-    end
-end
 
 
 local Sink = LibStub:GetLibrary("LibSink-2.0")

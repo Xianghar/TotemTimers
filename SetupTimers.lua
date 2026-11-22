@@ -364,16 +364,6 @@ end
         end ]]
 
         --tt.button:UpdateMiniIconAndProfile()
-        tt.button:SetScript("OnDragStop", function(self)
-            XiTimers.StopMoving(self)
-            if not InCombatLockdown() then
-                TotemTimers.PositionCastButtons()
-            end
-            --[[]if not InCombatLockdown() then
-                self:SetAttribute("hide", true)
-            end]]
-        end)
-
         if TotemTimers.IsForever then
 
 			tt.button.DisableMultiSpell = function(self, multispell, disable)
@@ -685,7 +675,7 @@ function TotemTimers.OrderTimers()
                 end
                 Timers[e].savePos = false
             else
-                local pos = TotemTimers.ActiveProfile.TimerPositions[Timers[e].nr]
+                local pos = TotemTimers.GetLayoutPositions().TimerPositions[Timers[e].nr]
                 if not pos or not pos[1] then
                     pos = { "CENTER", "UIParent", "CENTER", 0, 0 }
                 end
@@ -788,7 +778,7 @@ function TotemTimers.CreateCastButtons()
 
             button:SetAttribute("_ondragstart", [[if IsShiftKeyDown() and self:GetAttribute("*spell1")~=0 then
                                                                             return "spell", self:GetAttribute("*spell1")
-                                                                       else control:CallMethod("StartBarDrag") end]])
+                                                                       end]])
             button:SetAttribute("_onreceivedrag", [[ if kind == "spell" then
                                                                             control:CallMethod("ChangeTotemOrder", value, ...)
                                                                             return "clear"

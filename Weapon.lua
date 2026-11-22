@@ -105,13 +105,6 @@ function TotemTimers.CreateWeaponTracker()
     weapon.button:SetAttribute("ctrl-target-slot1", GetInventorySlotInfo("MainHandSlot"))
     weapon.button:SetAttribute("ctrl-type2", "cancelaura")
     weapon.button:SetAttribute("ctrl-target-slot2", GetInventorySlotInfo("SecondaryHandSlot"))
-    weapon.button:SetScript("OnDragStop", function(self)
-        XiTimers.StopMoving(self)
-        if not InCombatLockdown() then
-            --self:SetAttribute("hide", true)
-        end
-        TotemTimers.ProcessSetting("WeaponBarDirection")
-    end)
     weapon.nobars = true
     weapon.Stop = function(self, timer)
         XiTimers.Stop(self, timer)

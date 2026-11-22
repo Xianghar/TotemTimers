@@ -123,14 +123,6 @@ function TotemTimers.CreateEarthShieldTracker()
 
     TotemTimers.SetEarthShieldMainTankList()
 
-    earthshieldTimer.button:SetScript("OnDragStop", function(self)
-        XiTimers.StopMoving(self)
-        TotemTimers.ProcessSetting("ESMainTankMenuDirection")
-        if not InCombatLockdown() then
-            earthshieldTimer.button:SetAttribute("hide", true)
-        end
-    end)
-
     TotemTimers.EarthShieldTracker = earthshieldTimer
     TotemTimers.SetEarthShieldButtons()
 

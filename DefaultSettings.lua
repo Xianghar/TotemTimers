@@ -4,10 +4,10 @@ local _, TotemTimers = ...
 
 local SpellIDs = TotemTimers.SpellIDs
 local SpellNames = TotemTimers.SpellNames
-local Version = 11.9
+local Version = 12.0
 
 TotemTimers.DefaultGlobalSettings = {
-	Version = 11.9,
+	Version = 12.0,
     Profiles = {},
     Sink = {
         sink20OutputSink="Default",
@@ -22,7 +22,6 @@ TotemTimers_GlobalSettings = {}
 TotemTimers.DefaultProfile = {
 
     --General            
-        Lock = false,
         FlashRed = true,
         --ShowTimerBars = true,
         HideBlizzTimers = true,
@@ -336,25 +335,38 @@ TotemTimers.DefaultProfile = {
 
 		CooldownSpacing = 5,
     
+        -- positions of the anchor frames (children of UIParent, moved in the Edit Mode, EditMode.lua): the totem
+        -- timers and trackers below the player frame of the Edit Mode's "Modern" layout (its lower right corner at
+        -- 300 left of the screen's bottom center, 250 up; the totem row centered under it, the multicast button at
+        -- the anchor, the timers right of it), the combat cooldowns below the character, the always visible menus
+        -- (MenusAlwaysVisible, growing to the right) above the player frame
         FramePositions = {
-            TotemTimersFrame = {"CENTER", nil, "CENTER", -200,0},
-            TotemTimers_TrackerFrame = {"CENTER", nil, "CENTER", 50,0},
-            TotemTimers_EnhanceCDsFrame = {"CENTER", nil, "CENTER", 0, -170},
-            TotemTimers_CastBar1 = {"CENTER", nil, "CENTER", -200,-190},
-            TotemTimers_CastBar2  = {"CENTER", nil, "CENTER", -200,-225},
-            TotemTimers_CastBar3  = {"CENTER", nil, "CENTER", 50, -190},
-            TotemTimers_CastBar4  = {"CENTER", nil, "CENTER", 50, -225}, 
-            TotemTimers_CrowdControlFrame = {"CENTER", nil, "CENTER", -50, -50},
-			TotemTimers_LongCooldownsFrame = {"CENTER", nil, "CENTER", 150, -80},
-            TotemTimers_MultiSpellFrame = {"CENTER", nil, "CENTER", -300, -205},
+            TotemTimersFrame = {"BOTTOM", "UIParent", "BOTTOM", -471, 219},
+            TotemTimers_TrackerFrame = {"BOTTOM", "UIParent", "BOTTOM", -451, 130},
+            TotemTimers_EnhanceCDsFrame = {"CENTER", "UIParent", "CENTER", 0, -180},
+            TotemTimers_MultiSpellFrame = {"BOTTOM", "UIParent", "BOTTOM", -532, 362},
+            TotemTimers_CastBar1 = {"BOTTOM", "UIParent", "BOTTOM", -532, 398},
+            TotemTimers_CastBar2 = {"BOTTOM", "UIParent", "BOTTOM", -532, 434},
+            TotemTimers_CastBar3 = {"BOTTOM", "UIParent", "BOTTOM", -532, 470},
+            TotemTimers_CastBar4 = {"BOTTOM", "UIParent", "BOTTOM", -532, 506},
         },
-        
-        TimerPositions = { 
-            [1] = {"CENTER", nil, "CENTER", -50,-40},
-            [2] = {"CENTER", nil, "CENTER", -70,0},
-            [3] = {"CENTER", nil, "CENTER", -30, 0},
-            [4] = {"CENTER", nil, "CENTER", -50, 40}, 
+
+        -- buttons of the loose arrangement (Arrange/TrackerArrange "free"), offsets in the button's scale (TimerSize /
+        -- 36, TrackerSize / 36): the rows of the anchors above
+        TimerPositions = {
+            [1] = {"BOTTOM", "UIParent", "BOTTOM", -447, 246},
+            [2] = {"BOTTOM", "UIParent", "BOTTOM", -488, 246},
+            [3] = {"BOTTOM", "UIParent", "BOTTOM", -405, 246},
+            [4] = {"BOTTOM", "UIParent", "BOTTOM", -363, 246},
+            [5] = {"BOTTOM", "UIParent", "BOTTOM", -541, 156},
+            [6] = {"BOTTOM", "UIParent", "BOTTOM", -499, 156},
+            [7] = {"BOTTOM", "UIParent", "BOTTOM", -457, 156},
+            [8] = {"BOTTOM", "UIParent", "BOTTOM", -415, 156},
         },
+
+        -- FramePositions and TimerPositions per Edit Mode layout name, created from the two tables above when
+        -- something is moved in a layout (EditMode.lua)
+        LayoutPositions = {},
 
 }
 
@@ -499,6 +511,25 @@ local SettingsConverters = {
             profile.OverlayGlow = nil
             profile.FlameShockDurationStopPulse = nil
         end
+        TotemTimers_GlobalSettings.Version = 11.9
+    end,
+    [11.9] = function()
+        -- the anchor frames were moved by dragging the buttons (option Lock) and had no parent (scale 1); now they
+        -- are children of UIParent, moved in the Edit Mode: the saved offsets are converted to UIParent's scale
+        -- (runs in the setup, after PLAYER_ENTERING_WORLD, the UI scale is known), they are the starting positions of
+        -- every Edit Mode layout (LayoutPositions)
+        local scale = UIParent:GetEffectiveScale()
+        for _, profile in pairs(TotemTimers_Profiles) do
+            profile.Lock = nil
+            profile.FramePositions.TotemTimers_CrowdControlFrame = nil
+            profile.FramePositions.TotemTimers_LongCooldownsFrame = nil
+            for name, pos in pairs(profile.FramePositions) do
+                if pos[1] and (pos[2] == nil or pos[2] == "UIParent") then
+                    profile.FramePositions[name] = { pos[1], "UIParent", pos[3] or pos[1], (pos[4] or 0) / scale,
+                                                     (pos[5] or 0) / scale }
+                end
+            end
+        end
         TotemTimers_GlobalSettings.Version = Version
     end,
 }
@@ -616,12 +647,12 @@ function TotemTimers.UpdateProfiles()
 	end
 end
 
+-- resets the positions of all Edit Mode layouts of the profile
 function TotemTimers.ResetProfilePositions(name)
     TotemTimers_Profiles[name].FramePositions = copy(TotemTimers.DefaultProfile.FramePositions)
     TotemTimers_Profiles[name].TimerPositions = copy(TotemTimers.DefaultProfile.TimerPositions)
-    TotemTimers.ProcessSetting("FramePositions")
-    TotemTimers.OrderTimers()
-    TotemTimers.OrderTrackers()
+    TotemTimers_Profiles[name].LayoutPositions = {}
+    TotemTimers.ApplyFramePositions()
 end
 
 function TotemTimers.CopyProfile(p1,p2)
@@ -631,11 +662,12 @@ end
 function TotemTimers.CopyFramePositions(p1, p2)
     TotemTimers_Profiles[p2].FramePositions = copy(TotemTimers_Profiles[p1].FramePositions)
     TotemTimers_Profiles[p2].TimerPositions = copy(TotemTimers_Profiles[p1].TimerPositions)
+    TotemTimers_Profiles[p2].LayoutPositions = copy(TotemTimers_Profiles[p1].LayoutPositions)
 end
 
 
 local GeneralList = {
-    "Lock", "FlashRed", --"ShowTimerBars",
+    "FlashRed", --"ShowTimerBars",
     "HideBlizzTimers", "Tooltips", "TooltipsAtButtons",
     "TimeFont", "TimeColor", "TimerBarTexture",
     "TimerBarColor", "ShowKeybinds", "HideInVehicle",

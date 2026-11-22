@@ -39,7 +39,6 @@ function TotemTimers.CreateTotemicCallButton()
     local button = call.button
 
     button.icons[1]:SetTexture(SpellTextures[TotemicCall])
-    -- dragging moves the totem timers
     button.anchorframe = TotemTimersFrame
     button:SetScript("OnEvent", CallEvent)
     call.events[1] = "SPELL_UPDATE_COOLDOWN"
@@ -68,13 +67,6 @@ function TotemTimers.CreateTotemicCallButton()
         CallEvent(self.button, "SPELL_UPDATE_COOLDOWN")
         self:UpdateGCD()
     end
-
-    button:SetScript("OnDragStop", function(self)
-        XiTimers.StopMoving(self)
-        if not InCombatLockdown() then
-            TotemTimers.PositionCastButtons()
-        end
-    end)
 
     TotemTimers.TotemicCallTimer = call
 end

@@ -19,7 +19,7 @@ function TotemTimers.OrderTrackers()
     if arrange == "free" then
         for i = 5,8 do
             Timers[i].savePos = true
-            local pos = TotemTimers.ActiveProfile.TimerPositions[i]
+            local pos = TotemTimers.GetLayoutPositions().TimerPositions[i]
             if not pos or not pos[1] then
                 pos = { "CENTER", "UIParent", "CENTER", 0, 0 }
             end

@@ -417,13 +417,6 @@ function XiTimers:new(nroftimers, unclickable)
 	self.anchors = {}
 	self.anchorchilds = {}
 	
-	--self.button:SetScript("OnDragStart", XiTimers.StartMoving)
-	self.button:SetScript("OnDragStop", XiTimers.StopMoving)
-    self.button:SetAttribute("_ondragstart", [[control:CallMethod("StartMove")]])
-    --self.button:SetAttribute("_ondragstop", [[control:CallMethod("StopMoving")]])
-    self.button.StartMove = XiTimers.StartMoving
-    self.button.StopMove = XiTimers.StopMoving
-	self.button:RegisterForDrag("LeftButton")
 
     self.button:SetAttribute("useOnKeyDown", 1)
 
@@ -894,25 +887,6 @@ elseif ActionButtonSpellAlertManager then
         ActionButtonSpellAlertManager:HideAlert(self.button)
     end
 end
-
-    function XiTimers:StartMoving()
-        if self.timer.locked then return end
-        if self.anchorframe and not self.timer.savePos then
-            self.anchorframe:StartMoving()
-        else
-            self:StartMoving()
-        end
-    end
-
-    function XiTimers:StopMoving()
-        if self.anchorframe and not self.timer.savePos then
-            self.anchorframe:StopMovingOrSizing()
-        else
-            self:StopMovingOrSizing()
-        end
-        if XiTimers.SaveFramePositions then XiTimers.SaveFramePositions() end
-        self.timer:SetTimerBarPos(self.timer.timerBarPos, true)
-    end
 
     function XiTimers:SetIconAlpha(icon, alpha)
         if icon then

@@ -120,20 +120,7 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
                                                      end
                                                   end                                                         
                                                   ]])                                                    
-        b:SetScript("OnDragStop", function(self) 
-                    if self.bar.secondanchor then
-                        self.bar.secondanchor:StopMovingOrSizing()
-                    end
-                    TotemTimers.SaveFramePositions()
-                end)
-        --b:WrapScript(b, "OnDragStart", [[ print("drag") control:CallMethod("StartBarDrag")]])        
-        b:SetAttribute("_ondragstart", [[ control:CallMethod("StartBarDrag")]])
-        b.StartBarDrag = function(self)
-                if not IsModifierKeyDown() and self.bar.alwaysvisible 
-                    and not TotemTimers.ActiveProfile.Lock and self.bar.secondanchor and not InCombatLockdown() then
-                    self.bar.secondanchor:StartMoving()
-                end
-            end
+        -- dragging is only used by the totem menus: shift + drag picks the totem up (SetupTimers.lua)
         b:RegisterForDrag("LeftButton")
         b:RegisterEvent("SPELL_UPDATE_COOLDOWN")
         b:SetScript("OnEvent", function(self)            

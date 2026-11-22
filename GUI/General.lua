@@ -35,14 +35,6 @@ TotemTimers.options = {
                     imageHeight = 22,
 
                 },
-                lock = {
-                    order = 11,
-                    type = "toggle",
-                    name = L["Lock"],
-                    desc = L["Locks the position of TotemTimers"],
-                    set = function(info, val) TotemTimers.ActiveProfile.Lock = val TotemTimers.ProcessSetting("Lock") end,
-                    get = function(info) return TotemTimers.ActiveProfile.Lock end,
-                },
                 flashred = {
                     order = 12,
                     type = "toggle",

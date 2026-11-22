@@ -104,8 +104,7 @@ function TotemTimers.CreateEnhanceCDs()
 
     FlameShockDuration = XiTimers:new(1)
     TotemTimers.FlameShockDuration = FlameShockDuration
-    -- not disabled: a disabled button receives no drags, the combat cooldowns couldn't be moved by it (leftclick
-    -- casts Flame Shock; secure action buttons act on key down, see the Maelstrom button)
+    -- leftclick casts Flame Shock (secure action buttons act on key down, see the Maelstrom button)
     FlameShockDuration.button:RegisterForClicks("AnyDown")
     FlameShockDuration.button.icons[1]:SetVertexColor(1,1,1)
     FlameShockDuration.button.bar:SetStatusBarColor(1,0.2,0.2,0.8)
@@ -141,12 +140,13 @@ function TotemTimers.CreateEnhanceCDs()
     end
 
 
-    -- shift + drag picks the spell up (to drop it on another cooldown button: they swap places), a plain drag moves
-    -- the combat cooldowns
+    -- shift + drag picks the spell up (to drop it on another cooldown button: they swap places); the combat
+    -- cooldowns are moved in the Edit Mode (EditMode.lua)
     for i = 1, #cds do
+        cds[i].button:RegisterForDrag("LeftButton")
         cds[i].button:SetAttribute("_ondragstart", [[if IsShiftKeyDown() then
                                                     return "spell", self:GetAttribute("spell1")
-                                              else control:CallMethod("StartMove") end]])
+                                              end]])
         cds[i].button:SetAttribute("_onreceivedrag", [[ if kind == "spell" then
                                                    control:CallMethod("ChangeCDOrder", value, ...)
                                                     return "clear"

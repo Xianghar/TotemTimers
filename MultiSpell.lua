@@ -100,23 +100,11 @@ function TotemTimers.CreateMultiCastButtons()
         end
     end)
 
-    mb:SetScript("OnDragStart", function()
-        if not InCombatLockdown() and not TotemTimers.ActiveProfile.Lock then
-            TotemTimersFrame:StartMoving()
-        end
-    end)
-    mb:SetScript("OnDragStop", function()
-        TotemTimersFrame:StopMovingOrSizing()
-        TotemTimers.SaveFramePositions()
-        TotemTimers.PositionCastButtons()
-        --TotemTimers.ProcessSetting("MultiSpellBarDirection")
-    end)
     mb:SetAttribute("OpenMenu", "mouseover")
     mb:SetAttribute("*spell2", SpellIDs.TotemicRecall)
     mb:SetAttribute("*spell1", TotemTimers.ActiveProfile.LastMultiCastSpell or SpellIDs.CallOfElements)
     mb:SetAttribute("*spell3", SpellIDs.TotemicRecall)
     -- mb:RegisterForClicks("LeftButton, RightButton")
-    mb:RegisterForDrag("LeftButton")
     mb:RegisterForClicks("AnyDown")
     mb:SetAttribute("useOnKeyDown", 1)
     TotemTimers.PositionCastButtons()

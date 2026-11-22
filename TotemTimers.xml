@@ -1,7 +1,7 @@
 <Ui xmlns="http://www.blizzard.com/wow/ui/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.blizzard.com/wow/ui/
 ..\FrameXML\UI.xsd">
 
-  <Frame name="TotemTimersFrame" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
+  <Frame name="TotemTimersFrame" parent="UIParent" clampedToScreen="true" frameStrata="LOW" movable="true" dontSavePosition="true" hidden="true">
     <Size>
       <AbsDimension x="30" y="30" />
     </Size>
@@ -16,14 +16,14 @@
   </Frame>
   
   
-  <Frame name="TotemTimers_TrackerFrame" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
+  <Frame name="TotemTimers_TrackerFrame" parent="UIParent" clampedToScreen="true" frameStrata="LOW" movable="true" dontSavePosition="true" hidden="true">
     <Size x="1" y="1" />
     <Anchors>
       <Anchor point="CENTER" relativePoint="CENTER"/>
     </Anchors>
   </Frame>
   
-  <Frame name="TotemTimers_EnhanceCDsFrame" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
+  <Frame name="TotemTimers_EnhanceCDsFrame" parent="UIParent" clampedToScreen="true" frameStrata="LOW" movable="true" dontSavePosition="true" hidden="true">
     <Size>
       <AbsDimension x="1" y="1" />
     </Size>
@@ -32,7 +32,7 @@
     </Anchors>
   </Frame>
 
-    <Frame name="TotemTimers_MultiSpellFrame" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
+    <Frame name="TotemTimers_MultiSpellFrame" parent="UIParent" clampedToScreen="true" frameStrata="LOW" movable="true" dontSavePosition="true" hidden="true">
         <Size x="1" y="1" />
         <Anchors>
             <Anchor point="CENTER" relativePoint="CENTER"/>
@@ -46,32 +46,32 @@
     </Anchors>
   </Frame> -->
 
-  <Frame name="TotemTimers_LongCooldownsFrame" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
+  <Frame name="TotemTimers_LongCooldownsFrame" parent="UIParent" clampedToScreen="true" frameStrata="LOW" movable="true" dontSavePosition="true" hidden="true">
     <Size x="1" y="1" />
     <Anchors>
       <Anchor point="CENTER" relativePoint="CENTER"/>
     </Anchors>
   </Frame>
   
- <Frame name="TotemTimers_CastBar1" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
+ <Frame name="TotemTimers_CastBar1" parent="UIParent" clampedToScreen="true" frameStrata="LOW" movable="true" dontSavePosition="true" hidden="true">
     <Size x="1" y="1" />
     <Anchors>
       <Anchor point="CENTER" relativePoint="CENTER"/>
     </Anchors>
   </Frame>
- <Frame name="TotemTimers_CastBar2" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
+ <Frame name="TotemTimers_CastBar2" parent="UIParent" clampedToScreen="true" frameStrata="LOW" movable="true" dontSavePosition="true" hidden="true">
     <Size x="1" y="1" />
     <Anchors>
       <Anchor point="CENTER" relativePoint="CENTER"/>
     </Anchors>
   </Frame>
- <Frame name="TotemTimers_CastBar3" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
+ <Frame name="TotemTimers_CastBar3" parent="UIParent" clampedToScreen="true" frameStrata="LOW" movable="true" dontSavePosition="true" hidden="true">
     <Size x="1" y="1" />
     <Anchors>
       <Anchor point="CENTER" relativePoint="CENTER"/>
     </Anchors>
   </Frame>
- <Frame name="TotemTimers_CastBar4" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
+ <Frame name="TotemTimers_CastBar4" parent="UIParent" clampedToScreen="true" frameStrata="LOW" movable="true" dontSavePosition="true" hidden="true">
     <Size x="1" y="1" />
     <Anchors>
       <Anchor point="CENTER" relativePoint="CENTER"/>

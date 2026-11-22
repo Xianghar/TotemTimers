@@ -50,6 +50,7 @@ GamePad\GamePadBarMode.lua
 GamePad\GamePadRanks.lua
 GamePad\GamePadLegend.lua
 GamePad\GamePadTutorial.lua
+EditMode.lua
 #LongCooldowns.lua
 
 Warnings.lua

@@ -66,10 +66,6 @@ function TotemTimers.CreateShieldTracker()
     end
 
 
-    shield.button:SetScript("OnDragStop", function(self)
-        XiTimers.StopMoving(self)
-    end)
-
     CreateAuraDisplay()
 
     TotemTimers.ShieldTracker = shield

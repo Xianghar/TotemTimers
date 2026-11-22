@@ -18,6 +18,19 @@ local L = LibStub("AceLocale-3.0"):NewLocale("TotemTimers", "enUS", true, true)
 if not L then return end
 
 L["Air Button"] = true
+L["Air Totem Timer"] = true
+L["Ankh Tracker"] = true
+L["Combat Cooldowns"] = true
+L["Earth Shield Tracker"] = true
+L["Earth Totem Timer"] = true
+L["Fire Totem Timer"] = true
+L["Multicast Menu"] = true
+L["Shield Tracker"] = true
+L["Totem Menu %d"] = true
+L["Totem Timers"] = true
+L["Trackers"] = true
+L["Water Totem Timer"] = true
+L["Weapon Tracker"] = true
 L["Click to exclude element from %s"] = true
 L["Click to include element in %s"] = true
 L["Cooldown"] = true
