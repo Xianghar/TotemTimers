@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.27
+- Frames are now moved in Edit Mode
+
 ## 20.26
 - Added totem cooldowns back in
 
