@@ -1002,7 +1002,8 @@ end
                     end
                 end
                 if active > 0 then
-                    local left = self.button:GetLeft() < WorldFrame:GetWidth()/2
+                    -- the button can be unpositioned yet (cooldown started on activation, before OrderTimers)
+                    local left = (self.button:GetLeft() or 0) < WorldFrame:GetWidth()/2
                     if TotemTimers.ActiveProfile.Arrange == "box" and self.actnr then
                         left = self.actnr == 2 or self.actnr == 4
                     end
@@ -1054,7 +1055,8 @@ end
                     end
                 end
                 if active > 0 then
-                    local left = self.button:GetLeft() < WorldFrame:GetWidth()/2
+                    -- the button can be unpositioned yet (cooldown started on activation, before OrderTimers)
+                    local left = (self.button:GetLeft() or 0) < WorldFrame:GetWidth()/2
                     if TotemTimers.ActiveProfile.Arrange == "box" and self.actnr then
                         left = self.actnr == 2 or self.actnr == 4
                     end
@@ -1108,8 +1110,8 @@ end
             return (self.timerOnButton and not self.forceBar) and 0 or self.timeSpacing + height
         elseif ((side == "LEFT" and timerBarPos == "LEFT" or side == "RIGHT" and timerBarPos == "RIGHT") and ((self.nrOfTimers>1 and TotemTimers.ActiveProfile.ShowCooldowns) or not self.timerOnButton or self.forceBar))
                 or (self.nr < 5 and TotemTimers.ActiveProfile.ShowCooldowns and TotemTimers.ActiveProfile.Arrange == "vertical" and self.nrOfTimers > 1 and
-                ((side == "LEFT" and self.nrOfTimers > 1 and TotemTimersFrame:GetLeft() > WorldFrame:GetWidth()/2)
-                        or (side == "RIGHT" and self.nrOfTimers > 1 and TotemTimersFrame:GetLeft() < WorldFrame:GetWidth()/2)))
+                ((side == "LEFT" and self.nrOfTimers > 1 and (TotemTimersFrame:GetLeft() or 0) > WorldFrame:GetWidth()/2)
+                        or (side == "RIGHT" and self.nrOfTimers > 1 and (TotemTimersFrame:GetLeft() or 0) < WorldFrame:GetWidth()/2)))
         then
             return (self.timeSpacing + self.timerBars[1]:GetWidth()*self.timerBars[1]:GetEffectiveScale())
         end

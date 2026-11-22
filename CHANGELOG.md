@@ -1,6 +1,6 @@
 # TotemTimers
 
-## 20.25
+## 20.26
 - Added totem cooldowns back in
 
 ## 20.24

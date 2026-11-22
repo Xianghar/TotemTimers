@@ -257,6 +257,15 @@ function TotemTimers.SetupGlobals()
 	end
 	TotemTimers.UpdateMacro()
 	TotemTimers_IsSetUp = true
+    -- the setup runs after the first SPELLS_CHANGED, no spell update follows it: the update is run here (weapon
+    -- tracker menu, highest known ranks on all buttons and menus, spell updaters; see ChangedTalents)
+    if select(2, UnitClass("player")) == "SHAMAN" then
+        if InCombatLockdown() then
+            updateAfterCombat = true
+        else
+            TotemTimers.ChangedTalents(true)
+        end
+    end
     --TotemTimersFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
 end
 

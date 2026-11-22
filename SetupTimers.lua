@@ -326,10 +326,9 @@ end
             UpdateRangeDots(self)
 
             -- totem of the button (saved, from the multicast slot, or the first of the menu when the element was
-            -- just learned) and the element's empty multicast slots
-            if not self.timers[1] then
-                TotemTimers.UpdateTimerTotem(self)
-            end
+            -- just learned) and the element's empty multicast slots; also while its totem is placed (e.g. after a
+            -- /reload), the button's icon keeps showing the placed totem (UpdateMiniIconAndProfile)
+            TotemTimers.UpdateTimerTotem(self)
         end
 
         tt.XiTimersStart = XiTimers.Start
@@ -697,6 +696,10 @@ function TotemTimers.OrderTimers()
             pos[c] = Timers[e]
         end
     end
+    -- cooldown bars started on activation (before the buttons were positioned) pick their side by the position
+    for e = 1, 4 do
+        if Timers[e].active then Timers[e]:SetTimerBarPos(Timers[e].timerBarPos, true) end
+    end
 end
 
 local BarMiniIconPos = {
@@ -849,7 +852,8 @@ function TotemTimers.SetCastButtonSpells()
         local totems = {}
         for k, v in pairs(Profile.TotemOrder[timer.nr]) do
             if TotemTimers.AvailableSpells[v] and not Profile.HiddenTotems[v] and not TotemData[v].isOverride then
-                table.insert(totems, v)
+                -- the order holds the base IDs (rank 1): the menus cast the highest known rank
+                table.insert(totems, TotemTimers.UpdateSpellRank(v) or v)
             end
         end
         TTActionBars.bars[timer.nr]:SetSpells(totems)
@@ -883,6 +887,11 @@ local function ToSpellID(spell)
         return C_Spell.GetSpellIDForSpellIdentifier(spell) or base
     end
     return spell
+end
+
+-- highest known rank of a totem (spell ID), the spell itself if that can't be read
+local function HighestRank(spell)
+    return spell and TotemTimers.UpdateSpellRank(spell) or spell
 end
 
 -- first totem of the timer's menu (by the menu order of the profile), or any known totem of the element
@@ -925,9 +934,14 @@ function TotemTimers.UpdateTimerTotem(timer)
         for mspell, action in pairs(TotemTimers.MultiCastActions[timer.nr] or {}) do
             if AvailableSpells[mspell] then
                 local actionType, id = GetActionInfo(action)
+                local spell = actionType == "spell" and id or nil
+                -- a totem of the element in a lower rank is replaced with the highest known rank (written below)
+                local highest = IsValidTotem(spell, timer) and HighestRank(spell)
+                local upgrade = type(highest) == "number" and highest ~= spell
                 slots[mspell] = {
                     action = action,
-                    spell = actionType == "spell" and id or nil,
+                    spell = upgrade and highest or spell,
+                    upgrade = upgrade,
                     disabled = profile.DisabledMultiSpells[TotemTimers.Specialization .. mspell .. timer.nr] and true or false,
                 }
             end
@@ -943,6 +957,8 @@ function TotemTimers.UpdateTimerTotem(timer)
         spell = (IsValidTotem(current, timer) and current) or (IsValidTotem(saved, timer) and saved)
                 or GetFirstMenuTotem(timer)
     end
+    -- the multicast slots and the saved settings can hold a lower rank: the timer casts the highest known rank
+    spell = HighestRank(spell)
 
     -- a fallback for a saved totem that isn't known (yet, e.g. a talent totem while switching specs) keeps the
     -- saved one in the settings
@@ -954,6 +970,9 @@ function TotemTimers.UpdateTimerTotem(timer)
     for mspell, slot in pairs(slots) do
         button:SetAttribute("action" .. mspell, slot.action)
         button:SetAttribute("mspelldisabled" .. mspell, slot.disabled)
+        if slot.upgrade then
+            SetMultiCastSpell(slot.action, slot.spell)
+        end
         if slot.disabled then
             -- switching to this multicast spell keeps the timer's totem
             button:SetAttribute("mspell" .. mspell, nil)
@@ -962,7 +981,7 @@ function TotemTimers.UpdateTimerTotem(timer)
                 SetMultiCastSpell(slot.action, spell)
                 slot.spell = spell
             end
-            button:SetAttribute("mspell" .. mspell, IsValidTotem(slot.spell, timer) and slot.spell or spell)
+            button:SetAttribute("mspell" .. mspell, IsValidTotem(slot.spell, timer) and HighestRank(slot.spell) or spell)
         end
     end
     if spell and spell ~= current then
