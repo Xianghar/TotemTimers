@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.28
+- Fix for totem sets
+
 ## 20.27
 - Frames are now moved in Edit Mode
 
