@@ -134,8 +134,7 @@ function TotemTimers.SetButton_OnClick(self, button)
     if not set then return end
 
 	if button == "RightButton" then
-		local popup = StaticPopup_Show("TOTEMTIMERS_DELETESET", not set.name and self.nr or set.name)
-		popup.data = self.nr
+		TotemTimers.ConfirmDeleteSet(self.nr)
     elseif button == "LeftButton" then
         for i=1,4 do
             local spell = TotemTimers.UpdateSpellRank(set[XiTimers.timers[i].nr])
@@ -145,19 +144,15 @@ function TotemTimers.SetButton_OnClick(self, button)
 	end
 end
 
-local function TotemTimers_DeleteSet(self, nr)
-	if not InCombatLockdown() then
-		table.remove(TotemTimers.ActiveProfile.TotemSets,nr)
-		TotemTimers.ProgramSetButtons()
-	end
+-- asks before deleting set nr (own dialog, not a StaticPopup, see TotemTimers.ShowConfirmDialog);
+-- TotemTimers.OnSetsChanged (options) runs after the deletion
+function TotemTimers.ConfirmDeleteSet(nr)
+    local set = TotemTimers.ActiveProfile.TotemSets[nr]
+    if not set then return end
+    TotemTimers.ShowConfirmDialog(string.format(L["Delete Set"], set.name or nr), function()
+        if InCombatLockdown() or TotemTimers.ActiveProfile.TotemSets[nr] ~= set then return end
+        table.remove(TotemTimers.ActiveProfile.TotemSets, nr)
+        TotemTimers.ProgramSetButtons()
+        if TotemTimers.OnSetsChanged then TotemTimers.OnSetsChanged() end
+    end)
 end
-
-StaticPopupDialogs["TOTEMTIMERS_DELETESET"] = {
-  text = L["Delete Set"],
-  button1 = OKAY,
-  button2 = CANCEL,
-  whileDead = 1,
-  hideOnEscape = 1,
-  timeout = 0,
-  OnAccept = TotemTimers_DeleteSet,
-}

@@ -198,10 +198,11 @@ local function CreateDialogButton(dialog, name, key, label, onClick)
     return button
 end
 
--- dialog with the tutorial's caption, a text and two buttons at the bottom (added by CreateDialogButton)
-local function CreateDialog(name)
+-- dialog with a caption (title, default the tutorial's), a text and two buttons at the bottom (added by
+-- CreateDialogButton); dialog.escapeButton is also clicked by Escape
+local function CreateDialog(name, title, strata)
     local dialog = CreateFrame("Frame", name, UIParent)
-    dialog:SetFrameStrata("DIALOG")
+    dialog:SetFrameStrata(strata or "DIALOG")
     dialog:SetToplevel(true)
     dialog:EnableMouse(true)
     dialog:SetClampedToScreen(true)
@@ -214,7 +215,7 @@ local function CreateDialog(name)
     border:SetAllPoints()
 
     local header = CreateFrame("Frame", nil, dialog, "DialogHeaderTemplate")
-    header:Setup(L["GamePad Tutorial Title"])
+    header:Setup(title or L["GamePad Tutorial Title"])
 
     dialog.text = dialog:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
     dialog.text:SetWidth(TEXT_WIDTH)
@@ -225,6 +226,10 @@ local function CreateDialog(name)
             UpdateButtonIcon(button)
             SetOverrideBindingClick(self, true, key, button:GetName(), "LeftButton")
         end
+        if self.escapeButton then
+            SetOverrideBindingClick(self, true, "ESCAPE", self.escapeButton:GetName(), "LeftButton")
+        end
+        self:Raise()
         self:RegisterEvent("PLAYER_REGEN_DISABLED")
     end)
     dialog:SetScript("OnHide", function(self)
@@ -429,3 +434,43 @@ eventFrame:SetScript("OnEvent", function(self, event, isLogin, isReload)
     -- wait until the loading screen and the login popups have settled
     C_Timer.After(2, ShowPromptIfGamepadUI)
 end)
+
+----------------------------------------------------------------------------------------------------------------
+-- confirm dialog (e.g. deleting a totem set), also used without the Gamepad UI: a StaticPopup would taint the
+-- Gamepad UI's frame focus handling when it closes
+
+local confirm
+
+local function CreateConfirm()
+    -- above the options window (AceGUI, FULLSCREEN_DIALOG)
+    confirm = CreateDialog("TotemTimers_ConfirmDialog", "TotemTimers", "FULLSCREEN_DIALOG")
+
+    local accept = CreateDialogButton(confirm, "TotemTimers_ConfirmDialogAccept", "PAD1", OKAY, function()
+        local onAccept = confirm.onAccept
+        confirm.onAccept = nil
+        confirm:Hide()
+        if onAccept then onAccept() end
+    end)
+    accept:SetPoint("BOTTOMRIGHT", confirm, "BOTTOM", -8, BUTTON_BOTTOM)
+
+    local cancel = CreateDialogButton(confirm, "TotemTimers_ConfirmDialogCancel", "PAD2", CANCEL, function()
+        confirm:Hide()
+    end)
+    cancel:SetPoint("BOTTOMLEFT", confirm, "BOTTOM", 8, BUTTON_BOTTOM)
+    confirm.escapeButton = cancel
+
+    confirm.OnClose = function()
+        confirm.onAccept = nil
+    end
+end
+
+-- shows text with OK/Cancel, onAccept runs on OK; out of combat only (override bindings), closed by combat
+function TotemTimers.ShowConfirmDialog(text, onAccept)
+    if InCombatLockdown() then return end
+    if not confirm then CreateConfirm() end
+    confirm:Hide()
+    confirm.text:SetText(text)
+    FitHeight(confirm)
+    confirm:Show()
+    confirm.onAccept = onAccept
+end

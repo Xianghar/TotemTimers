@@ -74,8 +74,7 @@ function TotemTimers.BuildSetsOptions()
                 name = L["Delete"],
                 order = i * 10 + 3,
                 func = function()
-                	local popup = StaticPopup_Show("TOTEMTIMERS_DELETESET", not set.name and i or set.name)
-                	popup.data = i
+                    TotemTimers.ConfirmDeleteSet(i)
                 end,
             }
         end
@@ -89,9 +88,5 @@ reloadFrame = TotemTimers.BuildSetsOptions
 
 frame:HookScript("OnShow", TotemTimers.BuildSetsOptions)
 
-
-local deleteOnAccept = StaticPopupDialogs["TOTEMTIMERS_DELETESET"].OnAccept
-StaticPopupDialogs["TOTEMTIMERS_DELETESET"].OnAccept = function(self, nr)
-    deleteOnAccept(self, nr)
-    reloadFrame()
-end
+-- after deleting a set (TotemTimers.ConfirmDeleteSet)
+TotemTimers.OnSetsChanged = reloadFrame

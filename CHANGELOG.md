@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.29
+- Fix for taint when deleting a totem set
+
 ## 20.28
 - Fix for totem sets
 
