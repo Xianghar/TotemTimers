@@ -37,11 +37,12 @@ function TotemTimers.BuildSetsOptions()
         for i = 1, #TotemTimers.ActiveProfile.TotemSets do
             local set = TotemTimers.ActiveProfile.TotemSets[i]
 
-            table.insert(args,  {
+            -- AceConfig only accepts string keys
+            args["header" .. i] = {
                 type = "header",
                 order = i * 10,
                 name = not set.name and "Set "..i or set.name
-            })
+            }
 
             local totems = {}
             for element = 1,4 do
@@ -52,13 +53,13 @@ function TotemTimers.BuildSetsOptions()
                 end
             end
 
-            table.insert(args, {
+            args["totems" .. i] = {
                 type = "description",
                 order = i * 10 + 1,
                 name = table.concat(totems, ", "),
-            })
+            }
 
-            table.insert(args, {
+            args["rename" .. i] = {
                 type = "input",
                 name = L["Rename"],
                 order = i * 10 + 2,
@@ -66,9 +67,9 @@ function TotemTimers.BuildSetsOptions()
                     set.name = value
                     reloadFrame()
                 end,
-            })
+            }
 
-            table.insert(args, {
+            args["delete" .. i] = {
                 type = "execute",
                 name = L["Delete"],
                 order = i * 10 + 3,
@@ -76,7 +77,7 @@ function TotemTimers.BuildSetsOptions()
                 	local popup = StaticPopup_Show("TOTEMTIMERS_DELETESET", not set.name and i or set.name)
                 	popup.data = i
                 end,
-            })
+            }
         end
     end
 
