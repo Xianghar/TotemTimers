@@ -49,6 +49,38 @@ function TotemTimers.ProgramSetButtons()
             b:SetAttribute("_childupdate-toggle", [[ if not self:GetAttribute("inactive") then if self:IsVisible() then self:Hide() else self:Show() end end ]])
             b.nr = i
 
+            -- like the timer buttons (XiTimers:new) the template's unnamed art is removed (slot art and
+            -- background, icon mask); the four icons (16 px, 2 px inset) sit inside the border.
+            -- Pushed and highlight texture are sized for the template's 45 px button (46 x 45 at TOPLEFT),
+            -- scaled to this button here.
+            local highlight, pushed = b:GetHighlightTexture(), b:GetPushedTexture()
+            for _, region in ipairs({ b:GetRegions() }) do
+                if not region:GetName() and region ~= highlight and region ~= pushed then
+                    region:SetTexture(nil)
+                    region:Hide()
+                end
+            end
+            local size = b:GetWidth()
+
+            -- border around the four icons: the classic quickslot frame (as on Classic, 52 px around a
+            -- 32 px button, 1 px down), scaled to this button, drawn over the icons' edge
+            local normal = b:GetNormalTexture()
+            if normal then
+                normal:SetTexture("Interface\\Buttons\\UI-Quickslot2")
+                normal:SetDrawLayer("OVERLAY")
+                normal:ClearAllPoints()
+                normal:SetPoint("CENTER", 0, -size / 32)
+                normal:SetSize(size * 52 / 32, size * 52 / 32)
+            end
+
+            for _, texture in pairs({ highlight or false, pushed or false }) do
+                if texture then
+                    texture:ClearAllPoints()
+                    texture:SetPoint("TOPLEFT")
+                    texture:SetSize(size * 46 / 45, size)
+                end
+            end
+
             b.tooltip = TotemTimers.Tooltips.SetButton:new(b)
             XiTimers.HookTooltips(b)
             b:SetAttribute("tooltip", true)
