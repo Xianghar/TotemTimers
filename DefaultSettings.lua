@@ -87,6 +87,7 @@ TotemTimers.DefaultProfile = {
         MacroReset = 15,
         MacroResetCombat = true,
         MultiCast = true,
+        MultiCastMacroButton = true,
         DisabledMultiSpells = {},
         TotemicCallButton = true,
         SwapMultiCastCall = false,
@@ -691,7 +692,7 @@ local TimerList = {
     "MiniIcons", "ProcFlash", "ColorTimerBars", "ShowCooldowns", 
     "CheckPlayerRange", "PlayerRangeStyle", "CheckRaidRange", "PartyRangePosition", "ShowRaidRangeTooltip",
     "Timer_Clickthrough", "IncludeInMacro", "MacroReset", "MacroResetCombat",
-    "MultiCast", "DisabledMultiSpells", "TotemicCallButton", "SwapMultiCastCall",
+    "MultiCast", "MultiCastMacroButton", "MultiCastMacro", "DisabledMultiSpells", "TotemicCallButton", "SwapMultiCastCall",
     "GamePad", "GamePadLayerKey", "GamePadTimers", "GamePadHideTimers", "GamePadUpdateRanks", "GamePadUpdateRanksOnLogin",
 }
 

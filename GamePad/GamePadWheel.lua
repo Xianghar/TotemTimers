@@ -146,8 +146,19 @@ local WHEEL_ASSIGN = [[
             return
         end
     elseif spell then
+        if source:GetAttribute("ttmacro") then
+            source:SetAttribute("ttmacro", nil)
+            source:SetAttribute("*macro1", nil)
+        end
         source:SetAttribute("*type1", "spell")
         source:SetAttribute("*spell1", spell)
+    elseif b:GetAttribute("ttmacro") then
+        -- the TT Cast macro of the multicast menu: the multicast button casts it (like the menu's wrap)
+        local macro = b:GetAttribute("ttmacro")
+        source:SetAttribute("*type1", "macro")
+        source:SetAttribute("*macro1", macro)
+        source:SetAttribute("ttmacro", macro)
+        source:SetAttribute("*spell1", nil)
     else
         return
     end
@@ -209,9 +220,16 @@ local WHEEL_CAST_WRAP = [[
     else
         local b = control:GetFrameRef("m" .. m .. "b" .. (i - extra))
         local spell = b and b:GetAttribute("*spell1")
-        if not spell then return false end
-        self:SetAttribute("type", "spell")
-        self:SetAttribute("spell", spell)
+        local macro = b and b:GetAttribute("ttmacro")
+        if spell then
+            self:SetAttribute("type", "spell")
+            self:SetAttribute("spell", spell)
+        elseif macro then
+            self:SetAttribute("type", "macro")
+            self:SetAttribute("macro", macro)
+        else
+            return false
+        end
     end
     control:RunAttribute("CloseWheel")
 ]]
@@ -263,6 +281,8 @@ local HOLD_WRAP = [[
     -- the slot's own totem (the wheel may have changed the spell)
     local source = self:GetFrameRef("ttGamePadSource")
     local spell = source and source:GetAttribute(source:GetAttribute("ttspellattr") or "*spell1")
+    -- the multicast button in macro mode casts the TT Cast macro
+    local macro = source and source:GetAttribute("ttmacro")
     if self:GetAttribute("ttWheelOpen") then
         -- the totem the stick points at
         local m = self:GetAttribute("ttHoldMenu")
@@ -293,7 +313,8 @@ local HOLD_WRAP = [[
         end
         local b = control:GetFrameRef("m" .. m .. "b" .. (i - (totemSlot and 1 or 0)))
         spell = b and b:GetAttribute("*spell1")
-        if not spell then return false end
+        macro = not spell and b and b:GetAttribute("ttmacro")
+        if not (spell or macro) then return false end
     elseif held then
         -- released before the wheel opened
         if ticker then
@@ -303,8 +324,13 @@ local HOLD_WRAP = [[
         wheelOpen, wheelSticky, wheelArmed1, wheelArmed2 = false, false, false, false
     end
     -- a former destroy segment changed the type
-    self:SetAttribute("type", "spell")
-    self:SetAttribute("spell", spell)
+    if macro then
+        self:SetAttribute("type", "macro")
+        self:SetAttribute("macro", macro)
+    else
+        self:SetAttribute("type", "spell")
+        self:SetAttribute("spell", spell)
+    end
 ]]
 
 -- the totem wheel (display only, not protected), in the style of the Gamepad UI's game menu wheel (GamepadRadial),
@@ -470,6 +496,9 @@ end
 
 local FillWheel
 
+-- the wheel entry of the TT Cast macro (multicast menu, TTActionBars:AddMacro)
+local MACRO_ENTRY = {}
+
 -- called by the hold tick (secure, CallMethod of the navigation button), also in combat
 local function ShowWheel(_, m, armed1, armed2)
     if not wheel then CreateWheel() end
@@ -494,18 +523,20 @@ local function ShowWheel(_, m, armed1, armed2)
     local spells = {}
     for _, button in ipairs(menuButtons[m] or {}) do
         local spell = button:GetAttribute("*spell1")
+        local macro = not spell and button:GetAttribute("ttmacro")
         if #spells == WHEEL_MAX_TOTEMS or button:GetAttribute("inactive")
-                or not (spell or button:GetAttribute("doublespell1")) then
+                or not (spell or macro or button:GetAttribute("doublespell1")) then
             break
         end
-        table.insert(spells, spell or false)
+        table.insert(spells, spell or (macro and MACRO_ENTRY) or false)
     end
     -- totem wheels: the first segment (at the top) destroys the element's totem (see HOLD_WRAP), the totems follow;
     -- while the multicast button is active the multicast exclusion toggle is the last segment (like WheelTail)
     local toggle = not multiSpell and parent and parent.excludeToggle
     local excludeSource = toggle and not toggle:GetAttribute("inactive") and parent or nil
-    FillWheel(spells, not multiSpell and #spells > 0, parent and parent:GetAttribute(GetSpellAttribute(parent)),
-            excludeSource)
+    local assigned = parent and (parent:GetAttribute("ttmacro") and MACRO_ENTRY
+            or parent:GetAttribute(GetSpellAttribute(parent)))
+    FillWheel(spells, not multiSpell and #spells > 0, assigned, excludeSource)
     wheel.armed[1], wheel.armed[2] = armed1, armed2
     wheel.demo = nil
     -- the tutorial's wheel may have moved it
@@ -554,6 +585,9 @@ function FillWheel(spells, destroy, assigned, excludeSource)
         elseif destroy and i == 1 then
             segment.icon:SetTexture(WHEEL_DESTROY_ICON)
             segment.label:SetText(L["Destroy Totem"])
+        elseif spell == MACRO_ENTRY then
+            segment.icon:SetTexture(TotemTimers.GetCastMacroTexture())
+            segment.label:SetText(L["Castsequence Macro"])
         else
             segment.icon:SetTexture(spell and (C_Spell.GetSpellTexture(spell)) or 134400)
             segment.label:SetText(spell and C_Spell.GetSpellName(spell) or "")
@@ -564,7 +598,9 @@ function FillWheel(spells, destroy, assigned, excludeSource)
     -- the totem of the timer button
     wheel.assigned = nil
     for i, spell in ipairs(spells) do
-        if spell and assigned and C_Spell.GetSpellName(spell) == C_Spell.GetSpellName(assigned) then
+        if spell == MACRO_ENTRY or assigned == MACRO_ENTRY then
+            if spell == assigned then wheel.assigned = i + extra end
+        elseif spell and assigned and C_Spell.GetSpellName(spell) == C_Spell.GetSpellName(assigned) then
             wheel.assigned = i + extra
         end
     end

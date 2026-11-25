@@ -86,6 +86,16 @@ TotemTimers.Tooltips.Totem = TotemTooltip
 
 function TotemTooltip:SetText()
     local spell = self.button:GetAttribute("*spell1")
+    -- the TT Cast macro in the multicast menu (TTActionBars:AddMacro)
+    local macro = not spell and self.button:GetAttribute("ttmacro")
+    if macro then
+        GameTooltip:SetText(L["Castsequence Macro"])
+        GameTooltip:AddLine(L["TT Cast Macro Tooltip"], 1, 1, 1, 1)
+        GameTooltip:AddLine(" ")
+        GameTooltip:AddLine(L["Leftclick to cast macro"], r, g, b, 1)
+        GameTooltip:AddLine(L["Rightclick to assign macro to multicast button"], r, g, b, 1)
+        return
+    end
     if not spell then return end
 
     self:SetSpell(spell)

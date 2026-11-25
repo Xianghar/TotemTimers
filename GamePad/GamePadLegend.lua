@@ -114,7 +114,9 @@ local function GetLegendText(info)
         local spell = weaponButton and weaponButton:GetAttribute("spell1")
         return spell and C_Spell.GetSpellName(spell)
     elseif info.slot == DPAD_RIGHT_INDEX then
-        local spell = TotemTimers_MultiSpell and TotemTimers_MultiSpell:GetAttribute("*spell1")
+        local multiSpell = TotemTimers_MultiSpell
+        if multiSpell and multiSpell:GetAttribute("ttmacro") then return L["Castsequence Macro"] end
+        local spell = multiSpell and multiSpell:GetAttribute("*spell1")
         return spell and C_Spell.GetSpellName(spell)
     elseif info.slot == DPAD_DOWN_INDEX then
         return GetAvailableSpellName(SpellIDs.TotemicRecall)

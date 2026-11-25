@@ -131,10 +131,23 @@ function TTActionBars:new(numbuttons, parent, secondanchor, directionanchor, bar
                  end
             end)
         if bartype ~= "weapontimer" then 
+            -- a macro entry (ttmacro, multicast menu: the TT Cast macro) makes the parent cast the macro instead of
+            -- a spell (*spell1 nil, the timers then have no multicast spell)
             parent:WrapScript(b, "OnClick", [[  if button ~= "LeftButton" then
+                                                    local p = self:GetParent()
+                                                    local macro = self:GetAttribute("ttmacro")
                                                     if self:GetAttribute("*spell1") then
-                                                        self:GetParent():SetAttribute("*type1", "spell")
-                                                        self:GetParent():SetAttribute("*spell1", self:GetAttribute("*spell1"))
+                                                        if p:GetAttribute("ttmacro") then
+                                                            p:SetAttribute("ttmacro", nil)
+                                                            p:SetAttribute("*macro1", nil)
+                                                        end
+                                                        p:SetAttribute("*type1", "spell")
+                                                        p:SetAttribute("*spell1", self:GetAttribute("*spell1"))
+                                                    elseif macro then
+                                                        p:SetAttribute("*type1", "macro")
+                                                        p:SetAttribute("*macro1", macro)
+                                                        p:SetAttribute("ttmacro", macro)
+                                                        p:SetAttribute("*spell1", nil)
                                                     end
                                                 end
                                                 if not self:GetAttribute("alwaysshow") then
@@ -219,6 +232,11 @@ function TTActionBars:SetInactive(nr)
     local button = self.buttons[nr]
 	button:SetAttribute("inactive", true)
     button:SetAttribute("*spell1", nil)
+    if button:GetAttribute("ttmacro") then
+        button:SetAttribute("ttmacro", nil)
+        button:SetAttribute("*macro1", nil)
+        button:SetAttribute("*type1", "spell")
+    end
 	button:SetAttribute("doublespell1", nil)
     button:SetAttribute("doublespell2", nil)
     button.icon:SetTexture(nil)
@@ -273,6 +291,22 @@ function TTActionBars:SetSpells(spells, asnames)
     self:SetExtraButtonAnchor()
 end
 
+
+-- an entry casting a macro (by name) on leftclick; a rightclick makes the parent cast it (OnClick wrap above)
+function TTActionBars:AddMacro(macro, texture)
+    if self.numspells >= self.numbuttons then return end
+    self.numspells = self.numspells + 1
+    local button = self.buttons[self.numspells]
+    button:SetAttribute("*spell1", nil)
+    button:SetAttribute("*spell2", nil)
+    button:SetAttribute("*type1", "macro")
+    button:SetAttribute("*macro1", macro)
+    button:SetAttribute("ttmacro", macro)
+    button:SetAttribute("inactive", false)
+    button.icon:SetTexture(texture)
+    local f = button:GetScript("OnEvent")
+    if f then f(button) end
+end
 
 function TTActionBars:AddDoubleSpell(spell1,spell2)
     if self.numspells >= self.numbuttons then return end

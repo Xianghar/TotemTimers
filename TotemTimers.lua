@@ -675,6 +675,8 @@ function TotemTimers.UpdateMacro()
         else
             EditMacro(nr, "TT Cast", DynamicMacroIcon, sequence)
         end
+        -- the macro's entry in the multicast menu (MultiSpell.lua)
+        if TotemTimers.UpdateCastMacroIcons then TotemTimers.UpdateCastMacroIcons() end
     else
         macroNeedsUpdate = true
     end

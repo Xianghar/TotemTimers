@@ -33,11 +33,21 @@ local overriddenSlots = {}
 
 -- a source button (totem timer, multicast button) sets the spell of its bar slot when its spell changes,
 -- also in combat
+-- (the multicast button in macro mode, attribute ttmacro: the slot casts the macro)
 local SPELL_SOURCE_WRAP = [[
-    if name == (self:GetAttribute("ttspellattr") or "*spell1") then
+    local attr = self:GetAttribute("ttspellattr") or "*spell1"
+    if name == attr or name == "ttmacro" then
         local slot = self:GetFrameRef("ttGamePadSlot")
         if slot and slot:GetAttribute("ttGamePadOverride") == "spell" then
-            slot:SetAttribute("spell", value)
+            local macro = self:GetAttribute("ttmacro")
+            if macro then
+                slot:SetAttribute("type", "macro")
+                slot:SetAttribute("macro", macro)
+            else
+                if slot:GetAttribute("type") == "macro" then slot:SetAttribute("type", "spell") end
+                slot:SetAttribute("macro", nil)
+                slot:SetAttribute("spell", self:GetAttribute(attr))
+            end
         end
     end
 ]]
@@ -67,6 +77,11 @@ local function OverrideSlotWithSource(bar, index, source)
     local attr = GetSpellAttribute(source)
     local slot = OverrideSlot(bar, index, "spell", source:GetAttribute(attr))
     if not slot then return end
+    local macro = source:GetAttribute("ttmacro")
+    if macro then
+        slot:SetAttribute("type", "macro")
+        slot:SetAttribute("macro", macro)
+    end
     -- the attribute the wraps follow and assign (SPELL_SOURCE_WRAP, HOLD_WRAP, WHEEL_ASSIGN)
     source:SetAttribute("ttspellattr", attr)
     SecureHandlerSetFrameRef(source, "ttGamePadSlot", slot)
@@ -87,6 +102,7 @@ local function RestoreSlots()
         slot:SetAttribute("useOnKeyDown", true)
         slot:SetAttribute("spell", nil)
         slot:SetAttribute("clickbutton", nil)
+        slot:SetAttribute("macro", nil)
         slot:SetAttribute("type", "action")
         slot:SetAttribute("typerelease", "actionrelease")
     end

@@ -593,6 +593,20 @@ if LE_EXPANSION_LEVEL_CURRENT == LE_EXPANSION_CLASSIC then
         end,
     }
 
+    TotemTimers.options.args.timers.args.multicastmacro = {
+        order = 7.2,
+        type = "toggle",
+        name = L["TT Cast Macro in Multicast Menu"],
+        desc = L["TT Cast Macro in Multicast Menu desc"],
+        set = function(info, val)
+            TotemTimers.ActiveProfile.MultiCastMacroButton = val
+            TotemTimers.ProcessSetting("MultiCastMacroButton")
+        end,
+        get = function(info)
+            return TotemTimers.ActiveProfile.MultiCastMacroButton
+        end,
+    }
+
     TotemTimers.options.args.timers.args.totemiccall = {
         order = 7.5,
         type = "toggle",

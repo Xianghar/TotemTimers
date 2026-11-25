@@ -518,13 +518,19 @@ function GamePad.UpdateBarIcons()
     -- d-pad: up casts the weapon tracker's enchant (with the remaining time of the main hand's enchant), right the
     -- selected multicast spell, down Totemic Recall, left Totemic Call
     local multiSpell = TotemTimers_MultiSpell
-    local multiSpellID = multiSpell and multiSpell:GetAttribute("active") and multiSpell:GetAttribute("*spell1")
+    local multiSpellActive = multiSpell and multiSpell:GetAttribute("active")
+    local multiSpellID = multiSpellActive and multiSpell:GetAttribute("*spell1")
+    local multiSpellTexture = multiSpellID and C_Spell.GetSpellTexture(multiSpellID)
+    if multiSpellActive and multiSpell:GetAttribute("ttmacro") then
+        -- the TT Cast macro: the spell it casts next
+        multiSpellID = TotemTimers.GetCastMacroSpell()
+        multiSpellTexture = TotemTimers.GetCastMacroTexture()
+    end
     local weapon = TotemTimers.WeaponTracker
     local weaponSpell = weapon and weapon.button:GetAttribute("spell1")
     ShowSlot(bar, OPEN_BUTTON_INDEX, weaponSpell and C_Spell.GetSpellTexture(weaponSpell), weapon, nil, true,
             weaponSpell)
-    ShowSlot(bar, DPAD_RIGHT_INDEX, multiSpellID and C_Spell.GetSpellTexture(multiSpellID), nil, nil, nil,
-            multiSpellID)
+    ShowSlot(bar, DPAD_RIGHT_INDEX, multiSpellTexture, nil, nil, nil, multiSpellID)
     ShowSlot(bar, DPAD_DOWN_INDEX,
             GetAvailableSpellName(SpellIDs.TotemicRecall) and C_Spell.GetSpellTexture(SpellIDs.TotemicRecall),
             nil, nil, nil, SpellIDs.TotemicRecall)

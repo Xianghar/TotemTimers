@@ -1,5 +1,9 @@
 # TotemTimers
 
+## 20.30
+- Added castsequence macro as option for multispell button
+- Fix disabled multispell slots filled on login
+
 ## 20.29
 - Fix for taint when deleting a totem set
 

@@ -119,7 +119,7 @@ local COUNT = [[
     for i = 1, self:GetAttribute("nbuttons" .. m) or 0 do
         local b = self:GetFrameRef("m" .. m .. "b" .. i)
         if not b or b:GetAttribute("inactive")
-                or not (b:GetAttribute("*spell1") or b:GetAttribute("doublespell1")) then
+                or not (b:GetAttribute("*spell1") or b:GetAttribute("doublespell1") or b:GetAttribute("ttmacro")) then
             break
         end
         n = i

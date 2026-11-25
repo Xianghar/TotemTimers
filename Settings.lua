@@ -939,6 +939,13 @@ end
         SettingsFunctions.MultiCast = function(value)
             TotemTimers.MultiSpellActivate()
         end
+
+        -- the TT Cast macro in the multicast menu
+        SettingsFunctions.MultiCastMacroButton = function(value)
+            if TotemTimers_MultiSpell and TotemTimers_MultiSpell.active then
+                TotemTimers.MultiSpellActivate()
+            end
+        end
     end
 
     -- Maelstrom tracker (CombatCDs.lua); settings are applied in any order, so the size lays out again

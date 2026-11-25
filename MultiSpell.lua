@@ -13,6 +13,61 @@ local AvailableSpells = TotemTimers.AvailableSpells
 local SpellIDs = TotemTimers.SpellIDs
 local SpellTextures = TotemTimers.SpellTextures
 
+-- the macro TotemTimers writes (TotemTimers.UpdateMacro): a /castsequence of the timers' totems; option
+-- MultiCastMacroButton adds it to the multicast menu, selected (rightclick, gamepad wheel assign) the multicast button
+-- casts it instead of a multicast spell (attribute ttmacro, *type1 "macro"; *spell1 is nil then, so the timers have no
+-- multicast spell; saved as profile.MultiCastMacro)
+local CAST_MACRO = "TT Cast"
+TotemTimers.CastMacroName = CAST_MACRO
+
+-- the spell the TT Cast macro casts next, nil without the macro
+function TotemTimers.GetCastMacroSpell()
+    local index = GetMacroIndexByName(CAST_MACRO)
+    if not index or index == 0 then return end
+    return GetMacroSpell(index)
+end
+
+-- icon of the macro like the game shows it (question mark icon: the spell it casts next), from the spell it casts
+-- next without one, the question mark without the macro
+function TotemTimers.GetCastMacroTexture()
+    local index = GetMacroIndexByName(CAST_MACRO)
+    if not index or index == 0 then return 134400 end
+    local _, icon = GetMacroInfo(index)
+    if (issecretvalue and issecretvalue(icon)) or icon then return icon end
+    local spell = GetMacroSpell(index)
+    return spell and C_Spell.GetSpellTexture(spell) or 134400
+end
+
+-- the castsequence moves on after a cast (the game's macro buttons follow ACTIONBAR_SLOT_CHANGED) and starts over
+-- after its reset (MacroReset seconds without a cast, combat end): the icons are read again a frame later
+local macroIconFrame = CreateFrame("Frame")
+local macroIconPending = false
+local function RefreshMacroIcons()
+    macroIconPending = false
+    if TotemTimers.UpdateCastMacroIcons then TotemTimers.UpdateCastMacroIcons() end
+end
+local function QueueMacroIconRefresh(delay)
+    if delay then
+        C_Timer.After(delay, RefreshMacroIcons)
+    elseif not macroIconPending then
+        macroIconPending = true
+        C_Timer.After(0, RefreshMacroIcons)
+    end
+end
+macroIconFrame:RegisterEvent("ACTIONBAR_SLOT_CHANGED")
+macroIconFrame:RegisterEvent("UPDATE_MACROS")
+macroIconFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
+macroIconFrame:RegisterUnitEvent("UNIT_SPELLCAST_SUCCEEDED", "player")
+macroIconFrame:SetScript("OnEvent", function(self, event)
+    if not mb then return end
+    QueueMacroIconRefresh()
+    if event == "UNIT_SPELLCAST_SUCCEEDED" then
+        -- the reset of the sequence has no event
+        local reset = TotemTimers.ActiveProfile and TotemTimers.ActiveProfile.MacroReset
+        if reset then QueueMacroIconRefresh(reset + 0.2) end
+    end
+end)
+
 function TotemTimers.CreateMultiCastButtons()
     mb = CreateFrame("Button", "TotemTimers_MultiSpell", UIParent, "ActionButtonTemplate, SecureActionButtonTemplate, SecureHandlerEnterLeaveTemplate, SecureHandlerAttributeTemplate")
     XiTimers.AddSpecialActionBarDriver(mb)
@@ -20,7 +75,8 @@ function TotemTimers.CreateMultiCastButtons()
     mb:SetHeight(36)
     mb:SetScale(32 / 36)
     --mb:SetPoint("CENTER", TotemTimers_MultiSpellFrame, "CENTER")
-    mb.actionBar = TTActionBars:new(3, mb, TotemTimers_MultiSpellFrame, TotemTimersFrame)
+    -- the multicast spells and the TT Cast macro
+    mb.actionBar = TTActionBars:new(4, mb, TotemTimers_MultiSpellFrame, TotemTimersFrame)
     mb.icon = _G["TotemTimers_MultiSpellIcon"]
     mb:Hide()
 
@@ -49,6 +105,10 @@ function TotemTimers.CreateMultiCastButtons()
     mb:SetAttribute("*type*", "spell")
 
     mb.UpdateTexture = function(self)
+        if self:GetAttribute("ttmacro") then
+            self.icon:SetTexture(TotemTimers.GetCastMacroTexture())
+            return
+        end
         local spell = self:GetAttribute("*spell1")
         if spell then
             local texture = C_Spell.GetSpellTexture(spell)
@@ -58,6 +118,12 @@ function TotemTimers.CreateMultiCastButtons()
             TotemTimers.ActiveProfile.LastMultiCastSpell = spell
             -- excluded elements are marked on their timer buttons (UpdateMultiSpellExcluded)
         end
+    end
+
+    -- the macro was selected or deselected (secure, also in combat)
+    mb.MacroModeChanged = function(self, macro)
+        TotemTimers.ActiveProfile.MultiCastMacro = macro and true or nil
+        self:UpdateTexture()
     end
 
     mb.HideTooltip = function(self)
@@ -77,6 +143,8 @@ function TotemTimers.CreateMultiCastButtons()
                                                 else
                                                     self:Hide()
                                                 end
+											  elseif name == "ttmacro" then
+												  self:CallMethod("MacroModeChanged", value)
 											  elseif name:sub(1,8) == "disabled" then
 												self:CallMethod("UpdateTexture")
                                              end]])
@@ -93,6 +161,11 @@ function TotemTimers.CreateMultiCastButtons()
     mb:SetScript("OnEvent", function(self, event)
         if event == "SPELL_UPDATE_COOLDOWN" then
             local spell = self:GetAttribute("*spell1")
+            if self:GetAttribute("ttmacro") then
+                -- the macro's sequence moves on with each cast
+                spell = TotemTimers.GetCastMacroSpell()
+                TotemTimers.UpdateCastMacroIcons()
+            end
             local durObj = spell and C_Spell.GetSpellCooldownDuration(spell)
             if durObj then
                 self.cooldown:SetCooldownFromDurationObject(durObj)
@@ -172,6 +245,7 @@ function TotemTimers.MultiSpellActivate()
         if AvailableSpells[SpellIDs.CallOfElements] then
             if not TotemTimers.ActiveProfile.HideMultiCast then mb:Show() else mb:Hide() end
             TotemTimers.SetMultiCastSpells()
+            TotemTimers.SetMultiCastMacro(TotemTimers.ActiveProfile.MultiCastMacro)
             mb.active = true
             TotemTimers.SetMultiCastConfig()
             mb:SetAttribute("active", true)
@@ -208,6 +282,47 @@ function TotemTimers.SetMultiCastSpells()
             mb.actionBar:AddSpell(spellID)
         end
     end
+    if TotemTimers.ActiveProfile.MultiCastMacroButton then
+        mb.actionBar:AddMacro(CAST_MACRO, TotemTimers.GetCastMacroTexture())
+    end
+end
+
+-- the multicast button casts the TT Cast macro (on, with option MultiCastMacroButton) or its multicast spell; out of
+-- combat
+function TotemTimers.SetMultiCastMacro(on)
+    if InCombatLockdown() then return end
+    on = on and TotemTimers.ActiveProfile.MultiCastMacroButton
+    if on then
+        mb:SetAttribute("*type1", "macro")
+        mb:SetAttribute("*macro1", CAST_MACRO)
+        mb:SetAttribute("ttmacro", CAST_MACRO)
+        mb:SetAttribute("*spell1", nil)
+    elseif mb:GetAttribute("ttmacro") then
+        mb:SetAttribute("ttmacro", nil)
+        mb:SetAttribute("*macro1", nil)
+        mb:SetAttribute("*type1", "spell")
+        mb:SetAttribute("*spell1", TotemTimers.ActiveProfile.LastMultiCastSpell or SpellIDs.CallOfElements)
+    end
+end
+
+-- icons of the macro (menu entry, multicast button in macro mode): the spell it casts next
+local lastMacroTexture
+function TotemTimers.UpdateCastMacroIcons()
+    if not mb then return end
+    local texture = TotemTimers.GetCastMacroTexture()
+    -- a secret texture (in combat) is set every time
+    if issecretvalue and issecretvalue(texture) then
+        lastMacroTexture = nil
+    elseif texture == lastMacroTexture then
+        return
+    else
+        lastMacroTexture = texture
+    end
+    for _, button in ipairs(mb.actionBar.buttons) do
+        if button:GetAttribute("ttmacro") then button.icon:SetTexture(texture) end
+    end
+    -- hooked by the gamepad bar slot (GamePadSlots.lua)
+    if mb:GetAttribute("ttmacro") then mb:UpdateTexture() end
 end
 
 table.insert(TotemTimers.SpellUpdaters, TotemTimers.SetMultiCastSpells)
