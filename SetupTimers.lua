@@ -385,6 +385,10 @@ end
                         or not (TotemTimers_MultiSpell and TotemTimers_MultiSpell.active) then return end
                 local mspell = self:GetAttribute("mspell")
                 if not mspell or self:GetAttribute("mspelldisabled" .. mspell) then return end
+                -- the attribute is only set once UpdateTimerTotem has read the slots (e.g. not yet on login)
+                if TotemTimers.ActiveProfile.DisabledMultiSpells[TotemTimers.Specialization .. mspell .. self.timer.nr] then
+                    return
+                end
                 local action = self:GetAttribute("action" .. mspell)
                 if not action then return end
                 local _, current = GetActionInfo(action)
@@ -960,13 +964,18 @@ function TotemTimers.UpdateTimerTotem(timer)
     for mspell, slot in pairs(slots) do
         button:SetAttribute("action" .. mspell, slot.action)
         button:SetAttribute("mspelldisabled" .. mspell, slot.disabled)
-        if slot.upgrade then
-            SetMultiCastSpell(slot.action, slot.spell)
-        end
         if slot.disabled then
+            -- an excluded slot is never filled and emptied if it holds a totem
+            if slot.spell then
+                SetMultiCastSpell(slot.action, nil)
+                slot.spell = nil
+            end
             -- switching to this multicast spell keeps the timer's totem
             button:SetAttribute("mspell" .. mspell, nil)
         else
+            if slot.upgrade then
+                SetMultiCastSpell(slot.action, slot.spell)
+            end
             if not slot.spell and spell then
                 SetMultiCastSpell(slot.action, spell)
                 slot.spell = spell
