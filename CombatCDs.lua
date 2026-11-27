@@ -452,7 +452,13 @@ local function CooldownEvent(self, event, spellID)
         local info = C_Spell.GetSpellCooldown(spell)
         if not info or not info.isActive then
             self.timer:Stop(1)
-        elseif not info.isOnGCD and not self.timer.timers[1] then
+        elseif info.isOnGCD then
+            -- only the global cooldown is left: the own cooldown ended or was reset during it (an early stop only if
+            -- it would have run longer than the GCD, XiTimers:EarlyStop)
+            if self.timer.timers[1] then
+                self.timer:Stop(1, C_Spell.GetSpellCooldownDuration(spell))
+            end
+        elseif not self.timer.timers[1] then
             local durObj = C_Spell.GetSpellCooldownDuration(spell, true)
             if durObj then
                 self.timer:Start(1, durObj)
