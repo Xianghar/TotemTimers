@@ -1,5 +1,8 @@
 # TotemTimers
 
+## 20.31
+- Added maelstrom to edit mode
+
 ## 20.30
 - Added castsequence macro as option for multispell button
 - Fix disabled multispell slots filled on login

@@ -38,6 +38,14 @@
             <Anchor point="CENTER" relativePoint="CENTER"/>
         </Anchors>
     </Frame>
+
+    <!-- the Maelstrom stack icon above the character (MaelstromIconAtCharacter): the icon's bottom edge at its center -->
+    <Frame name="TotemTimers_MaelstromIconFrame" parent="UIParent" clampedToScreen="true" frameStrata="LOW" movable="true" dontSavePosition="true" hidden="true">
+        <Size x="1" y="1" />
+        <Anchors>
+            <Anchor point="CENTER" relativePoint="CENTER" y="102.4"/>
+        </Anchors>
+    </Frame>
   
   <!-- <Frame name="TotemTimers_CrowdControlFrame" clampedToScreen="true" frameStrata="LOW" movable="true" enableMouse="true" hidden="true">
     <Size x="1" y="1" />

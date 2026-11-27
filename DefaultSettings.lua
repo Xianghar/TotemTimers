@@ -346,6 +346,9 @@ TotemTimers.DefaultProfile = {
             TotemTimers_TrackerFrame = {"BOTTOM", "UIParent", "BOTTOM", -451, 130},
             TotemTimers_EnhanceCDsFrame = {"CENTER", "UIParent", "CENTER", 0, -180},
             TotemTimers_MultiSpellFrame = {"BOTTOM", "UIParent", "BOTTOM", -532, 362},
+            -- bottom edge of the Maelstrom stack icon above the character (MaelstromIconAtCharacter): on the top edge
+            -- of the game's proc graphics frame (204.8 square at the screen center)
+            TotemTimers_MaelstromIconFrame = {"CENTER", "UIParent", "CENTER", 0, 102.4},
             TotemTimers_CastBar1 = {"BOTTOM", "UIParent", "BOTTOM", -532, 398},
             TotemTimers_CastBar2 = {"BOTTOM", "UIParent", "BOTTOM", -532, 434},
             TotemTimers_CastBar3 = {"BOTTOM", "UIParent", "BOTTOM", -532, 470},

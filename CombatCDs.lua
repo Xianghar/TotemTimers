@@ -738,7 +738,8 @@ function TotemTimers.LayoutEnhanceCDs()
     -- MaelstromIconSize scales it (1 = 75% of the bar's width)
     -- option MaelstromIconAtCharacter: the icon above the character instead, where the game shows proc graphics at
     -- the top (SpellActivationOverlay.lua: a 204.8 square frame at the screen center, "Top" overlays 204.8 x 102.4
-    -- (2:1 like the mw textures) on its top edge); MaelstromIconSize scales it there too
+    -- (2:1 like the mw textures) on its top edge); MaelstromIconSize scales it there too. Its bottom edge is at the
+    -- anchor frame TotemTimers_MaelstromIconFrame (default on that top edge), moved in the Edit Mode
     local atCharacter = TotemTimers.ActiveProfile.MaelstromIconAtCharacter
     local iconScale = TotemTimers.ActiveProfile.MaelstromIconSize or 1
     local iconWidth = atCharacter and OVERLAY_LONG_SIDE * iconScale or msWidth * 0.75 * iconScale
@@ -750,7 +751,7 @@ function TotemTimers.LayoutEnhanceCDs()
     -- the icon alone in the place of the bar (not with the icon above the character)
     local iconOnly = maelstromEnabled and GetMaelstromLayout() == "icon" and not atCharacter
     if atCharacter then
-        MaelstromIcon:SetPoint("BOTTOM", UIParent, "CENTER", 0, OVERLAY_LONG_SIDE / 2)
+        MaelstromIcon:SetPoint("BOTTOM", TotemTimers_MaelstromIconFrame, "CENTER")
     elseif not iconOnly then
         MaelstromIcon:SetPoint("BOTTOM", Maelstrom.timerBars[1], "TOP", 0, -iconWidth / 2 * 0.15)
     end

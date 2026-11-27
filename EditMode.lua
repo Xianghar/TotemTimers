@@ -41,6 +41,13 @@ function TotemTimers.GetLayoutPositions(create, layoutName)
         profile.LayoutPositions = profile.LayoutPositions or {}
         local entry = profile.LayoutPositions[layoutName]
         if entry then
+            -- frames added after the entry was created take the profile's position
+            entry.FramePositions = entry.FramePositions or {}
+            for name, pos in pairs(profile.FramePositions or {}) do
+                if not entry.FramePositions[name] then
+                    entry.FramePositions[name] = CopyTable(pos)
+                end
+            end
             return entry
         end
         if create then
@@ -431,6 +438,14 @@ local function EnhanceCDsContent()
     return #frames > 0 and frames
 end
 
+-- the Maelstrom stack icon above the character (MaelstromIconAtCharacter), with its own anchor
+local function MaelstromIconContent()
+    local icon = TotemTimers_MaelstromIcon
+    if icon and icon:IsShown() and TotemTimers.ActiveProfile.MaelstromIconAtCharacter then
+        return { icon }
+    end
+end
+
 -- an always visible menu (MenusAlwaysVisible) anchored to its own frame
 local function MenuContent(anchor)
     return function()
@@ -472,6 +487,7 @@ function TotemTimers.SetupEditMode()
         { TotemTimers_TrackerFrame, L["Trackers"], TrackerContent },
         { TotemTimers_EnhanceCDsFrame, L["Combat Cooldowns"], EnhanceCDsContent },
         { TotemTimers_MultiSpellFrame, L["Multicast Menu"], MenuContent(TotemTimers_MultiSpellFrame) },
+        { TotemTimers_MaelstromIconFrame, L["Maelstrom Icon"], MaelstromIconContent },
     }
     for i = 1, 4 do
         local frame = _G["TotemTimers_CastBar" .. i]

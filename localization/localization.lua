@@ -25,6 +25,7 @@ L["Earth Shield Tracker"] = true
 L["Earth Totem Timer"] = true
 L["Fire Totem Timer"] = true
 L["Multicast Menu"] = true
+L["Maelstrom Icon"] = true
 L["Shield Tracker"] = true
 L["Totem Menu %d"] = true
 L["Totem Timers"] = true
